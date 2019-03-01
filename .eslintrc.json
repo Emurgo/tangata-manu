@@ -1,0 +1,22 @@
+{
+  "extends": "airbnb-base",
+  "parser": "babel-eslint",
+  "plugins": [
+    "flowtype",
+    "mocha"
+  ],
+  "rules": {
+    "flowtype/define-flow-type": 1,
+    "flowtype/type-id-match": [
+      2,
+      "^([A-Z][a-z0-9]+)+Type$"
+    ],
+    "arrow-parens": "off",
+    "function-paren-newline": "off",
+    "no-extra-semi": "error",
+    "semi": ["error", "never"]
+  },
+  "env": {
+    "mocha": true
+  }
+}
