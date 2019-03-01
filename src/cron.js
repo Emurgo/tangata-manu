@@ -20,11 +20,9 @@ export class YoroiBaseJob {
   start() {
     this.job.start()
   }
-
 }
 
 export class CheckBlockchainTipJob extends YoroiBaseJob {
-
   async onTick() {
     /*  Check blockchain tip block and store it to database if it is not yet stored.
     */

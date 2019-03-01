@@ -17,6 +17,6 @@
     "semi": ["error", "never"]
   },
   "env": {
-    "mocha": true
+    "jest": true
   }
 }
