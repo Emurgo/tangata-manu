@@ -1,0 +1,13 @@
+{
+  "db": {
+    "user": "postgres",
+    "host": "localhost",
+    "database": "yoroi_blockchain_importer",
+    "password": "mysecretpassword",
+    "port": 5432,
+    "min": 4,
+    "max": 20,
+    "idleTimeoutMillis": 1000,
+    "connectionTimeoutMillis": 5000
+  }
+}

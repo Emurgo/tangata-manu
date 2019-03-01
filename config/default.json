@@ -1,0 +1,20 @@
+{
+  "appName": "yoroi-importer",
+  "cardanoBridge": {
+    "baseUrl": "http://localhost:8082",
+    "template": "testnet"
+  },
+  "server": {
+    "port": 8080,
+    "logLevel": "debug",
+    "logRequests": "true",
+    "apiConfig": {
+      "addressesRequestLimit": 50,
+      "txsHashesRequestLimit": 150,
+      "txHistoryResponseLimit": 20,
+      "txHistoryV2ResponseLimit": 50,
+      "minimumTimeImporterHealthCheck": 90000
+    }
+  },
+  "checkTipCronTime": "*/3 * * * * *"
+}

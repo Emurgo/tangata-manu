@@ -1,0 +1,54 @@
+{
+  "name": "yoroi-importer",
+  "version": "0.0.1",
+  "description": "Yoroi importer",
+  "main": "index.js",
+  "scripts": {
+    "migrate": "node-pg-migrate",
+    "build": "babel src -d dist",
+    "eslint": "eslint --ignore-path .gitignore src",
+    "dev": "rimraf ./dist && yarn run build && export NODE_ENV=develop && nodemon ./src/index.js --exec babel-node | bunyan",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Emurgo/yoroi-importer.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Emurgo/yoroi-importer/issues"
+  },
+  "homepage": "https://github.com/Emurgo/yoroi-importer#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.2.3",
+    "@babel/core": "^7.3.4",
+    "@babel/node": "^7.2.2",
+    "@babel/preset-env": "^7.3.4",
+    "babel-eslint": "^10.0.1",
+    "babel-jest": "^24.1.0",
+    "babel-preset-flow": "^6.23.0",
+    "eslint": "^5.14.1",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-flowtype": "^3.4.2",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-mocha": "^5.3.0",
+    "flow-bin": "^0.93.0",
+    "jest": "^24.1.0",
+    "nodemon": "^1.18.10",
+    "rimraf": "^2.6.3"
+  },
+  "dependencies": {
+    "@babel/polyfill": "^7.2.5",
+    "axios": "^0.18.0",
+    "bunyan": "^1.8.12",
+    "config": "^3.0.1",
+    "cron": "^1.6.0",
+    "node-pg-migrate": "^3.16.1",
+    "pg": "^7.8.1",
+    "restify": "^8.0.0",
+    "restify-cors-middleware": "^1.1.1",
+    "restify-errors": "^6.1.1",
+    "url-join": "^4.0.0"
+  }
+}
