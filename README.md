@@ -36,6 +36,6 @@ create database yoroi_blockchain_importer;
 1.  Start the app, `yarn run dev`.
 
 
-## Create database schama migration
-We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrations. Migrations are located in `migrations/` folder. To create new one execute:
+## Create database schema migration
+We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrations. Migrations are located in `migrations/` folder. To create e new one, execute:
 1.  `yarn run migrate create <short> <description>`
