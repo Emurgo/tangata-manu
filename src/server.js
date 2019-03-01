@@ -1,3 +1,5 @@
+// @flow
+
 import restify from 'restify'
 import config from 'config'
 
