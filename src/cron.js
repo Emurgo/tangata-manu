@@ -1,3 +1,5 @@
+// @flow
+
 import crypto from 'crypto'
 import cron from 'cron'
 

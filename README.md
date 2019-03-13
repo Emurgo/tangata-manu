@@ -39,3 +39,11 @@ create database yoroi_blockchain_importer;
 ## Create database schema migration
 We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrations. Migrations are located in `migrations/` folder. To create e new one, execute:
 1.  `yarn run migrate create <short> <description>`
+
+# Run development environment
+
+1. Start postgres, `docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres`
+1. Go to `cardano-http-bridge` directory, `cd cardano-http-bridge`
+1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=testnet`
+1. Go to `yoroi-importer` directory, `cd yoroi-importer`
+1. Start the app, `yarn run dev`.
