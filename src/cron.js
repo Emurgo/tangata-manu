@@ -7,7 +7,11 @@ import Q from './db-queries'
 
 /* eslint class-methods-use-this: ["error", { "exceptMethods": ["onTick"] }] */
 export class YoroiBaseJob {
-  constructor(config) {
+  context: any
+
+  job: any
+
+  constructor(config: any) {
     this.context = { ...config.context }
     this.job = new cron.CronJob({
       ...config,
