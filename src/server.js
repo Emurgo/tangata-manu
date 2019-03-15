@@ -6,15 +6,16 @@ import config from 'config'
 import consoleLogger from './logger'
 import createDb from './db'
 import { CheckBlockchainTipJob } from './cron'
-import CardanoBridgeApi from './cardano-bridge-api'
+import { RawDataProvider } from './interfaces'
+import SERVICE_IDENTIFIER from './constants/identifiers'
+import container from './ioc_config'
 
 
 const serverConfig = config.get('server')
-const cardanoBridgeConfig = config.get('cardanoBridge')
 
 const logger = consoleLogger(config.get('appName'), serverConfig.logLevel)
-const api = new CardanoBridgeApi(cardanoBridgeConfig.baseUrl,
-  cardanoBridgeConfig.template)
+
+const dataProvider = container.get<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
 
 const hello = (req, res, next) => {
   res.send(`hello ${req.params.name}`)
@@ -29,7 +30,7 @@ const startServer = async () => {
 
   const checkBlockchainTipJob = new CheckBlockchainTipJob({
     cronTime: config.get('checkTipCronTime'),
-    context: { db, logger, api },
+    context: { db, logger, dataProvider },
   })
   checkBlockchainTipJob.start()
   server.listen(serverConfig.port, () => {

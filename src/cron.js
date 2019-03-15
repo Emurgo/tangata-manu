@@ -32,8 +32,8 @@ export class CheckBlockchainTipJob extends YoroiBaseJob {
   async onTick() {
     /*  Check blockchain tip block and store it to database if it is not yet stored.
     */
-    const { db, logger, api } = this.context
-    const tip = await api.getTip()
+    const { db, logger, dataProvider } = this.context
+    const tip = await dataProvider.getTip()
     const blockHash = crypto.createHash('md5')
     const hexHash = blockHash.update(tip.data).digest('hex')
     const dbRes = await db.query(Q.upsertBlockHash, [hexHash])
