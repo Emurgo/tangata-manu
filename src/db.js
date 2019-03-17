@@ -1,8 +1,18 @@
 // @flow
-
+import { AsyncContainerModule, interfaces } from 'inversify'
 import pg from 'pg'
 import type { PgPoolConfig, Pool } from 'pg'
+import config from 'config'
+
+
+import { DBConnection } from './interfaces'
+import SERVICE_IDENTIFIER from './constants/identifiers'
 
 const createDb = async (dbSettings: PgPoolConfig): Pool => (new pg.Pool(dbSettings))
 
-export default createDb
+const dbModule = new AsyncContainerModule(async (bind: interfaces.Bind) => {
+  const dbConn = await createDb(config.get('db'))
+  bind<DBConnection>(SERVICE_IDENTIFIER.DB_CONNECTION).toConstantValue(dbConn)
+})
+
+export default dbModule

@@ -39,7 +39,7 @@ class CardanoBridgeApi implements RawDataProvider {
     return resp
   }
 
-  async getEpochById(id) {
+  async getEpochById(id: number) {
     const resp = await this.get(`/epoch/${id}`)
     return resp
   }
