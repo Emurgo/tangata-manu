@@ -5,8 +5,8 @@ import type { PgPoolConfig, Pool } from 'pg'
 import config from 'config'
 
 
-import { DBConnection } from './interfaces'
-import SERVICE_IDENTIFIER from './constants/identifiers'
+import { DBConnection } from '../interfaces'
+import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 const createDb = async (dbSettings: PgPoolConfig): Pool => (new pg.Pool(dbSettings))
 

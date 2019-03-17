@@ -4,8 +4,8 @@ import { ContainerModule, interfaces } from 'inversify'
 import BLogger from 'bunyan'
 import config from 'config'
 
-import { Logger } from './interfaces'
-import SERVICE_IDENTIFIER from './constants/identifiers'
+import { Logger } from '../interfaces'
+import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 /* eslint new-cap: ["error", { "newIsCap": false }] */
 const consoleLogger = (appName, level = 'debug') => new BLogger.createLogger({

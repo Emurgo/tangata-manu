@@ -9,14 +9,14 @@ import {
   CustomDataParser,
   CronScheduler,
   DB,
-} from './entities'
+} from '../entities'
 import {
   RawDataProvider,
   RawDataParser,
   Scheduler,
   Database,
-} from './interfaces'
-import SERVICE_IDENTIFIER from './constants/identifiers'
+} from '../interfaces'
+import SERVICE_IDENTIFIER from '../constants/identifiers'
 import dbModule from './db'
 import loggerModule from './logger'
 
