@@ -32,7 +32,7 @@ create database yoroi_blockchain_importer;
 1.  Select correct NodeJs version, `nvm use`
 1.  Install dependencies, `yarn install`
 1.  Run tests, `yarn test`
-1.  Init database schema, `DATABASE_URL=postgres://postgres:mysecretpassword@localhost:5432/yoroi_blockchain_importer yarn run migrate up`
+1.  Init database schema, `yarn run migrate up`
 1.  Start the app, `yarn run dev`.
 
 

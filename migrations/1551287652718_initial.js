@@ -1,4 +1,4 @@
-exports.shorthands = undefined;
+exports.shorthands = undefined
 
 exports.up = (pgm) => {
     pgm.createTable("users", {
@@ -9,9 +9,9 @@ exports.up = (pgm) => {
           notNull: true,
           default: pgm.func("current_timestamp")
         }
-      });
-};
+      })
+}
 
 exports.down = (pgm) => {
 
-};
+}

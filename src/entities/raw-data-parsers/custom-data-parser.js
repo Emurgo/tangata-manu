@@ -1,5 +1,4 @@
 // @flow
-
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import { RawDataParser } from '../../interfaces'

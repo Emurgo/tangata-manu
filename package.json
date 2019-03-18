@@ -4,7 +4,7 @@
   "description": "Yoroi importer",
   "main": "index.js",
   "scripts": {
-    "migrate": "node-pg-migrate",
+    "migrate": "NODE_ENV=develop node-pg-migrate",
     "build": "babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
     "dev": "rimraf ./dist && yarn run build && export NODE_ENV=develop && nodemon ./src/index.js --exec babel-node | bunyan",
@@ -46,6 +46,7 @@
     "@babel/polyfill": "^7.2.5",
     "axios": "^0.18.0",
     "bunyan": "^1.8.12",
+    "cbor": "^4.1.5",
     "config": "^3.0.1",
     "cron": "^1.6.0",
     "inversify": "^5.0.1",
