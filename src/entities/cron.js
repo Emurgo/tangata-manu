@@ -9,6 +9,7 @@ import {
   RawDataProvider,
   Database,
   Logger,
+  RawDataParser,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
@@ -19,17 +20,21 @@ class CronScheduler implements Scheduler {
 
   #dataProvider: any
 
+  #dataParser: any
+
   #db: any
 
   #logger: any
 
   constructor(
     dataProvider: RawDataProvider,
+    dataParser: RawDataParser,
     checkTipCronTime: string,
     db: Database,
     logger: Logger,
   ) {
     this.#dataProvider = dataProvider
+    this.#dataParser = dataParser
     this.#job = new cron.CronJob({
       cronTime: checkTipCronTime,
       onTick: () => {
@@ -45,6 +50,7 @@ class CronScheduler implements Scheduler {
     const tip = await this.#dataProvider.getTip()
     const blockHash = crypto.createHash('md5')
     const hexHash = blockHash.update(tip.data).digest('hex')
+    const parsedTip = this.#dataParser.parse(tip.data)
     const dbRes = await db.query(Q.upsertBlockHash, [hexHash])
     this.#logger.info(dbRes.rowCount > 0 ? 'New block added' : 'DB is up-to-date')
   }
@@ -57,6 +63,7 @@ class CronScheduler implements Scheduler {
 helpers.annotate(CronScheduler,
   [
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
+    SERVICE_IDENTIFIER.RAW_DATA_PARSER,
     'checkTipCronTime',
     SERVICE_IDENTIFIER.DATABASE,
     SERVICE_IDENTIFIER.LOGGER,
