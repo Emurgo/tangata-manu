@@ -34,6 +34,7 @@ class CronScheduler implements Scheduler {
   ) {
     this.#dataProvider = dataProvider
     this.#dataParser = dataParser
+    logger.debug('Cron time', checkTipCronTime)
     this.#job = new cron.CronJob({
       cronTime: checkTipCronTime,
       onTick: () => {
@@ -46,7 +47,7 @@ class CronScheduler implements Scheduler {
 
   async onTick() {
     // const db = await this.#db.getConn()
-    const data = await this.#dataProvider.getEpoch(3)
+    const data = await this.#dataProvider.getEpoch(8)
     const epochParsed = this.#dataParser.parseEpoch(data)
     // const dbRes = await db.query(Q.upsertBlockHash, [hexHash])
     // this.#logger.info(dbRes.rowCount > 0 ? 'New block added' : 'DB is up-to-date')

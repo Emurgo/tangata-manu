@@ -16,5 +16,5 @@
       "minimumTimeImporterHealthCheck": 90000
     }
   },
-  "checkTipCronTime": "*/50 * * * * *"
+  "checkTipCronTime": "0 */2 * * * *"
 }

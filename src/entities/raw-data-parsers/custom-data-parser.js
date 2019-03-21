@@ -6,6 +6,8 @@ import cbor from 'borc'
 import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
+const cborDecode = cbor.decode
+
 class CustomDataParser implements RawDataParser {
   #logger: any
 
@@ -15,48 +17,38 @@ class CustomDataParser implements RawDataParser {
     this.#logger = logger
   }
 
-  getNextBlock(blocksList: ArrayBuffer, offset: number): [any, number] {
-    const blockSize = new DataView(blocksList).getUint32(0, false)
-    const blob = blocksList.slice(4, blockSize+4)
-    const blobBytes = new Uint8Array(blob)
-    this.#logger.debug('blockSize', blob.byteLength, blockSize, blobBytes[0], blobBytes[blockSize-1])
+  // eslint-disable-next-line class-methods-use-this
+  getBlockData(blocksList, offset) {
+    const blockSize = new DataView(blocksList, offset).getUint32(0, false)
+    const blob = blocksList.slice(offset + 4, offset + blockSize + 4)
+    return [blockSize, new Uint8Array(blob)]
+  }
 
-    const [blockType, [header, body]] = cbor.decode(blobBytes)
-    this.#logger.debug('bt', blockType)
-    /*const block = {}
-    const nextBlockOffset = blockSize + dataOffset
-    return [block, nextBlockOffset]*/
+  getNextBlock(blocksList: ArrayBuffer, offset: number) {
+    const [blockSize, blob] = this.getBlockData(blocksList, offset)
+    const [blockType, [header, body]] = cborDecode(blob)
+    const block = {
+      type: blockType,
+    }
+    const bytesToAllign = blockSize % 4
+    const nextBlockOffset = blockSize
+      + 4 // block size field
+      + (bytesToAllign && (4 - bytesToAllign))
+    return [block, offset + nextBlockOffset]
   }
 
 
   handleEpoch(data: ArrayBuffer) {
-    let epochData = data
-    epochData = epochData.slice(16) // header
-    const epochDataArray = new Uint8Array(epochData)
+    const blocksList = data.slice(16) // header
+    const nextBlock = (offset: number) => this.getNextBlock(blocksList, offset)
 
-    const blockData = this.getNextBlock(epochData, 0)
-    
-    //for (let nextBlockOffset = 0; nextBlockOffset < blocksList.byteLength;) {
-   //   const blockData = this.getNextBlock(blocksList, nextBlockOffset)
-    //  nextBlockOffset = blockData[1]
-    //}
-
-    /*
-    if (magic !== '\xfeCARDANO') {
-      throw new Error('Unexpected magic! ' + magic);
+    this.#logger.debug('Start to parse epoch')
+    for (
+      let [block, offset] = nextBlock(0);
+      offset < blocksList.byteLength;
+      [block, offset] = nextBlock(offset)) {
     }
-    const fileType = Buffer.from(getBytes(4)).toString('hex');
-    if (fileType !== '5041434b') {
-      throw new Error('Unexpected pack file type! ' + fileType);
-    }
-    const fileVersion = getInt32();
-    if (fileVersion !== 1) {
-      throw new Error('Unexpected pack file version! ' + JSON.stringify(fileVersion));
-    }
-    while (arr.length > 0) {
-      callback(handleBlock(getBlob()))
-    } */
-    this.#logger.debug('handleEpoc:')
+    this.#logger.debug('Epoch parsed')
   }
 
   parseBlock(data: string) {
