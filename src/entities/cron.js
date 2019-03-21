@@ -1,5 +1,4 @@
 // @flow
-import crypto from 'crypto'
 import cron from 'cron'
 
 import { helpers } from 'inversify-vanillajs-helpers'
@@ -46,13 +45,11 @@ class CronScheduler implements Scheduler {
   }
 
   async onTick() {
-    const db = await this.#db.getConn()
-    const tip = await this.#dataProvider.getTip()
-    const blockHash = crypto.createHash('md5')
-    const hexHash = blockHash.update(tip.data).digest('hex')
-    const parsedTip = this.#dataParser.parse(tip.data)
-    const dbRes = await db.query(Q.upsertBlockHash, [hexHash])
-    this.#logger.info(dbRes.rowCount > 0 ? 'New block added' : 'DB is up-to-date')
+    // const db = await this.#db.getConn()
+    const data = await this.#dataProvider.getEpoch(3)
+    const epochParsed = this.#dataParser.parseEpoch(data)
+    // const dbRes = await db.query(Q.upsertBlockHash, [hexHash])
+    // this.#logger.info(dbRes.rowCount > 0 ? 'New block added' : 'DB is up-to-date')
   }
 
   start() {
