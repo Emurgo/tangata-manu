@@ -1,12 +1,66 @@
 // @flow
-import util from 'util'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import cbor from 'borc'
+import bs58 from 'bs58'
+import blake from 'blakejs'
+
 import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 const cborDecode = cbor.decode
+
+function decodedTxToBase(decodedTx) {
+  if (Array.isArray(decodedTx)) {
+    // eslint-disable-next-line default-case
+    switch (decodedTx.length) {
+      case 2: {
+        const signed = decodedTx
+        return signed[0]
+      }
+      case 3: {
+        const base = decodedTx
+        return base
+      }
+    }
+  }
+  throw new Error('Unexpected decoded tx structure! ' + JSON.stringify(decodedTx));
+}
+
+class CborIndefiniteLengthArray {
+  constructor(elements) {
+    this.elements = elements
+  }
+
+  encodeCBOR(encoder) {
+    return encoder.push(
+      Buffer.concat([
+        Buffer.from([0x9f]), // indefinite array prefix
+        ...this.elements.map((e) => cbor.encode(e)),
+        Buffer.from([0xff]), // end of array
+      ]),
+    )
+  }
+}
+
+
+function rustRawTxToId(rustTxBody) {
+  if (!rustTxBody) {
+    throw new Error('Cannot decode inputs from undefined transaction!');
+  }
+  try {
+    const [inputs, outputs, attributes] =
+      decodedTxToBase(cbor.decode(Buffer.from(rustTxBody)));
+    const enc = cbor.encode([
+      new CborIndefiniteLengthArray(inputs),
+      new CborIndefiniteLengthArray(outputs),
+      attributes
+    ]);
+    return blake.blake2bHex(enc, null, 32)
+  } catch (e) {
+    throw new Error('Failed to convert raw transaction to ID! ' + JSON.stringify(e));
+  }
+}
 
 class CustomDataParser implements RawDataParser {
   #logger: any
@@ -17,8 +71,7 @@ class CustomDataParser implements RawDataParser {
     this.#logger = logger
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  getBlockData(blocksList, offset) {
+  getBlockData(blocksList: any, offset: number) {
     const blockSize = new DataView(blocksList, offset).getUint32(0, false)
     const blob = blocksList.slice(offset + 4, offset + blockSize + 4)
     return [blockSize, new Uint8Array(blob)]
@@ -26,10 +79,8 @@ class CustomDataParser implements RawDataParser {
 
   getNextBlock(blocksList: ArrayBuffer, offset: number) {
     const [blockSize, blob] = this.getBlockData(blocksList, offset)
-    const [blockType, [header, body]] = cborDecode(blob)
-    const block = {
-      type: blockType,
-    }
+    const [type, [header, body]] = cborDecode(blob)
+    const block = this.handleBlock(type, header, body)
     const bytesToAllign = blockSize % 4
     const nextBlockOffset = blockSize
       + 4 // block size field
@@ -37,52 +88,94 @@ class CustomDataParser implements RawDataParser {
     return [block, offset + nextBlockOffset]
   }
 
+  headerToId(header, type: number) {
+    const headerData = cbor.encode([type, header])
+    const id = blake.blake2bHex(headerData, null, 32)
+    return id
+  }
+
+  handleBlock(type, header, body) {
+    const hash = this.headerToId(header, type)
+    const common = {
+      hash,
+      magic: header[0],
+      prev: header[1].toString('hex'),
+    }
+    switch (type) {
+      case 0: return { ...common, ...this.handleGenesisBlock(header) }
+      case 1: return {
+        ...common,
+        ...this.handleRegularBlock(header, body),
+      }
+      default:
+        throw new Error(`Unexpected block type! ${type}`)
+    }
+  }
+
+  handleGenesisBlock(header) {
+    const [epoch, [chainDifficulty]] = header[3]
+    this.#logger.debug('hgb', epoch)
+    return {
+      epoch,
+      height: chainDifficulty,
+      isGenesis: true,
+    }
+  }
+
+  handleRegularBlock(header, body) {
+    const consensus = header[3]
+    const [epoch, slot] = consensus[0]
+    const [chainDifficulty] = consensus[2]
+    const txs = body[0]
+    const [upd1, upd2] = body[3]
+    if (txs.length > 0) {
+      this.#logger.debug('hrb', epoch, slot, chainDifficulty, txs.length)
+    }
+    const res = {
+      slot: [epoch, slot],
+      height: chainDifficulty,
+      txs: txs.map(tx => {
+        const [[inputs, outputs], witnesses] = tx
+        return {
+          id: rustRawTxToId(cbor.encode(tx)),
+          inputs: inputs.map(inp => {
+            const [type, tagged] = inp
+            const [txId, idx] = cbor.decode(tagged.value)
+            return { type, txId: txId.toString('hex'), idx }
+          }),
+          outputs: outputs.map(out => {
+            const [address, value] = out
+            return { address: bs58.encode(cbor.encode(address)), value }
+          }),
+          witnesses: witnesses.map(w => {
+            const [type, tagged] = w
+            return { type, sign: cbor.decode(tagged.value) }
+          }),
+        }
+      }),
+    }
+    return (upd1.length || upd2.length) ? { ...res, upd: [upd1, upd2] } : res
+  }
 
   handleEpoch(data: ArrayBuffer) {
     const blocksList = data.slice(16) // header
     const nextBlock = (offset: number) => this.getNextBlock(blocksList, offset)
+    const blocks = []
 
     this.#logger.debug('Start to parse epoch')
     for (
       let [block, offset] = nextBlock(0);
       offset < blocksList.byteLength;
       [block, offset] = nextBlock(offset)) {
+      blocks.push(block)
     }
     this.#logger.debug('Epoch parsed')
+    return blocks
   }
 
   parseBlock(data: string) {
     const block = {}
     return block
-  }
-
-  handleEpoch2(buffer: string) {
-    this.#logger.debug('handleEpoch2')
-    const arr = buffer
-    const getBytes = n => arr.splice(0, n)
-    const getInt32 = () => getBytes(4).reduce((a, x, i) => a + (x << ((3 - i) * 8)), 0)
-    const getBlob = () => {
-      const len = getInt32()
-      const blob = Buffer.from(getBytes(len))
-      if (len % 4 > 0) {
-        getBytes(4 - (len % 4)) // remove the padding
-      }
-      return blob
-    }
-    const magic = String.fromCharCode(...getBytes(8))
-    console.log('cardano', magic)
-    const fileType = Buffer.from(getBytes(4)).toString('hex')
-    if (fileType !== '5041434b') {
-      throw new Error('Unexpected pack file type! ' + fileType)
-    }
-    const fileVersion = getInt32()
-    if (fileVersion !== 1) {
-      throw new Error('Unexpected pack file version! ' + JSON.stringify(fileVersion))
-    }
-    while (arr.length > 0) {
-      console.log('arr.length')
-      this.handleBlock2(getBlob())
-    }
   }
 
 

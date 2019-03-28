@@ -46,11 +46,17 @@ class CronScheduler implements Scheduler {
   }
 
   async onTick() {
-    // const db = await this.#db.getConn()
-    const data = await this.#dataProvider.getEpoch(8)
+    const epoch = 3
+
+    this.#logger.debug('Retrieving epoch', epoch)
+    const data = await this.#dataProvider.getEpoch(epoch)
+
+    this.#logger.debug('Parsing blocks in epoch', epoch)
     const epochParsed = this.#dataParser.parseEpoch(data)
-    // const dbRes = await db.query(Q.upsertBlockHash, [hexHash])
-    // this.#logger.info(dbRes.rowCount > 0 ? 'New block added' : 'DB is up-to-date')
+
+    this.#logger.debug('Store transactions in epoch', epoch)
+    const dbRes = await this.#db.storeEpoch(epochParsed)
+    this.#logger.debug('Epoch stored with status', dbRes)
   }
 
   start() {
