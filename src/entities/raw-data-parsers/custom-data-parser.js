@@ -173,7 +173,8 @@ class CustomDataParser implements RawDataParser {
     return blocks
   }
 
-  parseBlock(data: string) {
+  parseBlock(blob: Buffer) {
+    const [type, [header, body]] = cborDecode(blob)
     const block = {}
     return block
   }

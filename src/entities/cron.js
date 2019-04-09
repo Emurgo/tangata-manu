@@ -46,6 +46,22 @@ class CronScheduler implements Scheduler {
   }
 
   async onTick() {
+    // local state
+    const bestBlockNum = await this.#db.getBestBlockNum()
+    const nextBlock = bestBlockNum + 1
+
+    // cardano-http-bridge state
+
+    // get next block
+    const block = await this.#dataProvider.getBlockByHeight(nextBlock)
+    // check status of next block
+    if (!block) {
+      return
+    }
+    const dbRes = await this.#db.storeBlock(block)
+    this.#logger.debug(dbRes)
+    // process bestBlockNum + 1
+    /*
     const epoch = 3
 
     this.#logger.debug('Retrieving epoch', epoch)
@@ -57,6 +73,7 @@ class CronScheduler implements Scheduler {
     this.#logger.debug('Store transactions in epoch', epoch)
     const dbRes = await this.#db.storeEpoch(epochParsed)
     this.#logger.debug('Epoch stored with status', dbRes)
+    */
   }
 
   start() {

@@ -46,7 +46,9 @@
   },
   "dependencies": {
     "@babel/polyfill": "^7.2.5",
+    "async": "^2.6.2",
     "axios": "^0.18.0",
+    "base64url": "^3.0.1",
     "blakejs": "^1.1.0",
     "borc": "^2.1.0",
     "bs58": "^4.0.1",

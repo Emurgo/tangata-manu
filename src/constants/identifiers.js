@@ -7,6 +7,7 @@ const SERVICE_IDENTIFIER = {
   DATABASE: Symbol.for('Database'),
   DB_CONNECTION: Symbol.for('DBConnection'),
   LOGGER: Symbol.for('Logger'),
+  GENESIS: Symbol.for('Genesis'),
 }
 
 export default SERVICE_IDENTIFIER
