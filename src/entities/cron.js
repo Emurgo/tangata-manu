@@ -2,6 +2,7 @@
 import cron from 'cron'
 
 import { helpers } from 'inversify-vanillajs-helpers'
+import queue from 'async/queue'
 
 import {
   Scheduler,
@@ -11,8 +12,6 @@ import {
   RawDataParser,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-
-import Q from '../db-queries'
 
 class CronScheduler implements Scheduler {
   #job: any
@@ -24,6 +23,8 @@ class CronScheduler implements Scheduler {
   #db: any
 
   #logger: any
+
+  #blockProcessQueue: any
 
   constructor(
     dataProvider: RawDataProvider,
@@ -43,23 +44,48 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
+    this.#blockProcessQueue = queue(async ({ height }, cb) => {
+      await this.processBlock(height)
+      this.#logger.debug(`Processing block ${height}`)
+      cb()
+    })
+  }
+
+  async processBlock(height: number) {
   }
 
   async onTick() {
     // local state
     const bestBlockNum = await this.#db.getBestBlockNum()
-    const nextBlock = bestBlockNum + 1
+    // const lastBlock = await this.#db.getLastBlock()
+    const block = await this.#db.getBlock(bestBlockNum)
+
+    // cardano-http-bridge state
+    const tipStatus = (await this.#dataProvider.getStatus()).tip.local
+    this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
+
+    for (let { height } = block, i = 0; height <= tipStatus.height && i < 500; height++, i++) {
+      this.#blockProcessQueue.push({ height })
+    }
+
+    //if (lastBlock.older())
+    // const nextBlock = bestBlockNum + 1
 
     // cardano-http-bridge state
 
+    /*
     // get next block
     const block = await this.#dataProvider.getBlockByHeight(nextBlock)
     // check status of next block
-    if (!block) {
-      return
-    }
+    if (!block) return
+
     const dbRes = await this.#db.storeBlock(block)
     this.#logger.debug(dbRes)
+    */
+
+    // check difference.
+    // 1 get last processed block.
+    // 2 get it
     // process bestBlockNum + 1
     /*
     const epoch = 3

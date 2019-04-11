@@ -3,6 +3,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 
 import { Database, DBConnection } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
+import Block from '../blockchain'
 
 class DB implements Database {
   #conn: any
@@ -17,6 +18,18 @@ class DB implements Database {
   Q = {
     get_best_block_num: `
       SELECT best_block_num FROM bestblock
+    `,
+    get_newest_block: `
+      SELECT *
+      FROM blocks
+      ORDER BY
+        height DESC,
+      LIMIT 1
+    `,
+    get_block_by_height: `
+      SELECT *
+      FROM blocks
+      WHERE block_height = $1
     `,
   }
 
@@ -39,9 +52,17 @@ class DB implements Database {
     return blockNum
   }
 
+  async getBlock(height: number) {
+    const conn = this.getConn()
+    const dbRes = await conn.query(this.Q.get_block_by_height, [height])
+    if (dbRes.rowCount === 0) {
+      return new Block(0, 0, 0, 0)
+    }
+    const block = new Block()
+  }
+
   async storeUtxoAddr(addr, amount) {
     const conn = this.getConn()
-    console.log('Insert', addr, amount)
     const dbRes = await conn.query(this.UPSERT_UTXOS_ADDR_BALANCE, [addr, parseInt(amount)])
     console.log('Insert', dbRes)
   }
@@ -59,6 +80,13 @@ class DB implements Database {
       console.log('Storing transaction', tx)
       await this.upsertTxAddresses(tx)
     }
+  }
+
+  async getLastBlock() {
+    const conn = this.getConn()
+    const dbRes = await conn.query(this.Q.get_newest_block)
+    if (dbRes.rowCount === 0) return new Block(0, 0, 0, 0)
+    return dbRes
   }
 
   async storeEpoch(epoch) {
