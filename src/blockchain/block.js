@@ -1,6 +1,6 @@
 // flow
 export default class Block {
-  blockHash: number
+  hash: number
 
   slot: number
 
@@ -8,10 +8,16 @@ export default class Block {
 
   height: number
 
-  constructor(blockHash, slot, epoch, height) {
-    this.blockHash = blockHash
+  constructor({
+    hash, slot, epoch, height,
+  }) {
+    this.hash = hash
     this.slot = slot
     this.epoch = epoch
     this.height = height
+  }
+
+  toArray() {
+    return [this.hash, this.epoch, this.slot, this.height]
   }
 }

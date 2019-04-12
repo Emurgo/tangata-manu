@@ -8,10 +8,6 @@ import Block from '../blockchain'
 class DB implements Database {
   #conn: any
 
-  UPSERT_UTXOS_ADDR_BALANCE = `
-    INSERT INTO utxos(receiver, amount) VALUES($1, $2)
-  `
-
   UPSERT_TX_ADDESSES = `
   `
 
@@ -30,6 +26,19 @@ class DB implements Database {
       SELECT *
       FROM blocks
       WHERE block_height = $1
+    `,
+    update_best_block_num: `
+      UPDATE bestblock
+      SET best_block_num = $1
+    `,
+    upsert_block: `
+      INSERT INTO blocks(block_hash, epoch, slot, block_height)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (block_hash)
+      DO UPDATE SET
+        epoch = EXCLUDED.epoch,
+        slot = EXCLUDED.slot,
+        block_height = EXCLUDED.block_height
     `,
   }
 
@@ -52,20 +61,23 @@ class DB implements Database {
     return blockNum
   }
 
+  async updateBestBlockNum(bestBlockNum: number) {
+    const conn = this.getConn()
+    const dbRes = await conn.query(this.Q.update_best_block_num, [bestBlockNum])
+  }
+
   async getBlock(height: number) {
     const conn = this.getConn()
     const dbRes = await conn.query(this.Q.get_block_by_height, [height])
     if (dbRes.rowCount === 0) {
-      return new Block(0, 0, 0, 0)
+      return new Block({
+        hash: 0, slot: 0, epoch: 0, height: 0,
+      })
     }
     const block = new Block()
+    return block
   }
 
-  async storeUtxoAddr(addr, amount) {
-    const conn = this.getConn()
-    const dbRes = await conn.query(this.UPSERT_UTXOS_ADDR_BALANCE, [addr, parseInt(amount)])
-    console.log('Insert', dbRes)
-  }
 
   async upsertTxAddresses(tx) {
     const txHash = tx.id
@@ -75,20 +87,16 @@ class DB implements Database {
 
   async storeBlock(block) {
     const conn = this.getConn()
-    const txs = block.txs || []
-    for (const tx of txs) {
-      console.log('Storing transaction', tx)
-      await this.upsertTxAddresses(tx)
-    }
+    const dbRes = await conn.query(this.Q.upsert_block, block.toArray())
   }
-
+/*
   async getLastBlock() {
     const conn = this.getConn()
     const dbRes = await conn.query(this.Q.get_newest_block)
     if (dbRes.rowCount === 0) return new Block(0, 0, 0, 0)
     return dbRes
   }
-
+*/
   async storeEpoch(epoch) {
     const conn = this.getConn()
     for (const block of epoch) {

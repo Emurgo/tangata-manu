@@ -7,6 +7,7 @@ import blake from 'blakejs'
 
 import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import Block from '../../blockchain'
 
 const cborDecode = cbor.decode
 
@@ -114,11 +115,12 @@ class CustomDataParser implements RawDataParser {
 
   handleGenesisBlock(header) {
     const [epoch, [chainDifficulty]] = header[3]
-    this.#logger.debug('hgb', epoch)
+    this.#logger.debug('handleGenesisBlock', epoch, chainDifficulty)
     return {
       epoch,
       height: chainDifficulty,
       isGenesis: true,
+      slot: 0,
     }
   }
 
@@ -132,7 +134,8 @@ class CustomDataParser implements RawDataParser {
       this.#logger.debug('hrb', epoch, slot, chainDifficulty, txs.length)
     }
     const res = {
-      slot: [epoch, slot],
+      slot,
+      epoch,
       height: chainDifficulty,
       txs: txs.map(tx => {
         const [[inputs, outputs], witnesses] = tx
@@ -173,10 +176,29 @@ class CustomDataParser implements RawDataParser {
     return blocks
   }
 
-  parseBlock(blob: Buffer) {
+  parseBlock(blob: Buffer): Block {
     const [type, [header, body]] = cborDecode(blob)
-    const block = {}
-    return block
+    const hash = this.headerToId(header, type)
+    const common = {
+      hash,
+      magic: header[0],
+      prev: header[1].toString('hex'),
+    }
+    let blockData
+    switch (type) {
+      case 0:
+        blockData = { ...common, ...this.handleGenesisBlock(header) }
+        break
+      case 1:
+        blockData = {
+          ...common,
+          ...this.handleRegularBlock(header, body),
+        }
+        break
+      default:
+        throw new Error(`Unexpected block type! ${type}`)
+    }
+    return new Block(blockData)
   }
 
 
