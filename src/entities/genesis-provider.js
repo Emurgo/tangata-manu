@@ -1,4 +1,5 @@
 import { helpers } from 'inversify-vanillajs-helpers'
+import bs58 from 'bs58'
 
 import {
   Scheduler,
@@ -31,14 +32,24 @@ class GenesisProvider implements Genesis {
     this.#genesisHash = genesis
   }
 
-  async storeUtxos() {
-    const genesisFile = await this.#dataProvider.getGenesis(this.#genesisHash)
-    this.#logger.debug('Storing genesis utxos')
-    for (var addr in genesisFile.nonAvvmBalances) {
-      if (genesisFile.nonAvvmBalances.hasOwnProperty(addr)) {
-        await this.#db.storeUtxoAddr(addr, genesisFile.nonAvvmBalances[addr])
-      }
+  avvmDistrToUtxos(avvmDistr, networkMagic) {
+    this.#logger.debug('avvmDistrToUtxos called.')
+    const utxos = []
+    try {
+    const CardanoCrypto = require('rust-cardano-crypto')
+    } catch (e) {
+      console.log('dddhellooo')
+      const CardanoCrypto = require('rust-cardano-crypto')
     }
+    this.#logger.debug('import passed')
+    Object.entries(avvmDistr).forEach(entry => {
+      const key = entry[0]
+      const { result: { tx_id, address } } = CardanoCrypto.Redemption.redemptionPubKeyToAvvmTxOut(
+        Buffer.from(key, 'base64'), networkMagic)
+      const addressStr = bs58.encode(Buffer.from(address))
+      utxos.push([tx_id, addressStr, entry[1]])
+    })
+    return utxos
   }
 }
 

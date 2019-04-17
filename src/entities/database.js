@@ -89,14 +89,11 @@ class DB implements Database {
     const conn = this.getConn()
     const dbRes = await conn.query(this.Q.upsert_block, block.toArray())
   }
-/*
-  async getLastBlock() {
-    const conn = this.getConn()
-    const dbRes = await conn.query(this.Q.get_newest_block)
-    if (dbRes.rowCount === 0) return new Block(0, 0, 0, 0)
-    return dbRes
+
+  async storeUtxos(utxos) {
+    console.debug('storeUtxos', utxos)
   }
-*/
+
   async storeEpoch(epoch) {
     const conn = this.getConn()
     for (const block of epoch) {

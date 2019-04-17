@@ -1654,6 +1654,11 @@ capture-stack-trace@^1.0.0:
   resolved "https://registry.yarnpkg.com/capture-stack-trace/-/capture-stack-trace-1.0.1.tgz#a6c0bbe1f38f3aa0b92238ecb6ff42c344d4135d"
   integrity sha512-mYQLZnx5Qt1JgB1WEiMCf2647plpGeQ2NMR/5L0HNZzGQo4fuSPnK+wjfPnKZV0aiJDgzmWqqkV/g7JD+DW0qw==
 
+cardano-wallet@^0.3.0:
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/cardano-wallet/-/cardano-wallet-0.3.0.tgz#a6b237e0924149ede128961f28025e467ad11a86"
+  integrity sha512-01dezEioA9794ap6QerGvB+f4N1XsDko5LswxjGzbapXrNIBTZ9Ly+hh/xXbrG6K87vZWwfQ0fHtZq4PO9OxQQ==
+
 caseless@~0.12.0:
   version "0.12.0"
   resolved "https://registry.yarnpkg.com/caseless/-/caseless-0.12.0.tgz#1b681c21ff84033c826543090689420d187151dc"
