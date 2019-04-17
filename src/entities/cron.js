@@ -2,6 +2,7 @@
 import cron from 'cron'
 
 import { helpers } from 'inversify-vanillajs-helpers'
+import queue from 'async/queue'
 
 import {
   Scheduler,
@@ -11,8 +12,6 @@ import {
   RawDataParser,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-
-import Q from '../db-queries'
 
 class CronScheduler implements Scheduler {
   #job: any
@@ -24,6 +23,8 @@ class CronScheduler implements Scheduler {
   #db: any
 
   #logger: any
+
+  #blockProcessQueue: any
 
   constructor(
     dataProvider: RawDataProvider,
@@ -43,37 +44,36 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
+    this.#blockProcessQueue = queue(async ({ height }, cb) => {
+      const block = await this.processBlock(height)
+      this.#logger.debug(`Processed  block ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      cb()
+    }, 1)
+  }
+
+  async processBlock(height: number) {
+    const block = await this.#dataProvider.getBlockByHeight(height)
+    await this.#db.storeBlock(block)
+    await this.#db.updateBestBlockNum(block.height)
+    return block
   }
 
   async onTick() {
     // local state
     const bestBlockNum = await this.#db.getBestBlockNum()
-    const nextBlock = bestBlockNum + 1
 
     // cardano-http-bridge state
-
-    // get next block
-    const block = await this.#dataProvider.getBlockByHeight(nextBlock)
-    // check status of next block
-    if (!block) {
+    const tipStatus = (await this.#dataProvider.getStatus()).tip.local
+    if (!tipStatus) {
+      this.#logger.info('cardano-http-brdige not yet synced')
       return
     }
-    const dbRes = await this.#db.storeBlock(block)
-    this.#logger.debug(dbRes)
-    // process bestBlockNum + 1
-    /*
-    const epoch = 3
-
-    this.#logger.debug('Retrieving epoch', epoch)
-    const data = await this.#dataProvider.getEpoch(epoch)
-
-    this.#logger.debug('Parsing blocks in epoch', epoch)
-    const epochParsed = this.#dataParser.parseEpoch(data)
-
-    this.#logger.debug('Store transactions in epoch', epoch)
-    const dbRes = await this.#db.storeEpoch(epochParsed)
-    this.#logger.debug('Epoch stored with status', dbRes)
-    */
+    this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
+    for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 50);
+      // eslint-disable-next-line no-plusplus
+      height++, i++) {
+      this.#blockProcessQueue.push({ height })
+    }
   }
 
   start() {

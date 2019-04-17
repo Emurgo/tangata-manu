@@ -67,7 +67,7 @@ class CardanoBridgeApi implements RawDataProvider {
     return data
   }
 
-  async getStatus(): Promise<string> {
+  async getStatus(): Promise<any> {
     const resp = await this.getJson('/status')
     const { data } = resp
     return data
