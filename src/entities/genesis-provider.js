@@ -35,8 +35,9 @@ class GenesisProvider implements Genesis {
   static nonAvvmBalancesToUtxos(nonAvvmBalances) {
     return _.map(nonAvvmBalances, (amount, receiver) => {
       const utxoId = generateUtxoId(receiver)
+      const txIndex = 0
       return {
-        utxo_id: utxoId,
+        utxo_id: `${utxoId}${txIndex}`,
         tx_hash: utxoId,
         tx_index: 0,
         receiver,
