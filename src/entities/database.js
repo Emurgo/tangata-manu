@@ -4,6 +4,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import { Database, DBConnection } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import Block from '../blockchain'
+import Q from '../db-queries'
 
 class DB implements Database {
   #conn: any
@@ -52,6 +53,13 @@ class DB implements Database {
     return this.#conn
   }
 
+  async storeUtxos(utxos) {
+    const conn = this.getConn()
+    const dbRes = await conn.query(
+      Q.UTXOS_INSERT.setFieldsRows(utxos).toString())
+    return dbRes
+  }
+
   async getBestBlockNum() {
     const conn = this.getConn()
     const dbRes = await conn.query(this.Q.get_best_block_num)
@@ -89,14 +97,7 @@ class DB implements Database {
     const conn = this.getConn()
     const dbRes = await conn.query(this.Q.upsert_block, block.toArray())
   }
-/*
-  async getLastBlock() {
-    const conn = this.getConn()
-    const dbRes = await conn.query(this.Q.get_newest_block)
-    if (dbRes.rowCount === 0) return new Block(0, 0, 0, 0)
-    return dbRes
-  }
-*/
+
   async storeEpoch(epoch) {
     const conn = this.getConn()
     for (const block of epoch) {

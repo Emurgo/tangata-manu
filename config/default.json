@@ -2,7 +2,7 @@
   "appName": "yoroi-importer",
   "cardanoBridge": {
     "baseUrl": "http://localhost:8082",
-    "template": "testnet"
+    "template": "obft-testnet"
   },
   "server": {
     "port": 8080,

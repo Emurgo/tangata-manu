@@ -1,19 +1,22 @@
 import { helpers } from 'inversify-vanillajs-helpers'
+import { BLAKE2b } from 'bcrypto'
+import bs58 from 'bs58'
+import _ from 'lodash'
 
 import {
-  Scheduler,
   RawDataProvider,
-  Database,
   Logger,
-  RawDataParser,
-  Genesis
+  Genesis,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
+const generateUtxoId = (address) => {
+  const data = bs58.decode(address)
+  return BLAKE2b.digest(data).toString('hex')
+}
+
 class GenesisProvider implements Genesis {
   #dataProvider: any
-
-  #db: any
 
   #logger: any
 
@@ -21,31 +24,47 @@ class GenesisProvider implements Genesis {
 
   constructor(
     dataProvider: RawDataProvider,
-    db: Database,
     logger: Logger,
     genesis: string,
   ) {
     this.#dataProvider = dataProvider
-    this.#db = db
     this.#logger = logger
     this.#genesisHash = genesis
   }
 
-  async storeUtxos() {
-    const genesisFile = await this.#dataProvider.getGenesis(this.#genesisHash)
-    this.#logger.debug('Storing genesis utxos')
-    for (var addr in genesisFile.nonAvvmBalances) {
-      if (genesisFile.nonAvvmBalances.hasOwnProperty(addr)) {
-        await this.#db.storeUtxoAddr(addr, genesisFile.nonAvvmBalances[addr])
+  nonAvvmBalancesToUtxos(nonAvvmBalances) {
+    this.#logger.debug('nonAvvmBalances to utxos')
+    return _.map(nonAvvmBalances, (amount, receiver) => {
+      const utxoId = generateUtxoId(receiver)
+      const txIndex = 0
+      return {
+        utxo_id: `${utxoId}${txIndex}`,
+        tx_hash: utxoId,
+        tx_index: txIndex,
+        receiver,
+        amount,
       }
-    }
+    })
+  }
+
+  avvmDistrToUtxos(avvmDistr, networkMagic) {
+    this.#logger.debug('avvmDistrToUtxos called.')
+    const utxos = []
+    this.#logger.debug('import passed')
+    Object.entries(avvmDistr).forEach(entry => {
+      const key = entry[0]
+      const { result: { tx_id, address } } = CardanoCrypto.Redemption.redemptionPubKeyToAvvmTxOut(
+        Buffer.from(key, 'base64'), networkMagic)
+      const addressStr = bs58.encode(Buffer.from(address))
+      utxos.push([tx_id, addressStr, entry[1]])
+    })
+    return utxos
   }
 }
 
 helpers.annotate(GenesisProvider,
   [
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
-    SERVICE_IDENTIFIER.DATABASE,
     SERVICE_IDENTIFIER.LOGGER,
     'genesis',
   ])

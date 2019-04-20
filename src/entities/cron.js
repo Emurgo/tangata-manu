@@ -9,7 +9,6 @@ import {
   RawDataProvider,
   Database,
   Logger,
-  RawDataParser,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
@@ -17,8 +16,6 @@ class CronScheduler implements Scheduler {
   #job: any
 
   #dataProvider: any
-
-  #dataParser: any
 
   #db: any
 
@@ -28,13 +25,11 @@ class CronScheduler implements Scheduler {
 
   constructor(
     dataProvider: RawDataProvider,
-    dataParser: RawDataParser,
     checkTipCronTime: string,
     db: Database,
     logger: Logger,
   ) {
     this.#dataProvider = dataProvider
-    this.#dataParser = dataParser
     logger.debug('Cron time', checkTipCronTime)
     this.#job = new cron.CronJob({
       cronTime: checkTipCronTime,
@@ -46,7 +41,7 @@ class CronScheduler implements Scheduler {
     this.#logger = logger
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
       const block = await this.processBlock(height)
-      this.#logger.debug(`Processed  block ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
       cb()
     }, 1)
   }
@@ -69,7 +64,7 @@ class CronScheduler implements Scheduler {
       return
     }
     this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
-    for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 50);
+    for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 10000);
       // eslint-disable-next-line no-plusplus
       height++, i++) {
       this.#blockProcessQueue.push({ height })
@@ -84,7 +79,6 @@ class CronScheduler implements Scheduler {
 helpers.annotate(CronScheduler,
   [
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
-    SERVICE_IDENTIFIER.RAW_DATA_PARSER,
     'checkTipCronTime',
     SERVICE_IDENTIFIER.DATABASE,
     SERVICE_IDENTIFIER.LOGGER,
