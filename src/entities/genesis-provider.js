@@ -39,7 +39,7 @@ class GenesisProvider implements Genesis {
       return {
         utxo_id: `${utxoId}${txIndex}`,
         tx_hash: utxoId,
-        tx_index: 0,
+        tx_index: txIndex,
         receiver,
         amount,
       }
