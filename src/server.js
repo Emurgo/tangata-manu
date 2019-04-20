@@ -30,10 +30,10 @@ const genesisLoadUtxos = async (container) => {
   const genesisFile = await dataProvider.getGenesis(genesisHash)
   const db = container.get<Database>(SERVICE_IDENTIFIER.DATABASE)
   const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)
-  const { protocolMagic } = genesisFile.protocolConsts
+  // const { protocolMagic } = genesisFile.protocolConsts
   await db.storeUtxos(genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances))
-  await db.storeUtxos(genesis.avvmDistrToUtxos(genesisFile.avvmDistr,
-    protocolMagic))
+  //await db.storeUtxos(genesis.avvmDistrToUtxos(genesisFile.avvmDistr,
+  //  protocolMagic))
 }
 
 const startServer = async () => {

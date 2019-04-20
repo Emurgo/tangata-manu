@@ -32,7 +32,8 @@ class GenesisProvider implements Genesis {
     this.#genesisHash = genesis
   }
 
-  static nonAvvmBalancesToUtxos(nonAvvmBalances) {
+  nonAvvmBalancesToUtxos(nonAvvmBalances) {
+    this.#logger.info('Loading nonAvvmBalances...')
     return _.map(nonAvvmBalances, (amount, receiver) => {
       const utxoId = generateUtxoId(receiver)
       const txIndex = 0
@@ -64,7 +65,6 @@ class GenesisProvider implements Genesis {
 helpers.annotate(GenesisProvider,
   [
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
-    SERVICE_IDENTIFIER.DATABASE,
     SERVICE_IDENTIFIER.LOGGER,
     'genesis',
   ])
