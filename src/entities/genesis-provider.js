@@ -33,7 +33,7 @@ class GenesisProvider implements Genesis {
   }
 
   nonAvvmBalancesToUtxos(nonAvvmBalances) {
-    this.#logger.info('Loading nonAvvmBalances...')
+    this.#logger.debug('nonAvvmBalances to utxos')
     return _.map(nonAvvmBalances, (amount, receiver) => {
       const utxoId = generateUtxoId(receiver)
       const txIndex = 0
