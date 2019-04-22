@@ -9,40 +9,6 @@ import Q from '../db-queries'
 class DB implements Database {
   #conn: any
 
-  UPSERT_TX_ADDESSES = `
-  `
-
-  Q = {
-    get_best_block_num: `
-      SELECT best_block_num FROM bestblock
-    `,
-    get_newest_block: `
-      SELECT *
-      FROM blocks
-      ORDER BY
-        height DESC,
-      LIMIT 1
-    `,
-    get_block_by_height: `
-      SELECT *
-      FROM blocks
-      WHERE block_height = $1
-    `,
-    update_best_block_num: `
-      UPDATE bestblock
-      SET best_block_num = $1
-    `,
-    upsert_block: `
-      INSERT INTO blocks(block_hash, epoch, slot, block_height)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (block_hash)
-      DO UPDATE SET
-        epoch = EXCLUDED.epoch,
-        slot = EXCLUDED.slot,
-        block_height = EXCLUDED.block_height
-    `,
-  }
-
   constructor(
     dbConn: DBConnection,
   ) {
@@ -62,7 +28,7 @@ class DB implements Database {
 
   async getBestBlockNum() {
     const conn = this.getConn()
-    const dbRes = await conn.query(this.Q.get_best_block_num)
+    const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM.toString())
     const blockNum = (dbRes.rowCount !== 0)
       ? Number(dbRes.rows[0].best_block_num)
       : -1 // no blocks processed, start to process from 0 block.
@@ -71,12 +37,14 @@ class DB implements Database {
 
   async updateBestBlockNum(bestBlockNum: number) {
     const conn = this.getConn()
-    const dbRes = await conn.query(this.Q.update_best_block_num, [bestBlockNum])
+    const dbRes = await conn.query(
+      Q.BEST_BLOCK_UPDATE.set('best_block_num', bestBlockNum).toString())
+    return dbRes
   }
 
   async getBlock(height: number) {
     const conn = this.getConn()
-    const dbRes = await conn.query(this.Q.get_block_by_height, [height])
+    const dbRes = await conn.query(Q.GET_BLOCK.where('block_height = ?', height).toString())
     if (dbRes.rowCount === 0) {
       return new Block({
         hash: 0, slot: 0, epoch: 0, height: 0,
@@ -87,15 +55,10 @@ class DB implements Database {
   }
 
 
-  async upsertTxAddresses(tx) {
-    const txHash = tx.id
-    const outAddrs = tx.outputs.map((value) => value.address)
-    const dbRes = await conn.query(this.UPSERT_TX_ADDESSES)
-  }
-
   async storeBlock(block) {
     const conn = this.getConn()
-    const dbRes = await conn.query(this.Q.upsert_block, block.toArray())
+    const dbRes = await conn.query(Q.BLOCK_INSERT.setFields(block.serialize()).toString())
+    return dbRes
   }
 
   async storeEpoch(epoch) {
