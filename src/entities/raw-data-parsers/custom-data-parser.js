@@ -25,7 +25,7 @@ function decodedTxToBase(decodedTx) {
       }
     }
   }
-  throw new Error('Unexpected decoded tx structure! ' + JSON.stringify(decodedTx));
+  throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
 }
 
 class CborIndefiniteLengthArray {
@@ -47,19 +47,18 @@ class CborIndefiniteLengthArray {
 
 function rustRawTxToId(rustTxBody) {
   if (!rustTxBody) {
-    throw new Error('Cannot decode inputs from undefined transaction!');
+    throw new Error('Cannot decode inputs from undefined transaction!')
   }
   try {
-    const [inputs, outputs, attributes] =
-      decodedTxToBase(cbor.decode(Buffer.from(rustTxBody)));
+    const [inputs, outputs, attributes] = decodedTxToBase(cbor.decode(Buffer.from(rustTxBody)))
     const enc = cbor.encode([
       new CborIndefiniteLengthArray(inputs),
       new CborIndefiniteLengthArray(outputs),
-      attributes
-    ]);
+      attributes,
+    ])
     return blake.blake2bHex(enc, null, 32)
   } catch (e) {
-    throw new Error('Failed to convert raw transaction to ID! ' + JSON.stringify(e));
+    throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
   }
 }
 

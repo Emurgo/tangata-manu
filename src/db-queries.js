@@ -1,23 +1,39 @@
 // flow
 import squel from 'squel'
+import _ from 'lodash'
 
-const UTXOS_INSERT = squel.insert().into('utxos')
+const sql = squel.useFlavour('postgres')
 
-const BEST_BLOCK_UPDATE = squel.update().table('bestblock')
+sql.registerValueHandler(Array, (array) => {
+  // FIXME: sql injection is possible
+  const data = _.map(array, (item) => ((typeof item === 'string')
+    ? `'${item}'`
+    : item
+  ))
+  return `ARRAY[${data}]`
+})
 
-const BLOCK_INSERT = squel.insert().into('blocks')
+const UTXOS_INSERT = sql.insert().into('utxos')
 
-const GET_BEST_BLOCK_NUM = squel.select()
+const BEST_BLOCK_UPDATE = sql.update().table('bestblock')
+
+const BLOCK_INSERT = sql.insert().into('blocks')
+
+const TX_INSERT = sql.insert().into('txs')
+
+const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses')
+
+const GET_BEST_BLOCK_NUM = sql.select()
   .from('bestblock')
   .field('best_block_num')
 
-const GET_BLOCK = squel.select().from('blocks')
-
 
 export default {
+  sql,
   UTXOS_INSERT,
   GET_BEST_BLOCK_NUM,
-  GET_BLOCK,
   BEST_BLOCK_UPDATE,
   BLOCK_INSERT,
+  TX_INSERT,
+  TX_ADDRESSES_INSERT,
 }

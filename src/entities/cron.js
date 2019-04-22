@@ -1,5 +1,6 @@
 // @flow
 import cron from 'cron'
+import _ from 'lodash'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 import queue from 'async/queue'
@@ -40,8 +41,7 @@ class CronScheduler implements Scheduler {
     this.#db = db
     this.#logger = logger
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
-      const block = await this.processBlock(height)
-      
+      await this.processBlock(height)
       cb()
     }, 1)
   }
@@ -52,6 +52,9 @@ class CronScheduler implements Scheduler {
     try {
       await dbConn.query('BEGIN')
       await this.#db.storeBlock(block)
+      if (!_.isEmpty(block.txs)) {
+        await this.#db.storeBlockTxs(block)
+      }
       await this.#db.updateBestBlockNum(block.height)
       await dbConn.query('COMMIT')
     } catch (e) {
@@ -74,7 +77,7 @@ class CronScheduler implements Scheduler {
       return
     }
     this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
-    for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 10000);
+    for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
       // eslint-disable-next-line no-plusplus
       height++, i++) {
       this.#blockProcessQueue.push({ height })

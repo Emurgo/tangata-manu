@@ -8,13 +8,16 @@ export default class Block {
 
   height: number
 
+  txs: any
+
   constructor({
-    hash, slot, epoch, height,
+    hash, slot, epoch, height, txs,
   }) {
     this.hash = hash
     this.slot = slot
     this.epoch = epoch
     this.height = height
+    this.txs = txs
   }
 
   serialize() {
