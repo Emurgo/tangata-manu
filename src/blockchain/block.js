@@ -17,7 +17,12 @@ export default class Block {
     this.height = height
   }
 
-  toArray() {
-    return [this.hash, this.epoch, this.slot, this.height]
+  serialize() {
+    return {
+      block_hash: this.hash,
+      epoch: this.epoch,
+      slot: this.slot,
+      block_height: this.height,
+    }
   }
 }

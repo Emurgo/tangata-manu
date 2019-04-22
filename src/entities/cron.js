@@ -41,15 +41,25 @@ class CronScheduler implements Scheduler {
     this.#logger = logger
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
       const block = await this.processBlock(height)
-      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      
       cb()
     }, 1)
   }
 
   async processBlock(height: number) {
     const block = await this.#dataProvider.getBlockByHeight(height)
-    await this.#db.storeBlock(block)
-    await this.#db.updateBestBlockNum(block.height)
+    const dbConn = this.#db.getConn()
+    try {
+      await dbConn.query('BEGIN')
+      await this.#db.storeBlock(block)
+      await this.#db.updateBestBlockNum(block.height)
+      await dbConn.query('COMMIT')
+    } catch (e) {
+      await dbConn.query('ROLLBACK')
+      throw e
+    } finally {
+      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+    }
     return block
   }
 
