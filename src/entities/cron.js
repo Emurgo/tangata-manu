@@ -24,6 +24,8 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
+  #lockNonce: any
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipCronTime: string,
@@ -37,13 +39,23 @@ class CronScheduler implements Scheduler {
       onTick: () => {
         this.onTick()
       },
+      onComplete: () => {
+        this.setNonce(null)
+      },
     })
     this.#db = db
     this.#logger = logger
+
+    // Prevent to run several jobs simultaneously.
+    this.#lockNonce = null
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
       await this.processBlock(height)
       cb()
     }, 1)
+  }
+
+  setNonce(value) {
+    this.#lockNonce = value
   }
 
   async processBlock(height: number) {
@@ -67,6 +79,8 @@ class CronScheduler implements Scheduler {
   }
 
   async onTick() {
+    if (this.#lockNonce) return
+    this.setNonce(Math.random())
     // local state
     const bestBlockNum = await this.#db.getBestBlockNum()
 
