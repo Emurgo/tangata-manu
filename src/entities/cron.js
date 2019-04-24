@@ -24,6 +24,8 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
+  #isAlreadyRun: boolean
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipCronTime: string,
@@ -40,10 +42,17 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
+
+    // Prevent to run several jobs simultaneously.
+    this.#isAlreadyRun = false
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
       await this.processBlock(height)
       cb()
     }, 1)
+  }
+
+  setRunningState(value: boolean) {
+    this.#isAlreadyRun = value
   }
 
   async processBlock(height: number) {
@@ -67,20 +76,30 @@ class CronScheduler implements Scheduler {
   }
 
   async onTick() {
-    // local state
-    const bestBlockNum = await this.#db.getBestBlockNum()
+    this.#logger.info('onTick:checking for new blocks...')
+    if (this.#isAlreadyRun) return
+    this.setRunningState(true)
+    try {
+      // local state
+      const bestBlockNum = await this.#db.getBestBlockNum()
 
-    // cardano-http-bridge state
-    const tipStatus = (await this.#dataProvider.getStatus()).tip.local
-    if (!tipStatus) {
-      this.#logger.info('cardano-http-brdige not yet synced')
-      return
-    }
-    this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
-    for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
-      // eslint-disable-next-line no-plusplus
-      height++, i++) {
-      this.#blockProcessQueue.push({ height })
+      // cardano-http-bridge state
+      const tipStatus = (await this.#dataProvider.getStatus()).tip.local
+      if (!tipStatus) {
+        this.#logger.info('cardano-http-brdige not yet synced')
+        return
+      }
+      this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
+      for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
+        // eslint-disable-next-line no-plusplus
+        height++, i++) {
+        this.#blockProcessQueue.push({ height })
+      }
+    } catch (e) {
+      this.#logger.debug('Error occured:', e)
+      throw e
+    } finally {
+      this.setRunningState(false)
     }
   }
 
