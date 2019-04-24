@@ -24,7 +24,7 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
-  #lockNonce: any
+  #isAlreadyRun: boolean
 
   constructor(
     dataProvider: RawDataProvider,
@@ -40,22 +40,22 @@ class CronScheduler implements Scheduler {
         this.onTick()
       },
       onComplete: () => {
-        this.setNonce(null)
+        this.setRunningState(false)
       },
     })
     this.#db = db
     this.#logger = logger
 
     // Prevent to run several jobs simultaneously.
-    this.#lockNonce = null
+    this.#isAlreadyRun = false
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
       await this.processBlock(height)
       cb()
     }, 1)
   }
 
-  setNonce(value) {
-    this.#lockNonce = value
+  setRunningState(value) {
+    this.#isAlreadyRun = value
   }
 
   async processBlock(height: number) {
@@ -79,8 +79,8 @@ class CronScheduler implements Scheduler {
   }
 
   async onTick() {
-    if (this.#lockNonce) return
-    this.setNonce(Math.random())
+    if (this.#isAlreadyRun) return
+    this.setRunningState(true)
     // local state
     const bestBlockNum = await this.#db.getBestBlockNum()
 
