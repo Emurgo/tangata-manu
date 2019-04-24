@@ -1,5 +1,5 @@
 // @flow
-
+import _ from 'lodash'
 import restify from 'restify'
 import config from 'config'
 
@@ -31,9 +31,14 @@ const genesisLoadUtxos = async (container) => {
   const db = container.get<Database>(SERVICE_IDENTIFIER.DATABASE)
   const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)
   const { protocolMagic } = genesisFile.protocolConsts
-  await db.storeUtxos(genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances))
-  await db.storeUtxos(genesis.avvmDistrToUtxos(genesisFile.avvmDistr,
-    protocolMagic))
+
+  if (!_.isEmpty(genesisFile.nonAvvmBalances)) {
+    await db.storeUtxos(genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances))
+  }
+  if (!_.isEmpty(genesisFile.avvmDistr)) {
+    await db.storeUtxos(genesis.avvmDistrToUtxos(genesisFile.avvmDistr,
+      protocolMagic))
+  }
 }
 
 const startServer = async () => {
