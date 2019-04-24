@@ -1,6 +1,7 @@
 // @flow
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
+import assert from 'assert'
 
 import { Database, DBConnection, Logger } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
@@ -57,20 +58,6 @@ class DB implements Database {
     }
   }
 
-  async getUtxoAddress(input) {
-    const conn = this.getConn()
-    const utxoId = `${input.txId}${input.idx}`
-    const query = Q.sql.select().from('utxos').where('utxo_id = ?', utxoId).toString()
-    this.#logger.debug('getUtxoAddress', input, utxoId, query)
-    const dbRes = await conn.query(query)
-    const row = dbRes.rows[0]
-    return {
-      address: row.receiver,
-      amount: row.amount,
-    }
-  }
-
-
   async storeTxAddresses(txId, addresses) {
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
@@ -101,21 +88,30 @@ class DB implements Database {
     return dbRes
   }
 
+  async getUtxos(utxoIds: Array<string>): Promise<Array<{}>> {
+    const conn = this.getConn()
+    const query = Q.sql.select().from('utxos').where('utxo_id in ?', utxoIds).toString()
+    const dbRes = await conn.query(query)
+    return dbRes.rows.map((row) => ({
+      address: row.receiver,
+      amount: row.amount,
+    }))
+  }
+
   async storeTx(block, tx) {
     const conn = this.getConn()
     const { inputs, outputs, id } = tx
 
     await this.storeOutputs(tx)
-    const inputsData = []
     const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
-    for (let index = 0; index < inputs.length; index++) {
-      const inputAddress = await this.getUtxoAddress(inputs[index])
-      inputsData.push(inputAddress)
-    }
+    const inputUtxos = await this.getUtxos(inputUtxoIds)
+
+    assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
+
     await this.deleteUtxos(inputUtxoIds)
-    const inputAddresses = _.map(inputsData, 'address')
+    const inputAddresses = _.map(inputUtxos, 'address')
     const outputAddresses = _.map(outputs, 'address')
-    const inputAmmounts = _.map(inputsData, (item) => Number.parseInt(item.amount, 10))
+    const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
     const query = Q.TX_INSERT.setFields({
       hash: id,
@@ -138,14 +134,6 @@ class DB implements Database {
     const { txs } = block
     for (let index = 0; index < txs.length; index++) {
       await this.storeTx(block, txs[index])
-    }
-  }
-
-  async storeEpoch(epoch) {
-    for (const block of epoch) {
-      if (block.txs) {
-        await this.storeBlock(block)
-      }
     }
   }
 }
