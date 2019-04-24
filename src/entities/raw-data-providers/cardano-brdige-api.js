@@ -78,6 +78,12 @@ class CardanoBridgeApi implements RawDataProvider {
     const { data } = resp
     return this.#parser.parseBlock(data)
   }
+
+  async getParsedEpochById(id: number) {
+    const resp = await this.get(`/epoch/${id}`)
+    const { data } = resp
+    return this.#parser.parseEpoch(data)
+  }
 }
 
 helpers.annotate(CardanoBridgeApi,

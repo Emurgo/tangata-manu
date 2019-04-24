@@ -33,13 +33,18 @@ class DB implements Database {
     return dbRes
   }
 
-  async getBestBlockNum() {
+  async getBestBlockNum(): { height: number, epoch?: number, slot?: number } {
     const conn = this.getConn()
     const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM.toString())
-    const blockNum = (dbRes.rowCount !== 0)
-      ? Number(dbRes.rows[0].best_block_num)
-      : -1 // no blocks processed, start to process from 0 block.
-    return blockNum
+    if (dbRes.rowCount > 0) {
+      const row = dbRes.rows[0]
+      return {
+        height: Number(row.block_height),
+        epoch: Number(row.epoch),
+        slot: Number(row.slot),
+      }
+    }
+    return { height: 0 }
   }
 
   async updateBestBlockNum(bestBlockNum: number) {

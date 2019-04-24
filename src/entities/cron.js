@@ -13,6 +13,9 @@ import {
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
+const EPOCH_SIZE = 21600
+const EPOCH_DOWNLOAD_THRESHOLD = 14400
+
 class CronScheduler implements Scheduler {
   #job: any
 
@@ -45,8 +48,12 @@ class CronScheduler implements Scheduler {
 
     // Prevent to run several jobs simultaneously.
     this.#isAlreadyRun = false
-    this.#blockProcessQueue = queue(async ({ height }, cb) => {
-      await this.processBlock(height)
+    this.#blockProcessQueue = queue(async ({ type, height }, cb) => {
+      if (type === 'block') {
+        await this.processBlockHeight(height)
+      } else if (type === 'epoch') {
+        await this.processEpochId(height)
+      }
       cb()
     }, 1)
   }
@@ -55,8 +62,19 @@ class CronScheduler implements Scheduler {
     this.#isAlreadyRun = value
   }
 
-  async processBlock(height: number) {
+  async processEpochId(id: number) {
+    const blocks = await this.#dataProvider.getParsedEpochById(id)
+    for (let i = 0; i < blocks.length; i++) {
+      await this.processBlock(blocks[i])
+    }
+  }
+
+  async processBlockHeight(height: number) {
     const block = await this.#dataProvider.getBlockByHeight(height)
+    await this.processBlock(block)
+  }
+
+  async processBlock(block: any) {
     const dbConn = this.#db.getConn()
     try {
       await dbConn.query('BEGIN')
@@ -72,7 +90,6 @@ class CronScheduler implements Scheduler {
     } finally {
       this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
     }
-    return block
   }
 
   async onTick() {
@@ -81,19 +98,42 @@ class CronScheduler implements Scheduler {
     this.setRunningState(true)
     try {
       // local state
-      const bestBlockNum = await this.#db.getBestBlockNum()
+      const { height, epoch, slot } = await this.#db.getBestBlockNum()
 
       // cardano-http-bridge state
-      const tipStatus = (await this.#dataProvider.getStatus()).tip.local
+      const nodeStatus = await this.#dataProvider.getStatus()
+      const packedEpochs = nodeStatus.packedEpochs
+      const tipStatus = nodeStatus.tip.local
+      const remoteStatus = nodeStatus.tip.remote
       if (!tipStatus) {
         this.#logger.info('cardano-http-brdige not yet synced')
         return
       }
-      this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
-      for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
+      this.#logger.debug(`Last block ${bestBlockNum}. Node status local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
+      const [remEpoch, remSlot] = remoteStatus.slot
+      const noEpochYet = epoch === undefined
+      if (noEpochYet || epoch < remEpoch) {
+        // If local epoch is lower than the current network tip
+        // there's a potential for us to download full epochs, instead of single blocks
+        // Calculate latest stable remote epoch
+        const lastRemStableEpoch = remEpoch - (remSlot > 2160 ? 1 : 2)
+        const thereAreMoreStableEpoch = epoch < lastRemStableEpoch
+        const thereAreManyStableSlots = epoch === lastRemStableEpoch && slot < EPOCH_DOWNLOAD_THRESHOLD
+        // Check if there's any point to bother with whole epochs
+        if (noEpochYet || thereAreMoreStableEpoch || thereAreManyStableSlots) {
+          if (packedEpochs > epoch) {
+            // TODO: process epochs
+          } else {
+            // Packed epoch is not available yet
+            this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+          }
+          return
+        }
+      }
+      for (let height = height, i = 0; (height < tipStatus.height) && (i < 9000);
         // eslint-disable-next-line no-plusplus
-        height++, i++) {
-        this.#blockProcessQueue.push({ height })
+           height++, i++) {
+        this.#blockProcessQueue.push({ type: 'block', height })
       }
     } catch (e) {
       this.#logger.debug('Error occured:', e)
