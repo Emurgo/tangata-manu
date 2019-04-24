@@ -93,10 +93,10 @@ class DB implements Database {
     await this.storeUtxos(utxosData)
   }
 
-  async removeInputUtxos(input) {
+  async deleteUtxos(utxoIds: Array<string>) {
     const conn = this.getConn()
     const query = Q.sql.delete().from('utxos')
-      .where('utxo_id = ?', `${input.txId}${input.idx}`).toString()
+      .where('utxo_id IN ?', utxoIds).toString()
     const dbRes = await conn.query(query)
     return dbRes
   }
@@ -107,11 +107,12 @@ class DB implements Database {
 
     await this.storeOutputs(tx)
     const inputsData = []
+    const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
     for (let index = 0; index < inputs.length; index++) {
       const inputAddress = await this.getUtxoAddress(inputs[index])
       inputsData.push(inputAddress)
-      await this.removeInputUtxos(inputs[index])
     }
+    await this.deleteUtxos(inputUtxoIds)
     const inputAddresses = _.map(inputsData, 'address')
     const outputAddresses = _.map(outputs, 'address')
     const inputAmmounts = _.map(inputsData, (item) => Number.parseInt(item.amount, 10))
@@ -129,12 +130,12 @@ class DB implements Database {
     await conn.query(query)
     await this.storeTxAddresses(
       id,
-      _.merge(inputAddresses, outputAddresses),
+      [...new Set([...inputAddresses, ...outputAddresses])],
     )
   }
 
   async storeBlockTxs(block) {
-    const txs = block.txs
+    const { txs } = block
     for (let index = 0; index < txs.length; index++) {
       await this.storeTx(block, txs[index])
     }

@@ -28,6 +28,12 @@ function decodedTxToBase(decodedTx) {
   throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
 }
 
+const headerToId = (header, type: number) => {
+  const headerData = cbor.encode([type, header])
+  const id = blake.blake2bHex(headerData, null, 32)
+  return id
+}
+
 class CborIndefiniteLengthArray {
   constructor(elements) {
     this.elements = elements
@@ -88,14 +94,8 @@ class CustomDataParser implements RawDataParser {
     return [block, offset + nextBlockOffset]
   }
 
-  headerToId(header, type: number) {
-    const headerData = cbor.encode([type, header])
-    const id = blake.blake2bHex(headerData, null, 32)
-    return id
-  }
-
   handleBlock(type, header, body) {
-    const hash = this.headerToId(header, type)
+    const hash = headerToId(header, type)
     const common = {
       hash,
       magic: header[0],
@@ -177,7 +177,7 @@ class CustomDataParser implements RawDataParser {
 
   parseBlock(blob: Buffer): Block {
     const [type, [header, body]] = cborDecode(blob)
-    const hash = this.headerToId(header, type)
+    const hash = headerToId(header, type)
     const common = {
       hash,
       magic: header[0],
