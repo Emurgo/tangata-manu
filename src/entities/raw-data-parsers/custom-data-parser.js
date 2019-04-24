@@ -25,7 +25,13 @@ function decodedTxToBase(decodedTx) {
       }
     }
   }
-  throw new Error('Unexpected decoded tx structure! ' + JSON.stringify(decodedTx));
+  throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
+}
+
+const headerToId = (header, type: number) => {
+  const headerData = cbor.encode([type, header])
+  const id = blake.blake2bHex(headerData, null, 32)
+  return id
 }
 
 class CborIndefiniteLengthArray {
@@ -47,19 +53,18 @@ class CborIndefiniteLengthArray {
 
 function rustRawTxToId(rustTxBody) {
   if (!rustTxBody) {
-    throw new Error('Cannot decode inputs from undefined transaction!');
+    throw new Error('Cannot decode inputs from undefined transaction!')
   }
   try {
-    const [inputs, outputs, attributes] =
-      decodedTxToBase(cbor.decode(Buffer.from(rustTxBody)));
+    const [inputs, outputs, attributes] = decodedTxToBase(cbor.decode(Buffer.from(rustTxBody)))
     const enc = cbor.encode([
       new CborIndefiniteLengthArray(inputs),
       new CborIndefiniteLengthArray(outputs),
-      attributes
-    ]);
+      attributes,
+    ])
     return blake.blake2bHex(enc, null, 32)
   } catch (e) {
-    throw new Error('Failed to convert raw transaction to ID! ' + JSON.stringify(e));
+    throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
   }
 }
 
@@ -89,14 +94,8 @@ class CustomDataParser implements RawDataParser {
     return [block, offset + nextBlockOffset]
   }
 
-  headerToId(header, type: number) {
-    const headerData = cbor.encode([type, header])
-    const id = blake.blake2bHex(headerData, null, 32)
-    return id
-  }
-
   handleBlock(type, header, body) {
-    const hash = this.headerToId(header, type)
+    const hash = headerToId(header, type)
     const common = {
       hash,
       magic: header[0],
@@ -178,7 +177,7 @@ class CustomDataParser implements RawDataParser {
 
   parseBlock(blob: Buffer): Block {
     const [type, [header, body]] = cborDecode(blob)
-    const hash = this.headerToId(header, type)
+    const hash = headerToId(header, type)
     const common = {
       hash,
       magic: header[0],

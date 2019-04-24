@@ -12,23 +12,13 @@ import {
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
+import utils from '../blockchain/utils'
+
 const generateUtxoHash = (address) => {
   const data = bs58.decode(address)
   return BLAKE2b.digest(data).toString('hex')
 }
 
-const structUtxo = (
-  receiver,
-  amount,
-  utxoHash,
-  txIndex = 0,
-) => ({
-  utxo_id: `${utxoHash}${txIndex}`,
-  tx_hash: utxoHash,
-  tx_index: txIndex,
-  receiver,
-  amount,
-})
 
 class GenesisProvider implements Genesis {
   #dataProvider: any
@@ -51,7 +41,7 @@ class GenesisProvider implements Genesis {
     this.#logger.debug('nonAvvmBalances to utxos')
     return _.map(nonAvvmBalances, (amount, receiver) => {
       const utxoHash = generateUtxoHash(receiver)
-      return structUtxo(receiver, amount, utxoHash)
+      return utils.structUtxo(receiver, amount, utxoHash)
     })
   }
 
@@ -65,7 +55,7 @@ class GenesisProvider implements Genesis {
         base64url.decode(publicRedeemKey, 'hex'))
       const receiver = prk.address(settings).to_base58()
       const utxoHash = generateUtxoHash(receiver)
-      return structUtxo(receiver, amount, utxoHash)
+      return utils.structUtxo(receiver, amount, utxoHash)
     })
   }
 }
