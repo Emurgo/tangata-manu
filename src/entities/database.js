@@ -88,7 +88,7 @@ class DB implements Database {
     return dbRes
   }
 
-  async getUtxos(utxoIds: Array<string>) {
+  async getUtxos(utxoIds: Array<string>): Promise<Array<{}>> {
     const conn = this.getConn()
     const query = Q.sql.select().from('utxos').where('utxo_id in ?', utxoIds).toString()
     const dbRes = await conn.query(query)
@@ -106,7 +106,7 @@ class DB implements Database {
     const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
     const inputUtxos = await this.getUtxos(inputUtxoIds)
 
-    assert.notStrictEqual(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
+    assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
 
     await this.deleteUtxos(inputUtxoIds)
     const inputAddresses = _.map(inputUtxos, 'address')
