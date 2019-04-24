@@ -39,9 +39,6 @@ class CronScheduler implements Scheduler {
       onTick: () => {
         this.onTick()
       },
-      onComplete: () => {
-        this.setRunningState(false)
-      },
     })
     this.#db = db
     this.#logger = logger
@@ -54,7 +51,7 @@ class CronScheduler implements Scheduler {
     }, 1)
   }
 
-  setRunningState(value) {
+  setRunningState(value: boolean) {
     this.#isAlreadyRun = value
   }
 
@@ -79,22 +76,30 @@ class CronScheduler implements Scheduler {
   }
 
   async onTick() {
+    this.#logger.info('onTick:checking for new blocks...')
     if (this.#isAlreadyRun) return
     this.setRunningState(true)
-    // local state
-    const bestBlockNum = await this.#db.getBestBlockNum()
+    try {
+      // local state
+      const bestBlockNum = await this.#db.getBestBlockNum()
 
-    // cardano-http-bridge state
-    const tipStatus = (await this.#dataProvider.getStatus()).tip.local
-    if (!tipStatus) {
-      this.#logger.info('cardano-http-brdige not yet synced')
-      return
-    }
-    this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
-    for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
-      // eslint-disable-next-line no-plusplus
-      height++, i++) {
-      this.#blockProcessQueue.push({ height })
+      // cardano-http-bridge state
+      const tipStatus = (await this.#dataProvider.getStatus()).tip.local
+      if (!tipStatus) {
+        this.#logger.info('cardano-http-brdige not yet synced')
+        return
+      }
+      this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
+      for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
+        // eslint-disable-next-line no-plusplus
+        height++, i++) {
+        this.#blockProcessQueue.push({ height })
+      }
+    } catch (e) {
+      this.#logger.debug('Error occured:', e)
+      throw e
+    } finally {
+      this.setRunningState(false)
     }
   }
 
