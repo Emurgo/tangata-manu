@@ -27,6 +27,8 @@ const GET_BEST_BLOCK_NUM = sql.select()
   .from('bestblock')
   .field('best_block_num')
 
+const GET_UTXOS_BLOCKS_COUNT = sql.select()
+  .field('(select count(*) from utxos ) + ( select count(*) from blocks) as cnt')
 
 export default {
   sql,
@@ -36,4 +38,5 @@ export default {
   BLOCK_INSERT,
   TX_INSERT,
   TX_ADDRESSES_INSERT,
+  GET_UTXOS_BLOCKS_COUNT,
 }
