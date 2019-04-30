@@ -55,6 +55,7 @@ class DB implements Database {
       await conn.query(Q.BLOCK_INSERT.setFields(block.serialize()).toString())
     } catch (e) {
       this.#logger.debug('Error occur on block', block.serialize())
+      throw e
     }
   }
 
