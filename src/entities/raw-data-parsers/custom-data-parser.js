@@ -119,7 +119,7 @@ class CustomDataParser implements RawDataParser {
       epoch,
       height: chainDifficulty,
       isEBB: true,
-      slot: 0,
+      slot: null,
     }
   }
 
