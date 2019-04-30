@@ -13,6 +13,8 @@ import {
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
+const QUEUE_MAX_LENGTH = 10000
+
 class CronScheduler implements Scheduler {
   #job: any
 
@@ -24,7 +26,7 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
-  #isAlreadyRun: boolean
+  #instanceBestBlock: number
 
   constructor(
     dataProvider: RawDataProvider,
@@ -42,17 +44,12 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
+    this.#instanceBestBlock = -1
 
-    // Prevent to run several jobs simultaneously.
-    this.#isAlreadyRun = false
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
       await this.processBlock(height)
       cb()
     }, 1)
-  }
-
-  setRunningState(value: boolean) {
-    this.#isAlreadyRun = value
   }
 
   async processBlock(height: number) {
@@ -77,11 +74,16 @@ class CronScheduler implements Scheduler {
 
   async onTick() {
     this.#logger.info('onTick:checking for new blocks...')
-    if (this.#isAlreadyRun) return
-    this.setRunningState(true)
     try {
       // local state
       const bestBlockNum = await this.#db.getBestBlockNum()
+      this.#instanceBestBlock = Math.max(bestBlockNum, this.#instanceBestBlock)
+
+      // Blocks which already in queue, but not yet processed.
+      const notProcessedBlocks = this.#blockProcessQueue.length()
+      if (notProcessedBlocks > QUEUE_MAX_LENGTH) {
+        this.#logger.info('Too many not yet processed blocks in queue. Skip to add new blocks.')
+      }
 
       // cardano-http-bridge state
       const tipStatus = (await this.#dataProvider.getStatus()).tip.local
@@ -90,16 +92,16 @@ class CronScheduler implements Scheduler {
         return
       }
       this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
-      for (let height = bestBlockNum + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
+      const nextBlockHeight = this.#instanceBestBlock + 1
+      for (let height = nextBlockHeight, i = 0; (height <= tipStatus.height) && (i < 9000);
         // eslint-disable-next-line no-plusplus
         height++, i++) {
         this.#blockProcessQueue.push({ height })
+        this.#instanceBestBlock = height
       }
     } catch (e) {
       this.#logger.debug('Error occured:', e)
       throw e
-    } finally {
-      this.setRunningState(false)
     }
   }
 
