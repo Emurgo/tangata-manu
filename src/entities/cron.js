@@ -26,6 +26,8 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
+  #instanceBestBlock: number
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipCronTime: string,
@@ -42,6 +44,7 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
+    this.#instanceBestBlock = -1
 
     this.#blockProcessQueue = queue(async ({ height }, cb) => {
       await this.processBlock(height)
@@ -74,13 +77,13 @@ class CronScheduler implements Scheduler {
     try {
       // local state
       const bestBlockNum = await this.#db.getBestBlockNum()
+      this.#instanceBestBlock = Math.max(bestBlockNum, this.#instanceBestBlock)
 
       // Blocks which already in queue, but not yet processed.
       const notProcessedBlocks = this.#blockProcessQueue.length()
       if (notProcessedBlocks > QUEUE_MAX_LENGTH) {
         this.#logger.info('Too many not yet processed blocks in queue. Skip to add new blocks.')
       }
-      const nextBlockHeight = bestBlockNum + notProcessedBlocks + 1
 
       // cardano-http-bridge state
       const tipStatus = (await this.#dataProvider.getStatus()).tip.local
@@ -89,10 +92,12 @@ class CronScheduler implements Scheduler {
         return
       }
       this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
+      const nextBlockHeight = this.#instanceBestBlock + 1
       for (let height = nextBlockHeight, i = 0; (height <= tipStatus.height) && (i < 9000);
         // eslint-disable-next-line no-plusplus
         height++, i++) {
         this.#blockProcessQueue.push({ height })
+        this.#instanceBestBlock = height
       }
     } catch (e) {
       this.#logger.debug('Error occured:', e)
