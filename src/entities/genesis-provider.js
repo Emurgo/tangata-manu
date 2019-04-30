@@ -4,6 +4,7 @@ import bs58 from 'bs58'
 import _ from 'lodash'
 import * as Cardano from 'cardano-wallet'
 import base64url from 'base64url'
+import config from 'config'
 
 import {
   RawDataProvider,
@@ -25,16 +26,17 @@ class GenesisProvider implements Genesis {
 
   #logger: any
 
-  #genesisHash: any
+  genesisHash: string
 
   constructor(
     dataProvider: RawDataProvider,
     logger: Logger,
-    genesis: string,
   ) {
+    const networkName = config.get('defaultNetwork')
+    const defaultNetwork = config.get('networks')[networkName]
+    this.genesisHash = defaultNetwork.genesis
     this.#dataProvider = dataProvider
     this.#logger = logger
-    this.#genesisHash = genesis
   }
 
   nonAvvmBalancesToUtxos(nonAvvmBalances) {
@@ -64,7 +66,6 @@ helpers.annotate(GenesisProvider,
   [
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
     SERVICE_IDENTIFIER.LOGGER,
-    'genesis',
   ])
 
 export default GenesisProvider

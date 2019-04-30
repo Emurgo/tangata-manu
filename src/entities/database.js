@@ -98,6 +98,15 @@ class DB implements Database {
     }))
   }
 
+  async genesisLoaded(): Promise<boolean> {
+    /* Check whether utxo and blocks tables are empty.
+    */
+    const conn = this.getConn()
+    const query = Q.GET_UTXOS_BLOCKS_COUNT
+    const dbRes = await conn.query(query.toString())
+    return !!Number.parseInt(dbRes.rows[0].cnt, 10)
+  }
+
   async storeTx(block, tx) {
     const conn = this.getConn()
     const { inputs, outputs, id } = tx
