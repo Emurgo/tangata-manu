@@ -17,5 +17,12 @@
     }
   },
   "checkTipCronTime": "0 */2 * * * *",
-  "genesis": "791f4256e14c67b9035c3b80a0826adf719d3636c18eef16c98b84b833723d51"
+  "defaultNetwork": "obft-testnet",
+  "defaultBridgeUrl": "http://localhost:8082",
+  "networks": {
+    "obft-testnet": {
+      "genesis": "791f4256e14c67b9035c3b80a0826adf719d3636c18eef16c98b84b833723d51",
+      "bridge-url": "http://localhost:8082"
+    }
+  }
 }

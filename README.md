@@ -46,5 +46,4 @@ We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrati
 1. Go to `cardano-http-bridge` directory, `cd cardano-http-bridge`
 1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=testnet`
 1. Go to `yoroi-importer` directory, `cd yoroi-importer`
-1. Load genesis data,`yarn run load-genesis`
 1. Start the app, `yarn run dev`.

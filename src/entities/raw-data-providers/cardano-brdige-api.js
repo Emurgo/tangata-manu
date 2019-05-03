@@ -1,6 +1,7 @@
 // @flow
 import urljoin from 'url-join'
 import axios from 'axios'
+import config from 'config'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
@@ -9,23 +10,19 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 
 class CardanoBridgeApi implements RawDataProvider {
-  #baseUrl: string
-
-  #template: string
 
   #networkBaseUrl: string
 
   #parser: any
 
   constructor(
-    baseUrl: string,
-    template: string,
     parser: RawDataParser,
   ) {
+    const networkName = config.get('defaultNetwork')
+    const defaultNetwork = config.get('networks')[networkName]
+    const baseUrl = defaultNetwork['bridge-url'] || config.get('defaultBridgeUrl')
+    this.#networkBaseUrl = urljoin(baseUrl, networkName)
     this.#parser = parser
-    this.#baseUrl = baseUrl
-    this.#template = template
-    this.#networkBaseUrl = urljoin(baseUrl, template)
   }
 
   async getJson(path: string) {
@@ -87,9 +84,6 @@ class CardanoBridgeApi implements RawDataProvider {
 }
 
 helpers.annotate(CardanoBridgeApi,
-  [
-    'cardanoBridge.baseUrl',
-    'cardanoBridge.template',
-    SERVICE_IDENTIFIER.RAW_DATA_PARSER])
+  [SERVICE_IDENTIFIER.RAW_DATA_PARSER])
 
 export default CardanoBridgeApi

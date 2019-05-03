@@ -102,7 +102,7 @@ class CustomDataParser implements RawDataParser {
       prev: header[1].toString('hex'),
     }
     switch (type) {
-      case 0: return { ...common, ...this.handleGenesisBlock(header) }
+      case 0: return { ...common, ...this.handleEpochBoundaryBlock(header) }
       case 1: return {
         ...common,
         ...this.handleRegularBlock(header, body),
@@ -112,14 +112,14 @@ class CustomDataParser implements RawDataParser {
     }
   }
 
-  handleGenesisBlock(header) {
+  handleEpochBoundaryBlock(header) {
     const [epoch, [chainDifficulty]] = header[3]
-    this.#logger.debug('handleGenesisBlock', epoch, chainDifficulty)
+    this.#logger.debug('handleEpochBoundaryBlock', epoch, chainDifficulty)
     return {
       epoch,
       height: chainDifficulty,
-      isGenesis: true,
-      slot: 0,
+      isEBB: true,
+      slot: null,
     }
   }
 
@@ -186,7 +186,7 @@ class CustomDataParser implements RawDataParser {
     let blockData
     switch (type) {
       case 0:
-        blockData = { ...common, ...this.handleGenesisBlock(header) }
+        blockData = { ...common, ...this.handleEpochBoundaryBlock(header) }
         break
       case 1:
         blockData = {

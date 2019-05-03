@@ -16,6 +16,8 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 const EPOCH_SIZE = 21600
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
 
+const QUEUE_MAX_LENGTH = 10000
+
 class CronScheduler implements Scheduler {
   #job: any
 
@@ -27,7 +29,7 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
-  #isAlreadyRun: boolean
+  #instanceBestBlock: number
 
   constructor(
     dataProvider: RawDataProvider,
@@ -45,9 +47,8 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
+    this.#instanceBestBlock = -1
 
-    // Prevent to run several jobs simultaneously.
-    this.#isAlreadyRun = false
     this.#blockProcessQueue = queue(async ({ type, height }, cb) => {
       if (type === 'block') {
         await this.processBlockHeight(height)
@@ -56,10 +57,6 @@ class CronScheduler implements Scheduler {
       }
       cb()
     }, 1)
-  }
-
-  setRunningState(value: boolean) {
-    this.#isAlreadyRun = value
   }
 
   async processEpochId(id: number) {
@@ -94,11 +91,15 @@ class CronScheduler implements Scheduler {
 
   async onTick() {
     this.#logger.info('onTick:checking for new blocks...')
-    if (this.#isAlreadyRun) return
-    this.setRunningState(true)
     try {
       // local state
       const { height, epoch, slot } = await this.#db.getBestBlockNum()
+
+      // Blocks which already in queue, but not yet processed.
+      const notProcessedBlocks = this.#blockProcessQueue.length()
+      if (notProcessedBlocks > QUEUE_MAX_LENGTH) {
+        this.#logger.info('Too many not yet processed blocks in queue. Skip to add new blocks.')
+      }
 
       // cardano-http-bridge state
       const nodeStatus = await this.#dataProvider.getStatus()
@@ -141,8 +142,6 @@ class CronScheduler implements Scheduler {
     } catch (e) {
       this.#logger.debug('Error occured:', e)
       throw e
-    } finally {
-      this.setRunningState(false)
     }
   }
 
