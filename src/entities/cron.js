@@ -122,7 +122,10 @@ class CronScheduler implements Scheduler {
         // Check if there's any point to bother with whole epochs
         if (noEpochYet || thereAreMoreStableEpoch || thereAreManyStableSlots) {
           if (packedEpochs > epoch) {
-            // TODO: process epochs
+            // eslint-disable-next-line no-plusplus
+            for (let height = epoch; (height <= packedEpochs); height++) {
+              this.#blockProcessQueue.push({ type: 'epoch', height })
+            }
           } else {
             // Packed epoch is not available yet
             this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
@@ -130,7 +133,7 @@ class CronScheduler implements Scheduler {
           return
         }
       }
-      for (let height = height, i = 0; (height < tipStatus.height) && (i < 9000);
+      for (let height = height + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
         // eslint-disable-next-line no-plusplus
            height++, i++) {
         this.#blockProcessQueue.push({ type: 'block', height })
