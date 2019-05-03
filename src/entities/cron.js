@@ -62,7 +62,9 @@ class CronScheduler implements Scheduler {
   async processEpochId(id: number) {
     const blocks = await this.#dataProvider.getParsedEpochById(id)
     for (let i = 0; i < blocks.length; i++) {
-      await this.processBlock(blocks[i])
+      if (!blocks[i].isEBB) {
+        await this.processBlock(blocks[i])
+      }
     }
   }
 
