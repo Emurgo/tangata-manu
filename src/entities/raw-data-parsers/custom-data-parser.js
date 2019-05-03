@@ -1,7 +1,7 @@
 // @flow
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import cbor from 'borc'
+import cbor from 'cbor'
 import bs58 from 'bs58'
 import blake from 'blakejs'
 
