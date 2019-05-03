@@ -10,7 +10,6 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 
 class CardanoBridgeApi implements RawDataProvider {
-
   #networkBaseUrl: string
 
   #parser: any
@@ -32,7 +31,7 @@ class CardanoBridgeApi implements RawDataProvider {
     return resp
   }
 
-  async get(path: string, options) {
+  async get(path: string, options?: {}) {
     const endpointUrl = urljoin(this.#networkBaseUrl, path)
     const resp = await axios(endpointUrl,
       {

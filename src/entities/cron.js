@@ -1,4 +1,7 @@
 // @flow
+/* eslint-disable no-plusplus */
+/* eslint-disable no-await-in-loop */
+
 import cron from 'cron'
 import _ from 'lodash'
 
@@ -12,8 +15,8 @@ import {
   Logger,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
+import Block from '../blockchain'
 
-const EPOCH_SIZE = 21600
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
 
 const QUEUE_MAX_LENGTH = 10000
@@ -62,9 +65,7 @@ class CronScheduler implements Scheduler {
   async processEpochId(id: number) {
     const blocks = await this.#dataProvider.getParsedEpochById(id)
     for (let i = 0; i < blocks.length; i++) {
-      if (!blocks[i].isEBB) {
-        await this.processBlock(blocks[i])
-      }
+      await this.processBlock(blocks[i])
     }
   }
 
@@ -73,7 +74,10 @@ class CronScheduler implements Scheduler {
     await this.processBlock(block)
   }
 
-  async processBlock(block: any) {
+  async processBlock(block: Block) {
+    // omit EBB blocks.
+    if (!block.isEBB) return
+
     const dbConn = this.#db.getConn()
     try {
       await dbConn.query('BEGIN')
@@ -105,14 +109,14 @@ class CronScheduler implements Scheduler {
 
       // cardano-http-bridge state
       const nodeStatus = await this.#dataProvider.getStatus()
-      const packedEpochs = nodeStatus.packedEpochs
+      const { packedEpochs } = nodeStatus
       const tipStatus = nodeStatus.tip.local
       const remoteStatus = nodeStatus.tip.remote
       if (!tipStatus) {
         this.#logger.info('cardano-http-brdige not yet synced')
         return
       }
-      this.#logger.debug(`Last block ${bestBlockNum}. Node status local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
+      this.#logger.debug(`Last block ${height}. Node status local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
       const [remEpoch, remSlot] = remoteStatus.slot
       const noEpochYet = epoch === undefined
       if (noEpochYet || epoch < remEpoch) {
@@ -121,12 +125,12 @@ class CronScheduler implements Scheduler {
         // Calculate latest stable remote epoch
         const lastRemStableEpoch = remEpoch - (remSlot > 2160 ? 1 : 2)
         const thereAreMoreStableEpoch = epoch < lastRemStableEpoch
-        const thereAreManyStableSlots = epoch === lastRemStableEpoch && slot < EPOCH_DOWNLOAD_THRESHOLD
+        const thereAreManyStableSlots = epoch === lastRemStableEpoch
+          && slot < EPOCH_DOWNLOAD_THRESHOLD
         // Check if there's any point to bother with whole epochs
         if (noEpochYet || thereAreMoreStableEpoch || thereAreManyStableSlots) {
           if (packedEpochs > epoch) {
-            // eslint-disable-next-line no-plusplus
-            for (let height = epoch; (height <= packedEpochs); height++) {
+            for (let blockHeight = epoch; (blockHeight <= packedEpochs); blockHeight++) {
               this.#blockProcessQueue.push({ type: 'epoch', height })
             }
           } else {
@@ -136,9 +140,8 @@ class CronScheduler implements Scheduler {
           return
         }
       }
-      for (let height = height + 1, i = 0; (height <= tipStatus.height) && (i < 9000);
-        // eslint-disable-next-line no-plusplus
-           height++, i++) {
+      for (let blockHeight = height + 1, i = 0; (blockHeight <= tipStatus.height) && (i < 9000);
+        blockHeight++, i++) {
         this.#blockProcessQueue.push({ type: 'block', height })
       }
     } catch (e) {

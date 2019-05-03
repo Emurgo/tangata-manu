@@ -6,6 +6,7 @@ import assert from 'assert'
 import { Database, DBConnection, Logger } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
+import Block, { TxType } from '../blockchain'
 import Q from '../db-queries'
 
 class DB implements Database {
@@ -25,7 +26,7 @@ class DB implements Database {
     return this.#conn
   }
 
-  async storeUtxos(utxos) {
+  async storeUtxos(utxos: [{}]) {
     const conn = this.getConn()
     this.#logger.debug('storeUtxos', utxos)
     const dbRes = await conn.query(
@@ -33,7 +34,7 @@ class DB implements Database {
     return dbRes
   }
 
-  async getBestBlockNum(): { height: number, epoch?: number, slot?: number } {
+  async getBestBlockNum(): Promise<{ height: number, epoch?: number, slot?: number }> {
     const conn = this.getConn()
     const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM.toString())
     if (dbRes.rowCount > 0) {
@@ -54,7 +55,7 @@ class DB implements Database {
     return dbRes
   }
 
-  async storeBlock(block) {
+  async storeBlock(block: Block) {
     const conn = this.getConn()
     try {
       await conn.query(Q.BLOCK_INSERT.setFields(block.serialize()).toString())
@@ -64,7 +65,7 @@ class DB implements Database {
     }
   }
 
-  async storeTxAddresses(txId, addresses) {
+  async storeTxAddresses(txId: string, addresses: Array<string>) {
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
       tx_hash: txId,
@@ -79,7 +80,7 @@ class DB implements Database {
     }
   }
 
-  async storeOutputs(tx) {
+  async storeOutputs(tx: {id: string, outputs: []}) {
     const { id, outputs } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
       output.address, output.value, id, index))
@@ -113,7 +114,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(block, tx) {
+  async storeTx(block: Block, tx: TxType) {
     const conn = this.getConn()
     const { inputs, outputs, id } = tx
 
@@ -145,9 +146,11 @@ class DB implements Database {
     )
   }
 
-  async storeBlockTxs(block) {
+  async storeBlockTxs(block: Block) {
     const { txs } = block
+    /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
+      /* eslint-disable no-await-in-loop */
       await this.storeTx(block, txs[index])
     }
   }

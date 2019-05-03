@@ -24,7 +24,7 @@ const TX_INSERT = sql.insert().registerValueHandler(Array, psqlArrayValueHandler
 const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses')
 
 const GET_BEST_BLOCK_NUM = sql.select()
-  .from('block')
+  .from('blocks')
   .field('block_height')
   .field('epoch')
   .field('slot')
