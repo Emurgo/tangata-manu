@@ -22,13 +22,16 @@
   "networks": {
     "obft-testnet": {
       "genesis": "791f4256e14c67b9035c3b80a0826adf719d3636c18eef16c98b84b833723d51",
-      "bridge-url": "http://localhost:8082"
+      "bridgeUrl": "http://localhost:8082",
+      "startTime": 1544614190
     },
     "testnet": {
-      "genesis": "b7f76950bc4866423538ab7764fc1c7020b24a5f717a5bee3109ff2796567214"
+      "genesis": "b7f76950bc4866423538ab7764fc1c7020b24a5f717a5bee3109ff2796567214",
+      "startTime": 1537941600
     },
     "mainnet": {
-      "genesis": "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+      "genesis": "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb",
+      "startTime": 1506203091
     }
   }
 }

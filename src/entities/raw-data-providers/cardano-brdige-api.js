@@ -7,10 +7,10 @@ import { helpers } from 'inversify-vanillajs-helpers'
 
 import { RawDataProvider, RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import utils from '../../utils'
 
 
 class CardanoBridgeApi implements RawDataProvider {
-
   #networkBaseUrl: string
 
   #parser: any
@@ -19,9 +19,8 @@ class CardanoBridgeApi implements RawDataProvider {
     parser: RawDataParser,
   ) {
     const networkName = config.get('defaultNetwork')
-    const defaultNetwork = config.get('networks')[networkName]
-    const baseUrl = defaultNetwork['bridge-url'] || config.get('defaultBridgeUrl')
-    this.#networkBaseUrl = urljoin(baseUrl, networkName)
+    const defaultNetwork = utils.getNetworkConfig()
+    this.#networkBaseUrl = urljoin(defaultNetwork.bridgeUrl, networkName)
     this.#parser = parser
   }
 
