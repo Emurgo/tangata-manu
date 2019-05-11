@@ -45,7 +45,7 @@ class DB implements Database {
         slot: Number(row.slot),
       }
     }
-    return { height: 0 }
+    return { height: 0, epoch: 0 }
   }
 
   async updateBestBlockNum(bestBlockNum: number) {

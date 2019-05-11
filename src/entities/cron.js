@@ -52,19 +52,20 @@ class CronScheduler implements Scheduler {
     this.#logger = logger
     this.#instanceBestBlock = -1
 
-    this.#blockProcessQueue = queue(async ({ type, height }, cb) => {
+    this.#blockProcessQueue = queue(async ({ type, height, epoch }, cb) => {
       if (type === 'block') {
         await this.processBlockHeight(height)
       } else if (type === 'epoch') {
-        await this.processEpochId(height)
+        await this.processEpochId(epoch, height)
       }
       cb()
     }, 1)
   }
 
-  async processEpochId(id: number) {
+  async processEpochId(id: number, height: number) {
+    this.#logger.info(`processEpochId: ${id}, ${height}`)
     const blocks = await this.#dataProvider.getParsedEpochById(id)
-    for (let i = 0; i < blocks.length; i++) {
+    for (let i = height + 1; i < blocks.length; i++) {
       await this.processBlock(blocks[i])
     }
   }
@@ -75,9 +76,6 @@ class CronScheduler implements Scheduler {
   }
 
   async processBlock(block: Block) {
-    // omit EBB blocks.
-    if (!block.isEBB) return
-
     const dbConn = this.#db.getConn()
     try {
       await dbConn.query('BEGIN')
@@ -118,8 +116,7 @@ class CronScheduler implements Scheduler {
       }
       this.#logger.debug(`Last block ${height}. Node status local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
       const [remEpoch, remSlot] = remoteStatus.slot
-      const noEpochYet = epoch === undefined
-      if (noEpochYet || epoch < remEpoch) {
+      if (epoch < remEpoch) {
         // If local epoch is lower than the current network tip
         // there's a potential for us to download full epochs, instead of single blocks
         // Calculate latest stable remote epoch
@@ -128,10 +125,14 @@ class CronScheduler implements Scheduler {
         const thereAreManyStableSlots = epoch === lastRemStableEpoch
           && slot < EPOCH_DOWNLOAD_THRESHOLD
         // Check if there's any point to bother with whole epochs
-        if (noEpochYet || thereAreMoreStableEpoch || thereAreManyStableSlots) {
+        if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
           if (packedEpochs > epoch) {
-            for (let blockHeight = epoch; (blockHeight <= packedEpochs); blockHeight++) {
-              this.#blockProcessQueue.push({ type: 'epoch', height })
+            for (let epochId = epoch; (epochId <= packedEpochs); epochId++) {
+              this.#blockProcessQueue.push({
+                type: 'epoch',
+                epoch: epochId,
+                height: (epochId === epoch ? height : 0),
+              })
             }
           } else {
             // Packed epoch is not available yet

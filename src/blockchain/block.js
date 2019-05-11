@@ -10,14 +10,17 @@ export default class Block {
 
   txs: any
 
+  isEBB: boolean
+
   constructor({
-    hash, slot, epoch, height, txs,
+    hash, slot, epoch, height, txs, isEBB,
   }) {
     this.hash = hash
     this.slot = slot
     this.epoch = epoch
     this.height = height
     this.txs = txs
+    this.isEBB = isEBB
   }
 
   serialize() {

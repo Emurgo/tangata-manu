@@ -89,31 +89,12 @@ class CustomDataParser implements RawDataParser {
 
   getNextBlock(blocksList: ArrayBuffer, offset: number) {
     const [blockSize, blob] = getBlockDataByOffset(blocksList, offset)
-    const [type, [header, body]] = cborDecode(blob)
-    const block = this.handleBlock(type, header, body)
+    const block = this.parseBlock(Buffer.from(blob))
     const bytesToAllign = blockSize % 4
     const nextBlockOffset = blockSize
       + 4 // block size field
       + (bytesToAllign && (4 - bytesToAllign))
     return [block, offset + nextBlockOffset]
-  }
-
-  handleBlock(type: number, header: HeaderType, body: {}) {
-    const hash = headerToId(header, type)
-    const common = {
-      hash,
-      magic: header[0],
-      prev: header[1].toString('hex'),
-    }
-    switch (type) {
-      case 0: return { ...common, ...this.handleEpochBoundaryBlock(header) }
-      case 1: return {
-        ...common,
-        ...this.handleRegularBlock(header, body),
-      }
-      default:
-        throw new Error(`Unexpected block type! ${type}`)
-    }
   }
 
   handleEpochBoundaryBlock(header: HeaderType) {
