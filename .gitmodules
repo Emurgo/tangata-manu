@@ -1,0 +1,3 @@
+[submodule "cardano-http-bridge"]
+	path = cardano-http-bridge
+	url = git@github.com:Emurgo/cardano-http-bridge.git
