@@ -18,9 +18,9 @@ class CardanoBridgeApi implements RawDataProvider {
   constructor(
     parser: RawDataParser,
   ) {
-    const networkName = config.get('defaultNetwork')
-    const defaultNetwork = utils.getNetworkConfig()
-    this.#networkBaseUrl = urljoin(defaultNetwork.bridgeUrl, networkName)
+    const networkName = process.env['importer_network'] || config.get('defaultNetwork')
+    const network = utils.getNetworkConfig(networkName)
+    this.#networkBaseUrl = urljoin(network.bridgeUrl, networkName)
     this.#parser = parser
   }
 

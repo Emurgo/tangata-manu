@@ -9,7 +9,6 @@
     "eslint": "eslint --ignore-path .gitignore src",
     "dev": "rimraf ./dist && yarn run build && export NODE_ENV=develop && nodemon ./src/index.js --inspect --exec babel-node | bunyan",
     "test": "jest",
-    "load-genesis": "rimraf ./dist && yarn run build && export NODE_ENV=develop && nodemon ./src/index.js load-genesis --inspect --exec babel-node | bunyan",
     "build-docker": "./scripts/docker/build-docker.sh"
   },
   "repository": {
