@@ -31,7 +31,7 @@ class CardanoBridgeApi implements RawDataProvider {
     return resp
   }
 
-  async get(path: string, options) {
+  async get(path: string, options?: {}) {
     const endpointUrl = urljoin(this.#networkBaseUrl, path)
     const resp = await axios(endpointUrl,
       {
@@ -73,6 +73,12 @@ class CardanoBridgeApi implements RawDataProvider {
     const resp = await this.get(`/height/${height}`)
     const { data } = resp
     return this.#parser.parseBlock(data)
+  }
+
+  async getParsedEpochById(id: number) {
+    const resp = await this.get(`/epoch/${id}`)
+    const { data } = resp
+    return this.#parser.parseEpoch(data)
   }
 }
 

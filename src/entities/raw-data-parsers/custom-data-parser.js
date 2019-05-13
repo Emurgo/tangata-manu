@@ -14,6 +14,8 @@ const SLOTS_IN_EPOCH = 21600
 
 const cborDecode = cbor.decode
 
+type HeaderType = Array<string>
+
 function decodedTxToBase(decodedTx) {
   if (Array.isArray(decodedTx)) {
     // eslint-disable-next-line default-case
@@ -38,6 +40,8 @@ const headerToId = (header, type: number) => {
 }
 
 class CborIndefiniteLengthArray {
+  elements: Array<{}>
+
   constructor(elements) {
     this.elements = elements
   }
@@ -71,6 +75,12 @@ function rustRawTxToId(rustTxBody) {
   }
 }
 
+const getBlockDataByOffset = (blocksList: any, offset: number) => {
+  const blockSize = new DataView(blocksList, offset).getUint32(0, false)
+  const blob = blocksList.slice(offset + 4, offset + blockSize + 4)
+  return [blockSize, new Uint8Array(blob)]
+}
+
 class CustomDataParser implements RawDataParser {
   #logger: any
 
@@ -83,16 +93,9 @@ class CustomDataParser implements RawDataParser {
     this.networkStartTime = utils.getNetworkConfig().startTime
   }
 
-  getBlockData(blocksList: any, offset: number) {
-    const blockSize = new DataView(blocksList, offset).getUint32(0, false)
-    const blob = blocksList.slice(offset + 4, offset + blockSize + 4)
-    return [blockSize, new Uint8Array(blob)]
-  }
-
   getNextBlock(blocksList: ArrayBuffer, offset: number) {
-    const [blockSize, blob] = this.getBlockData(blocksList, offset)
-    const [type, [header, body]] = cborDecode(blob)
-    const block = this.handleBlock(type, header, body)
+    const [blockSize, blob] = getBlockDataByOffset(blocksList, offset)
+    const block = this.parseBlock(Buffer.from(blob))
     const bytesToAllign = blockSize % 4
     const nextBlockOffset = blockSize
       + 4 // block size field
@@ -100,25 +103,7 @@ class CustomDataParser implements RawDataParser {
     return [block, offset + nextBlockOffset]
   }
 
-  handleBlock(type, header, body) {
-    const hash = headerToId(header, type)
-    const common = {
-      hash,
-      magic: header[0],
-      prev: header[1].toString('hex'),
-    }
-    switch (type) {
-      case 0: return { ...common, ...this.handleEpochBoundaryBlock(header) }
-      case 1: return {
-        ...common,
-        ...this.handleRegularBlock(header, body),
-      }
-      default:
-        throw new Error(`Unexpected block type! ${type}`)
-    }
-  }
-
-  handleEpochBoundaryBlock(header) {
+  handleEpochBoundaryBlock(header: HeaderType) {
     const [epoch, [chainDifficulty]] = header[3]
     this.#logger.debug('handleEpochBoundaryBlock', epoch, chainDifficulty)
     return {
@@ -129,7 +114,7 @@ class CustomDataParser implements RawDataParser {
     }
   }
 
-  handleRegularBlock(header, body) {
+  handleRegularBlock(header: HeaderType, body: {}) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
     const [chainDifficulty] = consensus[2]

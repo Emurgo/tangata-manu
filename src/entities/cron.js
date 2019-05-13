@@ -1,4 +1,7 @@
 // @flow
+/* eslint-disable no-plusplus */
+/* eslint-disable no-await-in-loop */
+
 import cron from 'cron'
 import _ from 'lodash'
 
@@ -12,6 +15,9 @@ import {
   Logger,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
+import Block from '../blockchain'
+
+const EPOCH_DOWNLOAD_THRESHOLD = 14400
 
 const QUEUE_MAX_LENGTH = 10000
 
@@ -46,14 +52,30 @@ class CronScheduler implements Scheduler {
     this.#logger = logger
     this.#instanceBestBlock = -1
 
-    this.#blockProcessQueue = queue(async ({ height }, cb) => {
-      await this.processBlock(height)
+    this.#blockProcessQueue = queue(async ({ type, height, epoch }, cb) => {
+      if (type === 'block') {
+        await this.processBlockHeight(height)
+      } else if (type === 'epoch') {
+        await this.processEpochId(epoch, height)
+      }
       cb()
     }, 1)
   }
 
-  async processBlock(height: number) {
+  async processEpochId(id: number, height: number) {
+    this.#logger.info(`processEpochId: ${id}, ${height}`)
+    const blocks = await this.#dataProvider.getParsedEpochById(id)
+    for (let i = height + 1; i < blocks.length; i++) {
+      await this.processBlock(blocks[i])
+    }
+  }
+
+  async processBlockHeight(height: number) {
     const block = await this.#dataProvider.getBlockByHeight(height)
+    await this.processBlock(block)
+  }
+
+  async processBlock(block: Block) {
     const dbConn = this.#db.getConn()
     try {
       await dbConn.query('BEGIN')
@@ -69,15 +91,13 @@ class CronScheduler implements Scheduler {
     } finally {
       this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
     }
-    return block
   }
 
   async onTick() {
     this.#logger.info('onTick:checking for new blocks...')
     try {
       // local state
-      const bestBlockNum = await this.#db.getBestBlockNum()
-      this.#instanceBestBlock = Math.max(bestBlockNum, this.#instanceBestBlock)
+      const { height, epoch, slot } = await this.#db.getBestBlockNum()
 
       // Blocks which already in queue, but not yet processed.
       const notProcessedBlocks = this.#blockProcessQueue.length()
@@ -86,18 +106,45 @@ class CronScheduler implements Scheduler {
       }
 
       // cardano-http-bridge state
-      const tipStatus = (await this.#dataProvider.getStatus()).tip.local
+      const nodeStatus = await this.#dataProvider.getStatus()
+      const { packedEpochs } = nodeStatus
+      const tipStatus = nodeStatus.tip.local
+      const remoteStatus = nodeStatus.tip.remote
       if (!tipStatus) {
         this.#logger.info('cardano-http-brdige not yet synced')
         return
       }
-      this.#logger.debug(`Last block ${bestBlockNum}. Tip status ${tipStatus.slot}`)
-      const nextBlockHeight = this.#instanceBestBlock + 1
-      for (let height = nextBlockHeight, i = 0; (height <= tipStatus.height) && (i < 9000);
-        // eslint-disable-next-line no-plusplus
-        height++, i++) {
-        this.#blockProcessQueue.push({ height })
-        this.#instanceBestBlock = height
+      this.#logger.debug(`Last block ${height}. Node status local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
+      const [remEpoch, remSlot] = remoteStatus.slot
+      if (epoch < remEpoch) {
+        // If local epoch is lower than the current network tip
+        // there's a potential for us to download full epochs, instead of single blocks
+        // Calculate latest stable remote epoch
+        const lastRemStableEpoch = remEpoch - (remSlot > 2160 ? 1 : 2)
+        const thereAreMoreStableEpoch = epoch < lastRemStableEpoch
+        const thereAreManyStableSlots = epoch === lastRemStableEpoch
+          && slot < EPOCH_DOWNLOAD_THRESHOLD
+        // Check if there's any point to bother with whole epochs
+        if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
+          if (packedEpochs > epoch) {
+            for (let epochId = epoch; (epochId <= packedEpochs); epochId++) {
+              this.#blockProcessQueue.push({
+                type: 'epoch',
+                epoch: epochId,
+               // height: (epochId === epoch ? height : 0),
+               height: 0, // temporary fixed value until `processEpochId` changed
+              })
+            }
+          } else {
+            // Packed epoch is not available yet
+            this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+          }
+          return
+        }
+      }
+      for (let blockHeight = height + 1, i = 0; (blockHeight <= tipStatus.height) && (i < 9000);
+        blockHeight++, i++) {
+        this.#blockProcessQueue.push({ type: 'block', height: blockHeight })
       }
     } catch (e) {
       this.#logger.debug('Error occured:', e)

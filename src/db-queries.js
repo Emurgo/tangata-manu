@@ -24,8 +24,12 @@ const TX_INSERT = sql.insert().registerValueHandler(Array, psqlArrayValueHandler
 const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses')
 
 const GET_BEST_BLOCK_NUM = sql.select()
-  .from('bestblock')
-  .field('best_block_num')
+  .from('blocks')
+  .field('block_height')
+  .field('epoch')
+  .field('slot')
+  .order('block_height', false)
+  .limit(1)
 
 const GET_UTXOS_BLOCKS_COUNT = sql.select()
   .field('(select count(*) from utxos ) + ( select count(*) from blocks) as cnt')
