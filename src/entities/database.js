@@ -9,6 +9,8 @@ import utils from '../blockchain/utils'
 import Block, { TxType } from '../blockchain'
 import Q from '../db-queries'
 
+const TX_SUCCESSFUL = 'Successful'
+
 class DB implements Database {
   #conn: any
 
@@ -137,6 +139,10 @@ class DB implements Database {
       outputs_amount: outputAmmounts,
       block_num: block.height,
       block_hash: block.hash,
+      tx_state: TX_SUCCESSFUL,
+      tx_body: tx.txBody,
+      time: tx.txTime,
+      last_update: tx.txTime,
     }).toString()
     this.#logger.debug('Insert TX:', query, inputAddresses, inputAmmounts)
     await conn.query(query)

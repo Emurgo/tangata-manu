@@ -1,13 +1,16 @@
 // @flow
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import cbor from 'borc'
+import cbor from 'cbor'
 import bs58 from 'bs58'
 import blake from 'blakejs'
 
 import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import Block from '../../blockchain'
+import utils from '../../utils'
+
+const SLOTS_IN_EPOCH = 21600
 
 const cborDecode = cbor.decode
 
@@ -81,10 +84,13 @@ const getBlockDataByOffset = (blocksList: any, offset: number) => {
 class CustomDataParser implements RawDataParser {
   #logger: any
 
+  networkStartTime: number
+
   constructor(
     logger: any,
   ) {
     this.#logger = logger
+    this.networkStartTime = utils.getNetworkConfig().startTime
   }
 
   getNextBlock(blocksList: ArrayBuffer, offset: number) {
@@ -117,14 +123,19 @@ class CustomDataParser implements RawDataParser {
     if (txs.length > 0) {
       this.#logger.debug('hrb', epoch, slot, chainDifficulty, txs.length)
     }
+    const blockTime = new Date(
+      (this.networkStartTime
+      + (epoch * SLOTS_IN_EPOCH + slot) * 20)
+      * 1000).toUTCString()
     const res = {
       slot,
       epoch,
       height: chainDifficulty,
       txs: txs.map(tx => {
         const [[inputs, outputs], witnesses] = tx
+        const cborTx = cbor.encode(tx)
         return {
-          id: rustRawTxToId(cbor.encode(tx)),
+          id: rustRawTxToId(cborTx),
           inputs: inputs.map(inp => {
             const [type, tagged] = inp
             const [txId, idx] = cbor.decode(tagged.value)
@@ -138,6 +149,8 @@ class CustomDataParser implements RawDataParser {
             const [type, tagged] = w
             return { type, sign: cbor.decode(tagged.value) }
           }),
+          txBody: cborTx.toString('hex'),
+          txTime: blockTime,
         }
       }),
     }
