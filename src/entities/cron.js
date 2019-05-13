@@ -131,7 +131,8 @@ class CronScheduler implements Scheduler {
               this.#blockProcessQueue.push({
                 type: 'epoch',
                 epoch: epochId,
-                height: (epochId === epoch ? height : 0),
+               // height: (epochId === epoch ? height : 0),
+               height: 0, // temporary fixed value until `processEpochId` changed
               })
             }
           } else {
