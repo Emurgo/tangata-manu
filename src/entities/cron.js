@@ -143,7 +143,7 @@ class CronScheduler implements Scheduler {
       }
       for (let blockHeight = height + 1, i = 0; (blockHeight <= tipStatus.height) && (i < 9000);
         blockHeight++, i++) {
-        this.#blockProcessQueue.push({ type: 'block', blockHeight })
+        this.#blockProcessQueue.push({ type: 'block', height: blockHeight })
       }
     } catch (e) {
       this.#logger.debug('Error occured:', e)
