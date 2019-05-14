@@ -9,6 +9,7 @@ import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import Block from '../../blockchain'
 import utils from '../../utils'
+import type { NetworkConfig } from "../../interfaces";
 
 const SLOTS_IN_EPOCH = 21600
 
@@ -88,9 +89,10 @@ class CustomDataParser implements RawDataParser {
 
   constructor(
     logger: any,
+    networkConfig: NetworkConfig,
   ) {
     this.#logger = logger
-    this.networkStartTime = utils.getNetworkConfig().startTime
+    this.networkStartTime = networkConfig.startTime()
   }
 
   getNextBlock(blocksList: ArrayBuffer, offset: number) {
@@ -213,6 +215,9 @@ class CustomDataParser implements RawDataParser {
   }
 }
 
-helpers.annotate(CustomDataParser, [SERVICE_IDENTIFIER.LOGGER])
+helpers.annotate(CustomDataParser, [
+  SERVICE_IDENTIFIER.LOGGER,
+  SERVICE_IDENTIFIER.NETWORK_CONFIG,
+])
 
 export default CustomDataParser

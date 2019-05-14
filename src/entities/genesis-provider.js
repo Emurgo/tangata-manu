@@ -14,6 +14,7 @@ import {
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 import utils from '../blockchain/utils'
+import type {NetworkConfig} from "../interfaces";
 
 const generateUtxoHash = (address) => {
   const data = bs58.decode(address)
@@ -29,12 +30,11 @@ class GenesisProvider implements Genesis {
   genesisHash: string
 
   constructor(
-    dataProvider: RawDataProvider,
     logger: Logger,
+    networkConfig: NetworkConfig,
+    dataProvider: RawDataProvider,
   ) {
-    const networkName = config.get('defaultNetwork')
-    const defaultNetwork = config.get('networks')[networkName]
-    this.genesisHash = defaultNetwork.genesis
+    this.genesisHash = networkConfig.genesisHash()
     this.#dataProvider = dataProvider
     this.#logger = logger
   }
@@ -64,8 +64,9 @@ class GenesisProvider implements Genesis {
 
 helpers.annotate(GenesisProvider,
   [
-    SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
     SERVICE_IDENTIFIER.LOGGER,
+    SERVICE_IDENTIFIER.NETWORK_CONFIG,
+    SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
   ])
 
 export default GenesisProvider

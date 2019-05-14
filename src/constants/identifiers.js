@@ -1,6 +1,7 @@
 // @flow
 
 const SERVICE_IDENTIFIER = {
+  NETWORK_CONFIG: Symbol.for('NetworkConfig'),
   RAW_DATA_PROVIDER: Symbol.for('RawDataProvider'),
   RAW_DATA_PARSER: Symbol.for('RawDataParser'),
   SCHEDULER: Symbol.for('Scheduler'),
