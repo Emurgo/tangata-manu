@@ -65,8 +65,18 @@ class CronScheduler implements Scheduler {
   async processEpochId(id: number, height: number) {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
     const blocks = await this.#dataProvider.getParsedEpochById(id)
-    for (let i = height + 1; i < blocks.length; i++) {
-      await this.processBlock(blocks[i])
+    if (!blocks) {
+      this.#logger.warn(`empty epoch: ${id}, ${height}`)
+      return
+    }
+    const blocksBeforeThisEpoch = blocks[0].height - 1
+    const continueFromHeight = height > blocksBeforeThisEpoch ? height - blocksBeforeThisEpoch : 0;
+    for (let i = continueFromHeight; i < blocks.length; i++) {
+      const block = blocks[i]
+      if (!block) {
+        throw new Error(`!block @ ${i} / ${blocks.length}`)
+      }
+      await this.processBlock(block)
     }
   }
 
@@ -98,6 +108,7 @@ class CronScheduler implements Scheduler {
     try {
       // local state
       const { height, epoch, slot } = await this.#db.getBestBlockNum()
+      this.#logger.info(`Tip @ ${height} | Slot: ${epoch} / ${slot}`)
 
       // Blocks which already in queue, but not yet processed.
       const notProcessedBlocks = this.#blockProcessQueue.length()
@@ -131,8 +142,7 @@ class CronScheduler implements Scheduler {
               this.#blockProcessQueue.push({
                 type: 'epoch',
                 epoch: epochId,
-               // height: (epochId === epoch ? height : 0),
-               height: 0, // temporary fixed value until `processEpochId` changed
+               height: (epochId === epoch ? height : 0),
               })
             }
           } else {
