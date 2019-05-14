@@ -62,16 +62,25 @@ class CronScheduler implements Scheduler {
     }, 1)
   }
 
+  static _filterEbb(blocks: Array<Block>): Array<Block> {
+    return !blocks ? blocks : ( blocks[0].isEBB ? blocks.slice(1) : blocks )
+  }
+
   async processEpochId(id: number, height: number) {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
-    const blocks = await this.#dataProvider.getParsedEpochById(id)
+    const blocks = CronScheduler._filterEbb(await this.#dataProvider.getParsedEpochById(id))
     if (!blocks) {
       this.#logger.warn(`empty epoch: ${id}, ${height}`)
       return
     }
+    const epochLength = blocks.length
     const blocksBeforeThisEpoch = blocks[0].height - 1
     const continueFromHeight = height > blocksBeforeThisEpoch ? height - blocksBeforeThisEpoch : 0;
-    for (let i = continueFromHeight; i < blocks.length; i++) {
+    if (height > 0) {
+      const params = { epochLength, blocksBeforeThisEpoch, continueFromHeight }
+      this.#logger.info(`height continuation math: ${JSON.stringify(params)}`)
+    }
+    for (let i = continueFromHeight; i < epochLength; i++) {
       const block = blocks[i]
       if (!block) {
         throw new Error(`!block @ ${i} / ${blocks.length}`)
@@ -99,7 +108,7 @@ class CronScheduler implements Scheduler {
       await dbConn.query('ROLLBACK')
       throw e
     } finally {
-      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      this.#logger.trace(`Block processed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
     }
   }
 
