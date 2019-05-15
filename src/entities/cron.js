@@ -75,7 +75,7 @@ class CronScheduler implements Scheduler {
     }
     const epochLength = blocks.length
     const blocksBeforeThisEpoch = blocks[0].height - 1
-    const continueFromHeight = height > blocksBeforeThisEpoch ? height - blocksBeforeThisEpoch : 0;
+    const continueFromHeight = height > blocksBeforeThisEpoch ? height - blocksBeforeThisEpoch : 0
     if (height > 0) {
       const params = { epochLength, blocksBeforeThisEpoch, continueFromHeight }
       this.#logger.info(`height continuation math: ${JSON.stringify(params)}`)

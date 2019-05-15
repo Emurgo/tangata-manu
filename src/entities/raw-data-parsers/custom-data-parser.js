@@ -8,8 +8,7 @@ import blake from 'blakejs'
 import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import Block from '../../blockchain'
-import utils from '../../utils'
-import type { NetworkConfig } from "../../interfaces";
+import type { NetworkConfig } from '../../interfaces'
 
 const SLOTS_IN_EPOCH = 21600
 
@@ -167,8 +166,8 @@ class CustomDataParser implements RawDataParser {
     this.#logger.debug('Start to parse epoch')
     for (
       let [block, offset] = nextBlock(0);
-      offset < blocksList.byteLength;
-      [block, offset] = nextBlock(offset)) {
+      offset < blocksList.byteLength;) {
+      [block, offset] = nextBlock(offset)
       blocks.push(block)
     }
     this.#logger.debug('Epoch parsed')
