@@ -8,6 +8,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import { RawDataProvider, RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import utils from '../../utils'
+import type { NetworkConfig } from "../../interfaces";
 
 
 class CardanoBridgeApi implements RawDataProvider {
@@ -16,11 +17,10 @@ class CardanoBridgeApi implements RawDataProvider {
   #parser: any
 
   constructor(
+    networkConfig: NetworkConfig,
     parser: RawDataParser,
   ) {
-    const networkName = config.get('defaultNetwork')
-    const defaultNetwork = utils.getNetworkConfig()
-    this.#networkBaseUrl = urljoin(defaultNetwork.bridgeUrl, networkName)
+    this.#networkBaseUrl = networkConfig.networkUrl()
     this.#parser = parser
   }
 
@@ -82,7 +82,9 @@ class CardanoBridgeApi implements RawDataProvider {
   }
 }
 
-helpers.annotate(CardanoBridgeApi,
-  [SERVICE_IDENTIFIER.RAW_DATA_PARSER])
+helpers.annotate(CardanoBridgeApi, [
+  SERVICE_IDENTIFIER.NETWORK_CONFIG,
+  SERVICE_IDENTIFIER.RAW_DATA_PARSER,
+])
 
 export default CardanoBridgeApi

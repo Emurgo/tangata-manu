@@ -62,11 +62,30 @@ class CronScheduler implements Scheduler {
     }, 1)
   }
 
+  static _filterEbb(blocks: Array<Block>): Array<Block> {
+    return !blocks ? blocks : ( blocks[0].isEBB ? blocks.slice(1) : blocks )
+  }
+
   async processEpochId(id: number, height: number) {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
-    const blocks = await this.#dataProvider.getParsedEpochById(id)
-    for (let i = height + 1; i < blocks.length; i++) {
-      await this.processBlock(blocks[i])
+    const blocks = CronScheduler._filterEbb(await this.#dataProvider.getParsedEpochById(id))
+    if (!blocks) {
+      this.#logger.warn(`empty epoch: ${id}, ${height}`)
+      return
+    }
+    const epochLength = blocks.length
+    const blocksBeforeThisEpoch = blocks[0].height - 1
+    const continueFromHeight = height > blocksBeforeThisEpoch ? height - blocksBeforeThisEpoch : 0;
+    if (height > 0) {
+      const params = { epochLength, blocksBeforeThisEpoch, continueFromHeight }
+      this.#logger.info(`height continuation math: ${JSON.stringify(params)}`)
+    }
+    for (let i = continueFromHeight; i < epochLength; i++) {
+      const block = blocks[i]
+      if (!block) {
+        throw new Error(`!block @ ${i} / ${blocks.length}`)
+      }
+      await this.processBlock(block)
     }
   }
 
@@ -89,7 +108,7 @@ class CronScheduler implements Scheduler {
       await dbConn.query('ROLLBACK')
       throw e
     } finally {
-      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      this.#logger.trace(`Block processed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
     }
   }
 
@@ -98,6 +117,7 @@ class CronScheduler implements Scheduler {
     try {
       // local state
       const { height, epoch, slot } = await this.#db.getBestBlockNum()
+      this.#logger.info(`Tip @ ${height} | Slot: ${epoch} / ${slot}`)
 
       // Blocks which already in queue, but not yet processed.
       const notProcessedBlocks = this.#blockProcessQueue.length()
@@ -131,8 +151,7 @@ class CronScheduler implements Scheduler {
               this.#blockProcessQueue.push({
                 type: 'epoch',
                 epoch: epochId,
-               // height: (epochId === epoch ? height : 0),
-               height: 0, // temporary fixed value until `processEpochId` changed
+               height: (epochId === epoch ? height : 0),
               })
             }
           } else {
