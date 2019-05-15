@@ -32,11 +32,12 @@ class CardanoBridgeApi implements RawDataProvider {
   }
 
   async get(path: string, options?: {}) {
+    const opts = options || {}
     const endpointUrl = urljoin(this.#networkBaseUrl, path)
     const resp = await axios(endpointUrl,
       {
         responseType: 'arraybuffer',
-        ...options,
+        ...opts,
       })
     return resp
   }
