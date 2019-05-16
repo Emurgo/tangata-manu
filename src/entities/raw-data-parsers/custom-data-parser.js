@@ -164,9 +164,8 @@ class CustomDataParser implements RawDataParser {
     const blocks = []
 
     this.#logger.debug('Start to parse epoch')
-    for (
-      let [block, offset] = nextBlock(0);
-      offset < blocksList.byteLength;) {
+
+    for (let block, offset = 0; offset < blocksList.byteLength;) {
       [block, offset] = nextBlock(offset)
       blocks.push(block)
     }
