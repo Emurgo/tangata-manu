@@ -16,23 +16,6 @@ const cborDecode = cbor.decode
 
 type HeaderType = Array<string>
 
-function decodedTxToBase(decodedTx) {
-  if (Array.isArray(decodedTx)) {
-    // eslint-disable-next-line default-case
-    switch (decodedTx.length) {
-      case 2: {
-        const signed = decodedTx
-        return signed[0]
-      }
-      case 3: {
-        const base = decodedTx
-        return base
-      }
-    }
-  }
-  throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
-}
-
 const headerToId = (header, type: number) => {
   const headerData = cbor.encode([type, header])
   const id = blake.blake2bHex(headerData, null, 32)
@@ -57,22 +40,43 @@ class CborIndefiniteLengthArray {
   }
 }
 
+type TxIdHex = string
+type TxBodyHex = string
 
-function rustRawTxToId(rustTxBody) {
-  if (!rustTxBody) {
+function packRawTxIdAndBody(decodedTxBody): [TxIdHex, TxBodyHex] {
+  if (!decodedTxBody) {
     throw new Error('Cannot decode inputs from undefined transaction!')
   }
   try {
-    const [inputs, outputs, attributes] = decodedTxToBase(cbor.decode(Buffer.from(rustTxBody)))
+    const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
     const enc = cbor.encode([
       new CborIndefiniteLengthArray(inputs),
       new CborIndefiniteLengthArray(outputs),
       attributes,
     ])
-    return blake.blake2bHex(enc, null, 32)
+    const txId = blake.blake2bHex(enc, null, 32)
+    const txBody = enc.toString('hex')
+    return [txId, txBody]
   } catch (e) {
     throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
   }
+}
+
+function decodedTxToBase(decodedTx) {
+  if (Array.isArray(decodedTx)) {
+    // eslint-disable-next-line default-case
+    switch (decodedTx.length) {
+      case 2: {
+        const signed = decodedTx
+        return signed[0]
+      }
+      case 3: {
+        const base = decodedTx
+        return base
+      }
+    }
+  }
+  throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
 }
 
 const getBlockDataByOffset = (blocksList: any, offset: number) => {
@@ -134,9 +138,9 @@ class CustomDataParser implements RawDataParser {
       height: chainDifficulty,
       txs: txs.map(tx => {
         const [[inputs, outputs], witnesses] = tx
-        const cborTx = cbor.encode(tx)
+        const [txId, txBody] = packRawTxIdAndBody(tx)
         return {
-          id: rustRawTxToId(cborTx),
+          id: txId,
           inputs: inputs.map(inp => {
             const [type, tagged] = inp
             const [txId, idx] = cbor.decode(tagged.value)
@@ -150,7 +154,7 @@ class CustomDataParser implements RawDataParser {
             const [type, tagged] = w
             return { type, sign: cbor.decode(tagged.value) }
           }),
-          txBody: cborTx.toString('hex'),
+          txBody: txBody,
           txTime: blockTime,
         }
       }),
