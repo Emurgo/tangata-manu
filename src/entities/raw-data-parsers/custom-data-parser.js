@@ -101,6 +101,7 @@ class CustomDataParser implements RawDataParser {
     const nextBlockOffset = blockSize
       + 4 // block size field
       + (bytesToAllign && (4 - bytesToAllign))
+    console.log(blocksList.byteLength, offset, nextBlockOffset)
     return [block, offset + nextBlockOffset]
   }
 

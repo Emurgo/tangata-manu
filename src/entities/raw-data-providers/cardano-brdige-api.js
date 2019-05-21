@@ -1,14 +1,13 @@
 // @flow
 import urljoin from 'url-join'
 import axios from 'axios'
-import config from 'config'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import { RawDataProvider, RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import utils from '../../utils'
-import type { NetworkConfig } from "../../interfaces";
+import type { NetworkConfig } from '../../interfaces'
 
 
 class CardanoBridgeApi implements RawDataProvider {

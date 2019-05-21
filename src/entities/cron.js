@@ -18,8 +18,13 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 import Block from '../blockchain'
 
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
-
+const ROLLBACK_BLOCKS_COUNT = 200
 const QUEUE_MAX_LENGTH = 10000
+
+const STATUS_ROLLBACK_REQUIRED = Symbol.for('ROLLBACK_REQUIRED')
+const BLOCK_STATUS_PROCESSED = Symbol.for('BLOCK_PROCESSED')
+const EPOCH_STATUS_PROCESSED = Symbol.for('EPOCH_PROCESSED')
+const EPOCH_STATUS_EMPTY = Symbol.for('EPOCH_EMPTY')
 
 class CronScheduler implements Scheduler {
   #job: any
@@ -33,6 +38,8 @@ class CronScheduler implements Scheduler {
   #blockProcessQueue: any
 
   #instanceBestBlock: number
+
+  #lastBlockHash: ?string
 
   constructor(
     dataProvider: RawDataProvider,
@@ -50,28 +57,50 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
-    this.#instanceBestBlock = -1
 
     this.#blockProcessQueue = queue(async ({ type, height, epoch }, cb) => {
+      let status
       if (type === 'block') {
-        await this.processBlockHeight(height)
+        status = await this.processBlockHeight(height)
       } else if (type === 'epoch') {
-        await this.processEpochId(epoch, height)
+        status = await this.processEpochId(epoch, height)
+      }
+      if (status === STATUS_ROLLBACK_REQUIRED) {
+        this.#logger.info('Rollback required.')
+        await this.rollback()
       }
       cb()
     }, 1)
+
+    this.resetBlockProcessor()
   }
 
-  static _filterEbb(blocks: Array<Block>): Array<Block> {
-    return !blocks ? blocks : ( blocks[0].isEBB ? blocks.slice(1) : blocks )
+  resetBlockProcessor() {
+    this.#instanceBestBlock = -1
+    this.#lastBlockHash = null
+    this.#blockProcessQueue.remove(() => true)
   }
 
-  async processEpochId(id: number, height: number) {
+  async rollback() {
+    // reset scheduler state
+    this.resetBlockProcessor()
+
+    // Recover database state to newest actual block.
+    await this.resetNBlocks(ROLLBACK_BLOCKS_COUNT)
+  }
+
+  async resetNBlocks(blockHeight: number) {
+    await this.#db.decreaseBestBlockNum(blockHeight)
+    //await this.#db.setNewerTxsStatus(blockHash, TX_PENDING_STATUS)
+    //await this.#db.resetUtxosTo(blockHash)
+  }
+
+  async processEpochId(id: number, height: number): Promise<Symbol> {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
     const blocks = CronScheduler._filterEbb(await this.#dataProvider.getParsedEpochById(id))
     if (!blocks) {
       this.#logger.warn(`empty epoch: ${id}, ${height}`)
-      return
+      return EPOCH_STATUS_EMPTY
     }
     const epochLength = blocks.length
     const blocksBeforeThisEpoch = blocks[0].height - 1
@@ -85,17 +114,23 @@ class CronScheduler implements Scheduler {
       if (!block) {
         throw new Error(`!block @ ${i} / ${blocks.length}`)
       }
-      await this.processBlock(block)
     }
+    return EPOCH_STATUS_PROCESSED
   }
 
   async processBlockHeight(height: number) {
     const block = await this.#dataProvider.getBlockByHeight(height)
-    await this.processBlock(block)
+    return this.processBlock(block)
   }
 
-  async processBlock(block: Block) {
+  async processBlock(block: Block): Promise<Symbol> {
     const dbConn = this.#db.getConn()
+    if (this.#lastBlockHash
+      && block.prevHash !== this.#lastBlockHash) {
+      this.#logger.info('block.prevHash()!== this.#lastBlockHash. Performing rollback...')
+      return STATUS_ROLLBACK_REQUIRED
+    }
+    this.#lastBlockHash = block.hash
     try {
       await dbConn.query('BEGIN')
       await this.#db.storeBlock(block)
@@ -108,8 +143,9 @@ class CronScheduler implements Scheduler {
       await dbConn.query('ROLLBACK')
       throw e
     } finally {
-      this.#logger.trace(`Block processed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
     }
+    return BLOCK_STATUS_PROCESSED
   }
 
   async onTick() {
@@ -117,7 +153,6 @@ class CronScheduler implements Scheduler {
     try {
       // local state
       const { height, epoch, slot } = await this.#db.getBestBlockNum()
-      this.#logger.info(`Tip @ ${height} | Slot: ${epoch} / ${slot}`)
 
       // Blocks which already in queue, but not yet processed.
       const notProcessedBlocks = this.#blockProcessQueue.length()
@@ -151,7 +186,8 @@ class CronScheduler implements Scheduler {
               this.#blockProcessQueue.push({
                 type: 'epoch',
                 epoch: epochId,
-               height: (epochId === epoch ? height : 0),
+                // height: (epochId === epoch ? height : 0),
+                height: 0, // temporary fixed value until `processEpochId` changed
               })
             }
           } else {

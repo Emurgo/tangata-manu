@@ -14,7 +14,7 @@ import {
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 import utils from '../blockchain/utils'
-import type {NetworkConfig} from "../interfaces";
+import type { NetworkConfig } from '../interfaces'
 
 const generateUtxoHash = (address) => {
   const data = bs58.decode(address)
