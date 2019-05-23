@@ -1,10 +1,12 @@
 {
+  "defaultBridgeUrl": "$CARDANO_BRIDGE_URL",
+  "defaultNetwork": "$YOROI_IMPORTER_NETWORK",
   "db": {
-    "user": "$PG_USER",
-    "host": "$PG_HOST",
-    "database": "$PG_DATABASE",
-    "password": "$PG_PASSWORD",
-    "port": 5432,
+    "user": "$PGUSER",
+    "host": "$PGHOST",
+    "database": "$PGDATABASE",
+    "password": "$PGPASSWORD",
+    "port": $PGPORT,
     "min": 4,
     "max": 20,
     "idleTimeoutMillis": 1000,
