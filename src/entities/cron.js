@@ -37,9 +37,9 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
-  #instanceBestBlock: number
-
   #lastBlockHash: ?string
+
+  #epochsInQueue: []
 
   constructor(
     dataProvider: RawDataProvider,
@@ -57,6 +57,7 @@ class CronScheduler implements Scheduler {
     })
     this.#db = db
     this.#logger = logger
+    this.#epochsInQueue = []
 
     this.#blockProcessQueue = queue(async ({ type, height, epoch }, cb) => {
       let status
@@ -76,32 +77,42 @@ class CronScheduler implements Scheduler {
   }
 
   resetBlockProcessor() {
-    this.#instanceBestBlock = -1
     this.#lastBlockHash = null
-    this.#blockProcessQueue.remove(() => true)
+    //this.#blockProcessQueue.remove(() => true)
   }
 
   async rollback() {
+    this.#logger.info(`Rollback to ${ROLLBACK_BLOCKS_COUNT} back.`)
     // reset scheduler state
     this.resetBlockProcessor()
 
+
     // Recover database state to newest actual block.
-    await this.resetNBlocks(ROLLBACK_BLOCKS_COUNT)
+    const { height } = await this.#db.getBestBlockNum()
+    await this.resetToBlockHeight(height - ROLLBACK_BLOCKS_COUNT)
   }
 
-  async resetNBlocks(blockHeight: number) {
-    await this.#db.decreaseBestBlockNum(blockHeight)
-    //await this.#db.setNewerTxsStatus(blockHash, TX_PENDING_STATUS)
-    //await this.#db.resetUtxosTo(blockHash)
+  async resetToBlockHeight(blockHeight: number) {
+    await this.#db.rollBackTransactions(blockHeight)
+    await this.#db.rollBackUtxoBackup(blockHeight)
+    await this.#db.rollBackBlockHistory(blockHeight)
+    await this.#db.updateBestBlockNum(blockHeight)
+  }
+
+  static _filterEbb(blocks: Array<Block>): Array<Block> {
+    return !blocks ? blocks : ( blocks[0].isEBB ? blocks.slice(1) : blocks )
   }
 
   async processEpochId(id: number, height: number): Promise<Symbol> {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
+    this.resetBlockProcessor()
+    let status = EPOCH_STATUS_PROCESSED
     const blocks = CronScheduler._filterEbb(await this.#dataProvider.getParsedEpochById(id))
     if (!blocks) {
       this.#logger.warn(`empty epoch: ${id}, ${height}`)
       return EPOCH_STATUS_EMPTY
     }
+
     const epochLength = blocks.length
     const blocksBeforeThisEpoch = blocks[0].height - 1
     const continueFromHeight = height > blocksBeforeThisEpoch ? height - blocksBeforeThisEpoch : 0
@@ -114,8 +125,12 @@ class CronScheduler implements Scheduler {
       if (!block) {
         throw new Error(`!block @ ${i} / ${blocks.length}`)
       }
+      status = await this.processBlock(block)
+      if (status === STATUS_ROLLBACK_REQUIRED) {
+        return STATUS_ROLLBACK_REQUIRED
+      }
     }
-    return EPOCH_STATUS_PROCESSED
+    return status
   }
 
   async processBlockHeight(height: number) {
@@ -127,7 +142,7 @@ class CronScheduler implements Scheduler {
     const dbConn = this.#db.getConn()
     if (this.#lastBlockHash
       && block.prevHash !== this.#lastBlockHash) {
-      this.#logger.info('block.prevHash()!== this.#lastBlockHash. Performing rollback...')
+      this.#logger.info(`block.prevHash(${block.prevHash})!== this.#lastBlockHash(${this.#lastBlockHash}). Performing rollback...`)
       return STATUS_ROLLBACK_REQUIRED
     }
     this.#lastBlockHash = block.hash
@@ -143,7 +158,9 @@ class CronScheduler implements Scheduler {
       await dbConn.query('ROLLBACK')
       throw e
     } finally {
-      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      if (block.height % 10 === 0) {
+        this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      }
     }
     return BLOCK_STATUS_PROCESSED
   }
@@ -182,13 +199,20 @@ class CronScheduler implements Scheduler {
         // Check if there's any point to bother with whole epochs
         if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
           if (packedEpochs > epoch) {
-            for (let epochId = epoch; (epochId <= packedEpochs); epochId++) {
-              this.#blockProcessQueue.push({
-                type: 'epoch',
-                epoch: epochId,
-                // height: (epochId === epoch ? height : 0),
-                height: 0, // temporary fixed value until `processEpochId` changed
-              })
+            for (let epochId = epoch;
+              (epochId <= packedEpochs); epochId++) {
+              const epochStartHeight = (epochId === epoch ? height : 0)
+              const epochNotInQueue = _.findIndex(this.#epochsInQueue, (item) => (item === epochId)) === -1
+              
+              if (epochNotInQueue) {
+                this.#blockProcessQueue.push({
+                  type: 'epoch',
+                  epoch: epochId,
+                  height: epochStartHeight,
+                })
+                this.#logger.debug(`Pushed to queue: ${epochId} ${epochStartHeight}`)
+                this.#epochsInQueue.push(epochId)
+              }
             }
           } else {
             // Packed epoch is not available yet

@@ -1,2 +1,2 @@
 export { default } from './block'
-export { TxType } from './tx'
+export { TxType, TX_STATUS } from './tx'

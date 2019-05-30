@@ -2,6 +2,8 @@
 export default class Block {
   hash: string
 
+  prevHash: string
+
   slot: number
 
   epoch: number
@@ -13,9 +15,10 @@ export default class Block {
   isEBB: boolean
 
   constructor({
-    hash, slot, epoch, height, txs, isEBB,
+    hash, slot, epoch, height, txs, isEBB, prevHash,
   }) {
     this.hash = hash
+    this.prevHash = prevHash
     this.slot = slot
     this.epoch = epoch
     this.height = height

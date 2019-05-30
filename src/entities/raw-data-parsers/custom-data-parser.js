@@ -14,7 +14,7 @@ const SLOTS_IN_EPOCH = 21600
 
 const cborDecode = cbor.decode
 
-type HeaderType = Array<string>
+export type HeaderType = Array<string>
 
 const headerToId = (header, type: number) => {
   const headerData = cbor.encode([type, header])
@@ -105,7 +105,6 @@ class CustomDataParser implements RawDataParser {
     const nextBlockOffset = blockSize
       + 4 // block size field
       + (bytesToAllign && (4 - bytesToAllign))
-    console.log(blocksList.byteLength, offset, nextBlockOffset)
     return [block, offset + nextBlockOffset]
   }
 
@@ -155,7 +154,7 @@ class CustomDataParser implements RawDataParser {
             const [type, tagged] = w
             return { type, sign: cbor.decode(tagged.value) }
           }),
-          txBody: txBody,
+          txBody,
           txTime: blockTime,
         }
       }),
@@ -184,7 +183,7 @@ class CustomDataParser implements RawDataParser {
     const common = {
       hash,
       magic: header[0],
-      prev: header[1].toString('hex'),
+      prevHash: header[1].toString('hex'),
     }
     let blockData
     switch (type) {
@@ -211,11 +210,6 @@ class CustomDataParser implements RawDataParser {
     return epoch
   }
 
-  parse(data: string) {
-    const parsedData = {}
-    this.#logger.info('Parsed data:', data.length)
-    return parsedData
-  }
 }
 
 helpers.annotate(CustomDataParser, [

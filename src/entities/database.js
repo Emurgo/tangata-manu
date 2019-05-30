@@ -6,10 +6,9 @@ import assert from 'assert'
 import { Database, DBConnection, Logger } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import Block, { TxType } from '../blockchain'
+import Block, { TxType, TX_STATUS } from '../blockchain'
 import Q from '../db-queries'
 
-const TX_SUCCESSFUL = 'Successful'
 
 class DB implements Database {
   #conn: any
@@ -54,6 +53,56 @@ class DB implements Database {
     const conn = this.getConn()
     const dbRes = await conn.query(
       Q.BEST_BLOCK_UPDATE.set('best_block_num', bestBlockNum).toString())
+    return dbRes
+  }
+
+  async rollBackTransactions(blockHeight: number) {
+    const conn = this.getConn()
+    const sql = Q.sql.update()
+      .table('txs')
+      .set('tx_state', TX_STATUS.TX_PENDING_STATUS)
+      .set('block_num', null)
+      .set('block_hash', null)
+      .set('time', null)
+      .set('last_update', 'NOW()', { dontQuote: true })
+      .where('block_num > ?', blockHeight)
+      .toString()
+    const dbRes = await conn.query(sql)
+    return dbRes
+  }
+
+
+  async rollBackUtxoBackup(blockHeight: number) {
+    const conn = this.getConn()
+    const sql = Q.sql.insert()
+      .into('utxos')
+      .with('moved_utxos',
+        Q.sql.delete()
+          .from('utxos_backup')
+          .where('block_num > ?', blockHeight)
+          .returning('*'))
+      .fromQuery(['utxo_id', 'tx_hash', 'tx_index', 'receiver', 'amount', 'block_num'],
+        Q.sql.select().from('moved_utxos'))
+      .toString()
+    const dbRes = await conn.query(sql)
+    return dbRes
+  }
+
+  async rollBackBlockHistory(blockHeight: number) {
+    const conn = this.getConn()
+    const sql = Q.sql.delete()
+      .from('blocks')
+      .where('block_height > ?', blockHeight)
+      .toString()
+    const dbRes = await conn.query(sql)
+    return dbRes
+  }
+
+  async decreaseBestBlockNum(blocksCount: number) {
+    const conn = this.getConn()
+    const sql = Q.BEST_BLOCK_UPDATE.set('best_block_num', `best_block_num - ${blocksCount}`,
+      { dontQuote: true }).toString()
+    const dbRes = await conn.query(sql)
     return dbRes
   }
 
@@ -139,7 +188,7 @@ class DB implements Database {
       outputs_amount: outputAmmounts,
       block_num: block.height,
       block_hash: block.hash,
-      tx_state: TX_SUCCESSFUL,
+      tx_state: TX_STATUS.TX_SUCCESS_STATUS,
       tx_body: tx.txBody,
       time: tx.txTime,
       last_update: tx.txTime,
