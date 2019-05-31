@@ -147,7 +147,8 @@ class CronScheduler implements Scheduler {
         // Check if there's any point to bother with whole epochs
         if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
           if (packedEpochs > epoch) {
-            for (let epochId = epoch; (epochId <= packedEpochs); epochId++) {
+            // Packed epochs are 0-based, so we must treat them as array indices
+            for (let epochId = epoch; (epochId < packedEpochs); epochId++) {
               this.#blockProcessQueue.push({
                 type: 'epoch',
                 epoch: epochId,
