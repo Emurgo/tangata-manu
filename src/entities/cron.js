@@ -38,6 +38,8 @@ class CronScheduler implements Scheduler {
 
   #blockProcessQueue: any
 
+  #epochProcessQueue: any
+
   #lastBlockHash: ?string
 
   #epochsInQueue: []
@@ -60,17 +62,17 @@ class CronScheduler implements Scheduler {
     this.#logger = logger
     this.#epochsInQueue = []
 
-    this.#blockProcessQueue = queue(async ({ type, height, epoch }, cb) => {
-      let status
-      if (type === 'block') {
-        status = await this.processBlockHeight(height)
-      } else if (type === 'epoch') {
-        status = await this.processEpochId(epoch, height)
-      }
+    this.#blockProcessQueue = queue(async ({ height }, cb) => {
+      const status = await this.processBlockHeight(height)
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.#logger.info('Rollback required.')
         await this.rollback()
       }
+      cb()
+    }, 1)
+
+    this.#epochProcessQueue = queue(async ({ epoch, height }, cb) => {
+      await this.processEpochId(epoch, height)
       cb()
     }, 1)
 
@@ -79,7 +81,7 @@ class CronScheduler implements Scheduler {
 
   resetBlockProcessor() {
     this.#lastBlockHash = null
-    //this.#blockProcessQueue.remove(() => true)
+    this.#blockProcessQueue.remove(() => true)
   }
 
   async rollback() {
@@ -207,8 +209,7 @@ class CronScheduler implements Scheduler {
               const epochNotInQueue = _.findIndex(this.#epochsInQueue, (item) => (item === epochId)) === -1
               
               if (epochNotInQueue) {
-                this.#blockProcessQueue.push({
-                  type: 'epoch',
+                this.#epochProcessQueue.push({
                   epoch: epochId,
                   height: epochStartHeight,
                 })
@@ -223,9 +224,14 @@ class CronScheduler implements Scheduler {
           return
         }
       }
-      for (let blockHeight = height + 1, i = 0; (blockHeight <= tipStatus.height) && (i < 9000);
-        blockHeight++, i++) {
-        this.#blockProcessQueue.push({ type: 'block', height: blockHeight })
+      const notYetProcessedEpochsCount = this.#epochProcessQueue.length()
+      if (notYetProcessedEpochsCount === 0) {
+        for (let blockHeight = height + 1, i = 0; (blockHeight <= tipStatus.height) && (i < 9000);
+          blockHeight++, i++) {
+          this.#blockProcessQueue.push({ height: blockHeight })
+        }
+      } else {
+        this.#logger.debug('There are still not processed epochs.', notYetProcessedEpochsCount)
       }
     } catch (e) {
       this.#logger.debug('Error occured:', e)
