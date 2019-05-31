@@ -134,6 +134,7 @@ class CronScheduler implements Scheduler {
   }
 
   async processBlockHeight(height: number) {
+    this.#logger.info(`processEpochId: ${id}, ${height}`)
     const block = await this.#dataProvider.getBlockByHeight(height)
     return this.processBlock(block)
   }

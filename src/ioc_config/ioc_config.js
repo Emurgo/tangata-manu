@@ -47,11 +47,13 @@ const initIoC = async () => {
     dataParserClass = MockDataParser
   }
 
-  container.bind<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER).to(apiClass)
-  container.bind<RawDataParser>(SERVICE_IDENTIFIER.RAW_DATA_PARSER).to(dataParserClass)
-  container.bind<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER).to(CronScheduler)
-  container.bind<Database>(SERVICE_IDENTIFIER.DATABASE).to(DB)
-  container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider)
+  container.bind<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
+    .to(apiClass).inSingletonScope()
+  container.bind<RawDataParser>(SERVICE_IDENTIFIER.RAW_DATA_PARSER)
+    .to(dataParserClass).inSingletonScope()
+  container.bind<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER).to(CronScheduler).inSingletonScope()
+  container.bind<Database>(SERVICE_IDENTIFIER.DATABASE).to(DB).inSingletonScope()
+  container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider).inSingletonScope()
   return container
 }
 

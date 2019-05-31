@@ -57,6 +57,7 @@ class DB implements Database {
   }
 
   async rollBackTransactions(blockHeight: number) {
+    this.#logger.info(`rollBackTransactions to block ${blockHeight}`)
     const conn = this.getConn()
     const sql = Q.sql.update()
       .table('txs')
@@ -73,6 +74,7 @@ class DB implements Database {
 
 
   async rollBackUtxoBackup(blockHeight: number) {
+    this.#logger.info(`rollBackUtxoBackup to block ${blockHeight}`)
     const conn = this.getConn()
     const sql = Q.sql.insert()
       .into('utxos')
@@ -89,6 +91,7 @@ class DB implements Database {
   }
 
   async rollBackBlockHistory(blockHeight: number) {
+    this.#logger.info(`rollBackBlockHistory to block ${blockHeight}`)
     const conn = this.getConn()
     const sql = Q.sql.delete()
       .from('blocks')
