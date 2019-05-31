@@ -20,6 +20,7 @@ import Block from '../blockchain'
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
 const ROLLBACK_BLOCKS_COUNT = 200
 const QUEUE_MAX_LENGTH = 10000
+const LOG_BLOCK_PARSED_THRESHOLD = 20
 
 const STATUS_ROLLBACK_REQUIRED = Symbol.for('ROLLBACK_REQUIRED')
 const BLOCK_STATUS_PROCESSED = Symbol.for('BLOCK_PROCESSED')
@@ -134,7 +135,7 @@ class CronScheduler implements Scheduler {
   }
 
   async processBlockHeight(height: number) {
-    this.#logger.info(`processEpochId: ${id}, ${height}`)
+    this.#logger.info(`processBlockHeight: ${height}`)
     const block = await this.#dataProvider.getBlockByHeight(height)
     return this.processBlock(block)
   }
@@ -159,7 +160,7 @@ class CronScheduler implements Scheduler {
       await dbConn.query('ROLLBACK')
       throw e
     } finally {
-      if (block.height % 10 === 0) {
+      if (block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
         this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
       }
     }
@@ -201,7 +202,7 @@ class CronScheduler implements Scheduler {
         if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
           if (packedEpochs > epoch) {
             for (let epochId = epoch;
-              (epochId <= packedEpochs); epochId++) {
+              (epochId < packedEpochs); epochId++) {
               const epochStartHeight = (epochId === epoch ? height : 0)
               const epochNotInQueue = _.findIndex(this.#epochsInQueue, (item) => (item === epochId)) === -1
               
