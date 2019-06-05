@@ -34,12 +34,9 @@ const GET_BEST_BLOCK_NUM = sql.select()
 const GET_UTXOS_BLOCKS_COUNT = sql.select()
   .field('(select count(*) from utxos ) + ( select count(*) from blocks) as cnt')
 
-const GET_MOVED_UTXOS = sql.select().from('moved_utxos')
-
 export default {
   sql,
   UTXOS_INSERT,
-  GET_MOVED_UTXOS,
   GET_BEST_BLOCK_NUM,
   BEST_BLOCK_UPDATE,
   BLOCK_INSERT,

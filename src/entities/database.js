@@ -72,16 +72,27 @@ class DB implements Database {
     return dbRes
   }
 
+  async deleteInvalidUtxos(blockHeight: number) {
+    const conn = this.getConn()
+    const utxosSql = Q.sql.delete().from('utxos')
+      .where('block_num > ?', blockHeight).toString()
+    const utxosBackupSql = Q.sql.delete().from('utxos_backup')
+      .where('block_num > ?', blockHeight).toString()
+    await conn.query(utxosSql)
+    await conn.query(utxosBackupSql)
+  }
 
   async rollBackUtxoBackup(blockHeight: number) {
     this.#logger.info(`rollBackUtxoBackup to block ${blockHeight}`)
+    await this.deleteInvalidUtxos(blockHeight)
     const conn = this.getConn()
     const sql = Q.sql.insert()
       .into('utxos')
       .with('moved_utxos',
         Q.sql.delete()
           .from('utxos_backup')
-          .where('block_num > ?', blockHeight)
+          .where('block_num < ?', blockHeight)
+          .where('deleted_block_num > ?', blockHeight)
           .returning('*'))
       .fromQuery(['utxo_id', 'tx_hash', 'tx_index', 'receiver', 'amount', 'block_num'],
         Q.sql.select().from('moved_utxos'))
@@ -141,7 +152,7 @@ class DB implements Database {
     await this.storeUtxos(utxosData)
   }
 
-  async backupAndRemoveUtxos(utxoIds: Array<string>) {
+  async backupAndRemoveUtxos(utxoIds: Array<string>, deletedBlockNum: number) {
     const conn = this.getConn()
     const query = Q.sql.insert()
       .into('utxos_backup')
@@ -150,8 +161,23 @@ class DB implements Database {
           .from('utxos')
           .where('utxo_id IN ?', utxoIds)
           .returning('*'))
-      .fromQuery(['utxo_id', 'tx_hash', 'tx_index', 'receiver', 'amount', 'block_num'],
-        Q.GET_MOVED_UTXOS)
+      .fromQuery([
+        'utxo_id',
+        'tx_hash',
+        'tx_index',
+        'receiver',
+        'amount',
+        'block_num',
+        'deleted_block_num',
+      ],
+      Q.sql.select().from('moved_utxos')
+        .field('utxo_id')
+        .field('tx_hash')
+        .field('tx_index')
+        .field('receiver')
+        .field('amount')
+        .field('block_num')
+        .field(`${deletedBlockNum}`, 'deleted_block_num'))
       .toString()
     const dbRes = await conn.query(query)
     return dbRes
@@ -186,7 +212,7 @@ class DB implements Database {
 
     assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
 
-    await this.backupAndRemoveUtxos(inputUtxoIds)
+    await this.backupAndRemoveUtxos(inputUtxoIds, block.height)
     const inputAddresses = _.map(inputUtxos, 'address')
     const outputAddresses = _.map(outputs, 'address')
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
