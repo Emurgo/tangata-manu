@@ -4,7 +4,6 @@ import bs58 from 'bs58'
 import _ from 'lodash'
 import * as Cardano from 'cardano-wallet'
 import base64url from 'base64url'
-import config from 'config'
 
 import {
   RawDataProvider,

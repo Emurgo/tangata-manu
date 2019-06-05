@@ -19,7 +19,6 @@ import {
   Scheduler,
   Database,
   Genesis,
-  NetworkConfig,
   Logger,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'

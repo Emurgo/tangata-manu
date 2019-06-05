@@ -40,27 +40,8 @@ class CborIndefiniteLengthArray {
   }
 }
 
-type TxIdHex = string
-type TxBodyHex = string
-
-function packRawTxIdAndBody(decodedTxBody): [TxIdHex, TxBodyHex] {
-  if (!decodedTxBody) {
-    throw new Error('Cannot decode inputs from undefined transaction!')
-  }
-  try {
-    const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
-    const enc = cbor.encode([
-      new CborIndefiniteLengthArray(inputs),
-      new CborIndefiniteLengthArray(outputs),
-      attributes,
-    ])
-    const txId = blake.blake2bHex(enc, null, 32)
-    const txBody = enc.toString('hex')
-    return [txId, txBody]
-  } catch (e) {
-    throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
-  }
-}
+type TxIdHexType = string
+type TxBodyHexType = string
 
 function decodedTxToBase(decodedTx) {
   if (Array.isArray(decodedTx)) {
@@ -77,6 +58,25 @@ function decodedTxToBase(decodedTx) {
     }
   }
   throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
+}
+
+function packRawTxIdAndBody(decodedTxBody): [TxIdHexType, TxBodyHexType] {
+  if (!decodedTxBody) {
+    throw new Error('Cannot decode inputs from undefined transaction!')
+  }
+  try {
+    const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
+    const enc = cbor.encode([
+      new CborIndefiniteLengthArray(inputs),
+      new CborIndefiniteLengthArray(outputs),
+      attributes,
+    ])
+    const txId = blake.blake2bHex(enc, null, 32)
+    const txBody = enc.toString('hex')
+    return [txId, txBody]
+  } catch (e) {
+    throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
+  }
 }
 
 const getBlockDataByOffset = (blocksList: any, offset: number) => {
@@ -144,8 +144,8 @@ class CustomDataParser implements RawDataParser {
           blockNum: chainDifficulty,
           inputs: inputs.map(inp => {
             const [type, tagged] = inp
-            const [txId, idx] = cbor.decode(tagged.value)
-            return { type, txId: txId.toString('hex'), idx }
+            const [inputTxId, idx] = cbor.decode(tagged.value)
+            return { type, txId: inputTxId.toString('hex'), idx }
           }),
           outputs: outputs.map(out => {
             const [address, value] = out
@@ -210,7 +210,6 @@ class CustomDataParser implements RawDataParser {
         data.byteOffset + data.byteLength))
     return epoch
   }
-
 }
 
 helpers.annotate(CustomDataParser, [

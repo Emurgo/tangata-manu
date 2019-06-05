@@ -204,8 +204,9 @@ class CronScheduler implements Scheduler {
             for (let epochId = epoch;
               (epochId < packedEpochs); epochId++) {
               const epochStartHeight = (epochId === epoch ? height : 0)
-              const epochNotInQueue = _.findIndex(this.#epochsInQueue, (item) => (item === epochId)) === -1
-              
+              const epochNotInQueue = _.findIndex(this.#epochsInQueue,
+                (item) => (item === epochId)) === -1
+
               if (epochNotInQueue) {
                 this.#epochProcessQueue.push({
                   epoch: epochId,
