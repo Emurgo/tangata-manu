@@ -42,7 +42,7 @@ class CronScheduler implements Scheduler {
 
   #lastBlockHash: ?string
 
-  #epochsInQueue: []
+  #epochsInQueue: any
 
   constructor(
     dataProvider: RawDataProvider,

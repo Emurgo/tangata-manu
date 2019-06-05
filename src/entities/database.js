@@ -134,7 +134,7 @@ class DB implements Database {
     }
   }
 
-  async storeOutputs(tx: {id: string, outputs: []}) {
+  async storeOutputs(tx: {id: string, blockNum: number, outputs: []}) {
     const { id, outputs, blockNum } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
       output.address, output.value, id, index, blockNum))

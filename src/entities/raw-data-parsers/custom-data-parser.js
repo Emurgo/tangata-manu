@@ -14,7 +14,7 @@ const SLOTS_IN_EPOCH = 21600
 
 const cborDecode = cbor.decode
 
-export type HeaderType = Array<string>
+export type HeaderType = Array<any>
 
 const headerToId = (header, type: number) => {
   const headerData = cbor.encode([type, header])
