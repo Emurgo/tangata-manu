@@ -181,7 +181,11 @@ class CronScheduler implements Scheduler {
     this.#logger.info('onTick:checking for new blocks...')
     try {
       // local state
-      const { height, epoch, slot } = await this.#db.getBestBlockNum()
+      let { height, epoch, slot } = await this.#db.getBestBlockNum()
+      const lastCachedBlock = _.last(this.blocksToStore)
+      if (lastCachedBlock && lastCachedBlock.height > height) {
+        ({ height, epoch, slot } = lastCachedBlock)
+      }
 
       // Blocks which already in queue, but not yet processed.
       const notProcessedBlocks = this.#blockProcessQueue.length()
