@@ -141,6 +141,7 @@ class CustomDataParser implements RawDataParser {
         const [txId, txBody] = packRawTxIdAndBody(tx)
         return {
           id: txId,
+          blockNum: chainDifficulty,
           inputs: inputs.map(inp => {
             const [type, tagged] = inp
             const [txId, idx] = cbor.decode(tagged.value)

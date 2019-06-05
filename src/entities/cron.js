@@ -102,15 +102,13 @@ class CronScheduler implements Scheduler {
     await this.#db.updateBestBlockNum(blockHeight)
   }
 
-  static _filterEbb(blocks: Array<Block>): Array<Block> {
-    return !blocks ? blocks : ( blocks[0].isEBB ? blocks.slice(1) : blocks )
-  }
 
   async processEpochId(id: number, height: number): Promise<Symbol> {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
     this.resetBlockProcessor()
     let status = EPOCH_STATUS_PROCESSED
-    const blocks = CronScheduler._filterEbb(await this.#dataProvider.getParsedEpochById(id))
+    const omitEbb = true
+    const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
     if (!blocks) {
       this.#logger.warn(`empty epoch: ${id}, ${height}`)
       return EPOCH_STATUS_EMPTY

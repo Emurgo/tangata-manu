@@ -135,16 +135,24 @@ class DB implements Database {
   }
 
   async storeOutputs(tx: {id: string, outputs: []}) {
-    const { id, outputs } = tx
+    const { id, outputs, blockNum } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
-      output.address, output.value, id, index))
+      output.address, output.value, id, index, blockNum))
     await this.storeUtxos(utxosData)
   }
 
-  async deleteUtxos(utxoIds: Array<string>) {
+  async backupAndRemoveUtxos(utxoIds: Array<string>) {
     const conn = this.getConn()
-    const query = Q.sql.delete().from('utxos')
-      .where('utxo_id IN ?', utxoIds).toString()
+    const query = Q.sql.insert()
+      .into('utxos_backup')
+      .with('moved_utxos',
+        Q.sql.delete()
+          .from('utxos')
+          .where('utxo_id IN ?', utxoIds)
+          .returning('*'))
+      .fromQuery(['utxo_id', 'tx_hash', 'tx_index', 'receiver', 'amount', 'block_num'],
+        Q.GET_MOVED_UTXOS)
+      .toString()
     const dbRes = await conn.query(query)
     return dbRes
   }
@@ -178,7 +186,7 @@ class DB implements Database {
 
     assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
 
-    await this.deleteUtxos(inputUtxoIds)
+    await this.backupAndRemoveUtxos(inputUtxoIds)
     const inputAddresses = _.map(inputUtxos, 'address')
     const outputAddresses = _.map(outputs, 'address')
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
