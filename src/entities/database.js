@@ -130,6 +130,17 @@ class DB implements Database {
     }
   }
 
+  async storeBlocks(blocks: Array<Block>) {
+    const conn = this.getConn()
+    const blocksData = _.map(blocks, (block) => block.serialize())
+    try {
+      await conn.query(Q.BLOCK_INSERT.setFieldsRows(blocksData).toString())
+    } catch (e) {
+      this.#logger.debug('Error occur on block', blocks)
+      throw e
+    }
+  }
+
   async storeTxAddresses(txId: string, addresses: Array<string>) {
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
@@ -217,7 +228,7 @@ class DB implements Database {
     const outputAddresses = _.map(outputs, 'address')
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
-    const query = Q.TX_INSERT.setFields({
+    const txDbFields = {
       hash: id,
       inputs_address: inputAddresses,
       inputs_amount: inputAmmounts,
@@ -229,7 +240,16 @@ class DB implements Database {
       tx_body: tx.txBody,
       time: tx.txTime,
       last_update: tx.txTime,
-    }).toString()
+    }
+    const now = new Date().toUTCString()
+    const query = Q.TX_INSERT.setFields(txDbFields)
+      .onConflict('hash', {
+        block_num: block.height,
+        block_hash: block.hash,
+        tx_state: TX_STATUS.TX_SUCCESS_STATUS,
+        last_update: now,
+      })
+      .toString()
     this.#logger.debug('Insert TX:', query, inputAddresses, inputAmmounts)
     await conn.query(query)
     await this.storeTxAddresses(

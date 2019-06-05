@@ -18,9 +18,10 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 import Block from '../blockchain'
 
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
-const ROLLBACK_BLOCKS_COUNT = 200
+const ROLLBACK_BLOCKS_COUNT = 2000
 const QUEUE_MAX_LENGTH = 10000
-const LOG_BLOCK_PARSED_THRESHOLD = 20
+const LOG_BLOCK_PARSED_THRESHOLD = 30
+const BLOCKS_CACHE_SIZE = 800
 
 const STATUS_ROLLBACK_REQUIRED = Symbol.for('ROLLBACK_REQUIRED')
 const BLOCK_STATUS_PROCESSED = Symbol.for('BLOCK_PROCESSED')
@@ -43,6 +44,8 @@ class CronScheduler implements Scheduler {
   #lastBlockHash: ?string
 
   #epochsInQueue: any
+
+  blocksToStore: any
 
   constructor(
     dataProvider: RawDataProvider,
@@ -75,7 +78,7 @@ class CronScheduler implements Scheduler {
       await this.processEpochId(epoch, height)
       cb()
     }, 1)
-
+    this.blocksToStore = []
     this.resetBlockProcessor()
   }
 
@@ -87,6 +90,7 @@ class CronScheduler implements Scheduler {
   async rollback() {
     this.#logger.info(`Rollback to ${ROLLBACK_BLOCKS_COUNT} back.`)
     // reset scheduler state
+    this.blocksToStore = []
     this.resetBlockProcessor()
 
 
@@ -148,14 +152,20 @@ class CronScheduler implements Scheduler {
       return STATUS_ROLLBACK_REQUIRED
     }
     this.#lastBlockHash = block.hash
+    const blockHaveTxs = !_.isEmpty(block.txs)
+    this.blocksToStore.push(block)
     try {
-      await dbConn.query('BEGIN')
-      await this.#db.storeBlock(block)
-      if (!_.isEmpty(block.txs)) {
-        await this.#db.storeBlockTxs(block)
+      if (this.blocksToStore.length > BLOCKS_CACHE_SIZE || blockHaveTxs) {
+        await dbConn.query('BEGIN')
+        this.#logger.debug('Flushing block cache')
+        if (blockHaveTxs) {
+          await this.#db.storeBlockTxs(block)
+        }
+        await this.#db.storeBlocks(this.blocksToStore)
+        await this.#db.updateBestBlockNum(block.height)
+        this.blocksToStore = []
+        await dbConn.query('COMMIT')
       }
-      await this.#db.updateBestBlockNum(block.height)
-      await dbConn.query('COMMIT')
     } catch (e) {
       await dbConn.query('ROLLBACK')
       throw e
