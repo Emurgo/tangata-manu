@@ -1,6 +1,6 @@
 {
   "defaultBridgeUrl": "$CARDANO_BRIDGE_URL",
-  "defaultNetwork": "$YOROI_IMPORTER_NETWORK",
+  "defaultNetwork": "$CARDANO_NETWORK",
   "db": {
     "user": "$PGUSER",
     "host": "$PGHOST",
