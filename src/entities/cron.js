@@ -158,7 +158,6 @@ class CronScheduler implements Scheduler {
     try {
       if (this.blocksToStore.length > BLOCKS_CACHE_SIZE || blockHaveTxs || flushCache) {
         await dbConn.query('BEGIN')
-        this.#logger.debug('Flushing block cache')
         if (blockHaveTxs) {
           await this.#db.storeBlockTxs(block)
         }

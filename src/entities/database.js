@@ -73,6 +73,7 @@ class DB implements Database {
   }
 
   async deleteInvalidUtxos(blockHeight: number) {
+    this.#logger.info(`rollBackUtxoBackup to block ${blockHeight}`)
     const conn = this.getConn()
     const utxosSql = Q.sql.delete().from('utxos')
       .where('block_num > ?', blockHeight).toString()
@@ -95,7 +96,13 @@ class DB implements Database {
           .where('deleted_block_num > ?', blockHeight)
           .returning('*'))
       .fromQuery(['utxo_id', 'tx_hash', 'tx_index', 'receiver', 'amount', 'block_num'],
-        Q.sql.select().from('moved_utxos'))
+        Q.sql.select().from('moved_utxos')
+          .field('utxo_id')
+          .field('tx_hash')
+          .field('tx_index')
+          .field('receiver')
+          .field('amount')
+          .field('block_num'))
       .toString()
     const dbRes = await conn.query(sql)
     return dbRes
