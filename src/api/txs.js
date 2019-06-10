@@ -17,11 +17,15 @@ class TxController implements IController {
     this.dataProvider = dataProvider
   }
 
-  async signed(req: Request) {
+  async signed(req: Request, resp: Response, next: Function) {
     const payload = req.read().toString()
     this.logger.debug('TxController.index called', req.params, payload)
-    this.dataProvider.postSignedTx(payload)
-    return 'OK'
+    const bridgeResp = await this.dataProvider.postSignedTx(payload)
+    resp.status(bridgeResp.status)
+    // eslint-disable-next-line no-param-reassign
+    resp.statusText = bridgeResp.statusText
+    resp.send(bridgeResp.data)
+    next()
   }
 }
 
