@@ -1,5 +1,4 @@
 // @flow
-
 import { Request } from 'restify'
 import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'
@@ -18,8 +17,10 @@ class TxController implements IController {
     this.dataProvider = dataProvider
   }
 
-  signed(req: Request): string {
-    this.logger.debug('TxController.index called', req, this.dataProvider)
+  async signed(req: Request) {
+    const payload = req.read().toString()
+    this.logger.debug('TxController.index called', req.params, payload)
+    this.dataProvider.postSignedTx(payload)
     return 'OK'
   }
 }

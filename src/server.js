@@ -2,6 +2,7 @@
 import 'reflect-metadata'
 
 import _ from 'lodash'
+import restify from 'restify'
 import config from 'config'
 import { InversifyRestifyServer } from 'inversify-restify-utils'
 
