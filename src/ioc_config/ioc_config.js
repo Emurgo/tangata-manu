@@ -25,6 +25,7 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 import dbModule from './db'
 import loggerModule from './logger'
 import networkConfigModule from './network-config'
+import initRoutes from './routes'
 
 const configBinder = new EagerBinder({
   objects: true,
@@ -53,6 +54,9 @@ const initIoC = async () => {
   container.bind<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER).to(CronScheduler).inSingletonScope()
   container.bind<Database>(SERVICE_IDENTIFIER.DATABASE).to(DB).inSingletonScope()
   container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider).inSingletonScope()
+
+  initRoutes(container)
+
   return container
 }
 
