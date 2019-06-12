@@ -5,6 +5,7 @@ import _ from 'lodash'
 import restify from 'restify'
 import config from 'config'
 import { InversifyRestifyServer } from 'inversify-restify-utils'
+import yargs from 'yargs'
 
 import {
   Scheduler,
@@ -42,6 +43,7 @@ const startServer = async () => {
 
   const server = new InversifyRestifyServer(container)
   const app = server.build()
+  logger.debug(yargs.argv)
 
   const genesisLoaded = await db.genesisLoaded()
   if (!genesisLoaded) {

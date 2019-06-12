@@ -7,7 +7,7 @@
     "migrate": "NODE_ENV=${NODE_ENV:-develop} node-pg-migrate",
     "build": "babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
-    "dev": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js --inspect --exec babel-node | bunyan",
+    "dev": "func() { rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js \"$1\" \"$2\" --inspect --exec babel-node | bunyan; }; func",
     "test": "jest",
     "build-docker": "./scripts/docker/build-docker.sh"
   },
@@ -70,6 +70,7 @@
     "restify-errors": "^6.1.1",
     "squel": "^5.12.2",
     "to-array-buffer": "^3.2.0",
-    "url-join": "^4.0.0"
+    "url-join": "^4.0.0",
+    "yargs": "^13.2.4"
   }
 }
