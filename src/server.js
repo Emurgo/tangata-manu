@@ -5,7 +5,6 @@ import _ from 'lodash'
 import restify from 'restify'
 import config from 'config'
 import { InversifyRestifyServer } from 'inversify-restify-utils'
-import yargs from 'yargs'
 
 import {
   Scheduler,
@@ -17,6 +16,8 @@ import {
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
 import initIoC from './ioc_config'
+
+const ROLLBACK_CMD = 'rollback'
 
 const serverConfig = config.get('server')
 
@@ -36,14 +37,20 @@ const genesisLoadUtxos = async (container) => {
   }
 }
 
-const startServer = async () => {
+const startServer = async (argv: any) => {
   const container = await initIoC()
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
   const db = container.get<Database>(SERVICE_IDENTIFIER.DATABASE)
 
+  const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
+  if (argv._[0] === ROLLBACK_CMD) {
+    const height = argv._[1]
+    await scheduler.resetToBlockHeight(height)
+    return
+  }
+
   const server = new InversifyRestifyServer(container)
   const app = server.build()
-  logger.debug(yargs.argv)
 
   const genesisLoaded = await db.genesisLoaded()
   if (!genesisLoaded) {
@@ -53,7 +60,6 @@ const startServer = async () => {
   }
 
   // start scheduler to check for updates from cardano-http-bridge
-  const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
   scheduler.start()
 
   app.listen(serverConfig.port, () => {

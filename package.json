@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "migrate": "NODE_ENV=${NODE_ENV:-develop} node-pg-migrate",
-    "build": "babel src -d dist",
+    "build": "export NODE_ENV=${NODE_ENV:-develop} && rimraf ./dist && babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
-    "dev": "func() { rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js \"$1\" \"$2\" --inspect --exec babel-node | bunyan; }; func",
+    "dev": "export NODE_ENV=${NODE_ENV:-develop} yarn run build && nodemon ./src/index.js --inspect --exec babel-node | bunyan",
+    "rollback": "export NODE_ENV=${NODE_ENV:-develop} yarn run build && babel-node ./src/index.js rollback --inspect --exec babel-node",
     "test": "jest",
     "build-docker": "./scripts/docker/build-docker.sh"
   },
@@ -62,6 +63,7 @@
     "inversify-restify-utils": "^3.4.0",
     "inversify-vanillajs-helpers": "^2.0.0",
     "lodash": "^4.17.11",
+    "minimist": "^1.2.0",
     "node-pg-migrate": "^3.16.1",
     "pg": "^7.8.1",
     "reflect-metadata": "^0.1.13",
@@ -70,7 +72,6 @@
     "restify-errors": "^6.1.1",
     "squel": "^5.12.2",
     "to-array-buffer": "^3.2.0",
-    "url-join": "^4.0.0",
-    "yargs": "^13.2.4"
+    "url-join": "^4.0.0"
   }
 }
