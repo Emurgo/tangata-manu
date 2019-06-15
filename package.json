@@ -8,7 +8,7 @@
     "build": "export NODE_ENV=${NODE_ENV:-develop} && rimraf ./dist && babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
     "dev": "export NODE_ENV=${NODE_ENV:-develop} yarn run build && nodemon ./src/index.js --inspect --exec babel-node | bunyan",
-    "rollback": "export NODE_ENV=${NODE_ENV:-develop} yarn run build && babel-node ./src/index.js rollback --inspect --exec babel-node",
+    "rollback": "export NODE_ENV=${NODE_ENV:-develop} yarn run build && babel-node ./src/index.js rollback --inspect",
     "test": "jest",
     "build-docker": "./scripts/docker/build-docker.sh"
   },
