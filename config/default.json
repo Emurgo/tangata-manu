@@ -17,6 +17,7 @@
     }
   },
   "checkTipCronTime": "0 */1 * * * *",
+  "rollbackBlocksCount": 25,
   "defaultNetwork": "obft-testnet",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {

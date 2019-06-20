@@ -18,7 +18,6 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 import Block from '../blockchain'
 
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
-const ROLLBACK_BLOCKS_COUNT = 2000
 const QUEUE_MAX_LENGTH = 10000
 const LOG_BLOCK_PARSED_THRESHOLD = 30
 const BLOCKS_CACHE_SIZE = 800
@@ -47,14 +46,19 @@ class CronScheduler implements Scheduler {
 
   blocksToStore: any
 
+  rollbackBlocksCount: number
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipCronTime: string,
     db: Database,
     logger: Logger,
+    rollbackBlocksCount: number,
   ) {
     this.#dataProvider = dataProvider
+    this.rollbackBlocksCount = rollbackBlocksCount
     logger.debug('Cron time', checkTipCronTime)
+    logger.debug('Rollback blocks count', rollbackBlocksCount)
     this.#job = new cron.CronJob({
       cronTime: checkTipCronTime,
       onTick: () => {
@@ -88,7 +92,7 @@ class CronScheduler implements Scheduler {
   }
 
   async rollback() {
-    this.#logger.info(`Rollback to ${ROLLBACK_BLOCKS_COUNT} back.`)
+    this.#logger.info(`Rollback to ${this.rollbackBlocksCount} back.`)
     // reset scheduler state
     this.blocksToStore = []
     this.resetBlockProcessor()
@@ -96,7 +100,7 @@ class CronScheduler implements Scheduler {
 
     // Recover database state to newest actual block.
     const { height } = await this.#db.getBestBlockNum()
-    await this.resetToBlockHeight(height - ROLLBACK_BLOCKS_COUNT)
+    await this.resetToBlockHeight(height - this.rollbackBlocksCount)
   }
 
   async resetToBlockHeight(blockHeight: number) {
@@ -263,6 +267,7 @@ helpers.annotate(CronScheduler,
     'checkTipCronTime',
     SERVICE_IDENTIFIER.DATABASE,
     SERVICE_IDENTIFIER.LOGGER,
+    'rollbackBlocksCount',
   ])
 
 export default CronScheduler
