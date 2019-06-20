@@ -24,8 +24,6 @@ const BLOCKS_CACHE_SIZE = 800
 
 const STATUS_ROLLBACK_REQUIRED = Symbol.for('ROLLBACK_REQUIRED')
 const BLOCK_STATUS_PROCESSED = Symbol.for('BLOCK_PROCESSED')
-const EPOCH_STATUS_PROCESSED = Symbol.for('EPOCH_PROCESSED')
-const EPOCH_STATUS_EMPTY = Symbol.for('EPOCH_EMPTY')
 
 class CronScheduler implements Scheduler {
   #job: any
@@ -111,15 +109,14 @@ class CronScheduler implements Scheduler {
   }
 
 
-  async processEpochId(id: number, height: number): Promise<Symbol> {
+  async processEpochId(id: number, height: number) {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
     this.resetBlockProcessor()
-    let status = EPOCH_STATUS_PROCESSED
     const omitEbb = true
     const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
     if (!blocks) {
       this.#logger.warn(`empty epoch: ${id}, ${height}`)
-      return EPOCH_STATUS_EMPTY
+      return
     }
 
     const epochLength = blocks.length
@@ -134,12 +131,8 @@ class CronScheduler implements Scheduler {
       if (!block) {
         throw new Error(`!block @ ${i} / ${blocks.length}`)
       }
-      status = await this.processBlock(block)
-      if (status === STATUS_ROLLBACK_REQUIRED) {
-        return STATUS_ROLLBACK_REQUIRED
-      }
+      await this.processBlock(block)
     }
-    return status
   }
 
   async processBlockHeight(height: number) {
