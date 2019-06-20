@@ -8,6 +8,7 @@
     "build": "babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
     "dev": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js --inspect --exec babel-node | bunyan",
+    "start": "yarn run dev",
     "test": "jest",
     "build-docker": "./scripts/docker/build-docker.sh"
   },
