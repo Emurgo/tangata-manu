@@ -38,13 +38,14 @@ class CronScheduler implements Scheduler {
 
   #epochProcessQueue: any
 
-  #lastBlockHash: ?string
 
   #epochsInQueue: any
 
   blocksToStore: any
 
   rollbackBlocksCount: number
+
+  lastBlock: ?Block
 
   constructor(
     dataProvider: RawDataProvider,
@@ -85,7 +86,7 @@ class CronScheduler implements Scheduler {
   }
 
   resetBlockProcessor() {
-    this.#lastBlockHash = null
+    this.lastBlock = null
     this.#blockProcessQueue.remove(() => true)
   }
 
@@ -144,12 +145,13 @@ class CronScheduler implements Scheduler {
 
   async processBlock(block: Block, flushCache: boolean = false): Promise<Symbol> {
     const dbConn = this.#db.getConn()
-    if (this.#lastBlockHash
-      && block.prevHash !== this.#lastBlockHash) {
-      this.#logger.info(`block.prevHash(${block.prevHash})!== this.#lastBlockHash(${this.#lastBlockHash}). Performing rollback...`)
+    if (this.lastBlock
+      && block.epoch === this.lastBlock.epoch
+      && block.prevHash !== this.lastBlock.hash) {
+      this.#logger.info(`block.prevHash(${block.prevHash})!== lastBlock.hash(${this.lastBlock.hash}). Performing rollback...`)
       return STATUS_ROLLBACK_REQUIRED
     }
-    this.#lastBlockHash = block.hash
+    this.lastBlock = block
     const blockHaveTxs = !_.isEmpty(block.txs)
     this.blocksToStore.push(block)
     try {
