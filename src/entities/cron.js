@@ -217,10 +217,13 @@ class CronScheduler implements Scheduler {
             for (let epochId = epoch;
               (epochId < packedEpochs); epochId++) {
               const epochStartHeight = (epochId === epoch ? height : 0)
-              const epochNotInQueue = _.findIndex(this.#epochsInQueue,
-                (item) => (item === epochId)) === -1
 
-              if (epochNotInQueue) {
+              const lastEpochInQueue = _.last(this.#epochsInQueue)
+              if (!lastEpochInQueue || lastEpochInQueue < epochId) {
+                if (lastEpochInQueue && epochId - lastEpochInQueue > 1) {
+                  throw new Error('There are some missing epochs numbers for the queue')
+                }
+                // add epoch to queue
                 this.#epochProcessQueue.push({
                   epoch: epochId,
                   height: epochStartHeight,

@@ -73,7 +73,7 @@ class DB implements Database {
   }
 
   async deleteInvalidUtxos(blockHeight: number) {
-    this.#logger.info(`rollBackUtxoBackup to block ${blockHeight}`)
+    this.#logger.info(`deleteInvalidUtxos to block ${blockHeight}`)
     const conn = this.getConn()
     const utxosSql = Q.sql.delete().from('utxos')
       .where('block_num > ?', blockHeight).toString()
@@ -115,14 +115,6 @@ class DB implements Database {
       .from('blocks')
       .where('block_height > ?', blockHeight)
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
-  }
-
-  async decreaseBestBlockNum(blocksCount: number) {
-    const conn = this.getConn()
-    const sql = Q.BEST_BLOCK_UPDATE.set('best_block_num', `best_block_num - ${blocksCount}`,
-      { dontQuote: true }).toString()
     const dbRes = await conn.query(sql)
     return dbRes
   }
