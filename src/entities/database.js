@@ -6,10 +6,9 @@ import assert from 'assert'
 import { Database, DBConnection, Logger } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import Block, { TxType } from '../blockchain'
+import Block, { TxType, TX_STATUS } from '../blockchain'
 import Q from '../db-queries'
 
-const TX_SUCCESSFUL = 'Successful'
 
 class DB implements Database {
   #conn: any
@@ -57,12 +56,86 @@ class DB implements Database {
     return dbRes
   }
 
+  async rollBackTransactions(blockHeight: number) {
+    this.#logger.info(`rollBackTransactions to block ${blockHeight}`)
+    const conn = this.getConn()
+    const sql = Q.sql.update()
+      .table('txs')
+      .set('tx_state', TX_STATUS.TX_PENDING_STATUS)
+      .set('block_num', null)
+      .set('block_hash', null)
+      .set('time', null)
+      .set('last_update', 'NOW()', { dontQuote: true })
+      .where('block_num > ?', blockHeight)
+      .toString()
+    const dbRes = await conn.query(sql)
+    return dbRes
+  }
+
+  async deleteInvalidUtxos(blockHeight: number) {
+    this.#logger.info(`deleteInvalidUtxos to block ${blockHeight}`)
+    const conn = this.getConn()
+    const utxosSql = Q.sql.delete().from('utxos')
+      .where('block_num > ?', blockHeight).toString()
+    const utxosBackupSql = Q.sql.delete().from('utxos_backup')
+      .where('block_num > ?', blockHeight).toString()
+    await conn.query(utxosSql)
+    await conn.query(utxosBackupSql)
+  }
+
+  async rollBackUtxoBackup(blockHeight: number) {
+    this.#logger.info(`rollBackUtxoBackup to block ${blockHeight}`)
+    await this.deleteInvalidUtxos(blockHeight)
+    const conn = this.getConn()
+    const sql = Q.sql.insert()
+      .into('utxos')
+      .with('moved_utxos',
+        Q.sql.delete()
+          .from('utxos_backup')
+          .where('block_num < ?', blockHeight)
+          .where('deleted_block_num > ?', blockHeight)
+          .returning('*'))
+      .fromQuery(['utxo_id', 'tx_hash', 'tx_index', 'receiver', 'amount', 'block_num'],
+        Q.sql.select().from('moved_utxos')
+          .field('utxo_id')
+          .field('tx_hash')
+          .field('tx_index')
+          .field('receiver')
+          .field('amount')
+          .field('block_num'))
+      .toString()
+    const dbRes = await conn.query(sql)
+    return dbRes
+  }
+
+  async rollBackBlockHistory(blockHeight: number) {
+    this.#logger.info(`rollBackBlockHistory to block ${blockHeight}`)
+    const conn = this.getConn()
+    const sql = Q.sql.delete()
+      .from('blocks')
+      .where('block_height > ?', blockHeight)
+      .toString()
+    const dbRes = await conn.query(sql)
+    return dbRes
+  }
+
   async storeBlock(block: Block) {
     const conn = this.getConn()
     try {
       await conn.query(Q.BLOCK_INSERT.setFields(block.serialize()).toString())
     } catch (e) {
       this.#logger.debug('Error occur on block', block.serialize())
+      throw e
+    }
+  }
+
+  async storeBlocks(blocks: Array<Block>) {
+    const conn = this.getConn()
+    const blocksData = _.map(blocks, (block) => block.serialize())
+    try {
+      await conn.query(Q.BLOCK_INSERT.setFieldsRows(blocksData).toString())
+    } catch (e) {
+      this.#logger.debug('Error occur on block', blocks)
       throw e
     }
   }
@@ -82,17 +155,40 @@ class DB implements Database {
     }
   }
 
-  async storeOutputs(tx: {id: string, outputs: []}) {
-    const { id, outputs } = tx
+  async storeOutputs(tx: {id: string, blockNum: number, outputs: []}) {
+    const { id, outputs, blockNum } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
-      output.address, output.value, id, index))
+      output.address, output.value, id, index, blockNum))
     await this.storeUtxos(utxosData)
   }
 
-  async deleteUtxos(utxoIds: Array<string>) {
+  async backupAndRemoveUtxos(utxoIds: Array<string>, deletedBlockNum: number) {
     const conn = this.getConn()
-    const query = Q.sql.delete().from('utxos')
-      .where('utxo_id IN ?', utxoIds).toString()
+    const query = Q.sql.insert()
+      .into('utxos_backup')
+      .with('moved_utxos',
+        Q.sql.delete()
+          .from('utxos')
+          .where('utxo_id IN ?', utxoIds)
+          .returning('*'))
+      .fromQuery([
+        'utxo_id',
+        'tx_hash',
+        'tx_index',
+        'receiver',
+        'amount',
+        'block_num',
+        'deleted_block_num',
+      ],
+      Q.sql.select().from('moved_utxos')
+        .field('utxo_id')
+        .field('tx_hash')
+        .field('tx_index')
+        .field('receiver')
+        .field('amount')
+        .field('block_num')
+        .field(`${deletedBlockNum}`, 'deleted_block_num'))
+      .toString()
     const dbRes = await conn.query(query)
     return dbRes
   }
@@ -126,12 +222,12 @@ class DB implements Database {
 
     assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
 
-    await this.deleteUtxos(inputUtxoIds)
+    await this.backupAndRemoveUtxos(inputUtxoIds, block.height)
     const inputAddresses = _.map(inputUtxos, 'address')
     const outputAddresses = _.map(outputs, 'address')
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
-    const query = Q.TX_INSERT.setFields({
+    const txDbFields = {
       hash: id,
       inputs_address: inputAddresses,
       inputs_amount: inputAmmounts,
@@ -139,11 +235,20 @@ class DB implements Database {
       outputs_amount: outputAmmounts,
       block_num: block.height,
       block_hash: block.hash,
-      tx_state: TX_SUCCESSFUL,
+      tx_state: TX_STATUS.TX_SUCCESS_STATUS,
       tx_body: tx.txBody,
       time: tx.txTime,
       last_update: tx.txTime,
-    }).toString()
+    }
+    const now = new Date().toUTCString()
+    const query = Q.TX_INSERT.setFields(txDbFields)
+      .onConflict('hash', {
+        block_num: block.height,
+        block_hash: block.hash,
+        tx_state: TX_STATUS.TX_SUCCESS_STATUS,
+        last_update: now,
+      })
+      .toString()
     this.#logger.debug('Insert TX:', query, inputAddresses, inputAmmounts)
     await conn.query(query)
     await this.storeTxAddresses(

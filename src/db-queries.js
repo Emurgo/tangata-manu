@@ -21,7 +21,7 @@ const BLOCK_INSERT = sql.insert().into('blocks')
 
 const TX_INSERT = sql.insert().registerValueHandler(Array, psqlArrayValueHandler).into('txs')
 
-const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses')
+const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses').onConflict()
 
 const GET_BEST_BLOCK_NUM = sql.select()
   .from('blocks')

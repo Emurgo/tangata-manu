@@ -1,14 +1,13 @@
 // @flow
 import urljoin from 'url-join'
 import axios from 'axios'
-import config from 'config'
+import _ from 'lodash'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import { RawDataProvider, RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
-import utils from '../../utils'
-import type { NetworkConfig } from "../../interfaces";
+import type { NetworkConfig } from '../../interfaces'
 
 
 class CardanoBridgeApi implements RawDataProvider {
@@ -76,10 +75,14 @@ class CardanoBridgeApi implements RawDataProvider {
     return this.#parser.parseBlock(data)
   }
 
-  async getParsedEpochById(id: number) {
+  async getParsedEpochById(id: number, omitEbb: boolean = false) {
     const resp = await this.get(`/epoch/${id}`)
     const { data } = resp
-    return this.#parser.parseEpoch(data)
+    const blocks = this.#parser.parseEpoch(data)
+    if (!_.isEmpty(blocks) && omitEbb) {
+      return blocks[0].isEBB ? blocks.slice(1) : blocks
+    }
+    return blocks
   }
 }
 

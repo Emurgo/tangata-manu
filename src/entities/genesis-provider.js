@@ -4,7 +4,6 @@ import bs58 from 'bs58'
 import _ from 'lodash'
 import * as Cardano from 'cardano-wallet'
 import base64url from 'base64url'
-import config from 'config'
 
 import {
   RawDataProvider,
@@ -14,7 +13,7 @@ import {
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 import utils from '../blockchain/utils'
-import type {NetworkConfig} from "../interfaces";
+import type { NetworkConfig } from '../interfaces'
 
 const generateUtxoHash = (address) => {
   const data = bs58.decode(address)

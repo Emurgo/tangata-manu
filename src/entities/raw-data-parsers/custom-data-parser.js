@@ -14,7 +14,7 @@ const SLOTS_IN_EPOCH = 21600
 
 const cborDecode = cbor.decode
 
-type HeaderType = Array<string>
+export type HeaderType = Array<any>
 
 const headerToId = (header, type: number) => {
   const headerData = cbor.encode([type, header])
@@ -40,27 +40,8 @@ class CborIndefiniteLengthArray {
   }
 }
 
-type TxIdHex = string
-type TxBodyHex = string
-
-function packRawTxIdAndBody(decodedTxBody): [TxIdHex, TxBodyHex] {
-  if (!decodedTxBody) {
-    throw new Error('Cannot decode inputs from undefined transaction!')
-  }
-  try {
-    const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
-    const enc = cbor.encode([
-      new CborIndefiniteLengthArray(inputs),
-      new CborIndefiniteLengthArray(outputs),
-      attributes,
-    ])
-    const txId = blake.blake2bHex(enc, null, 32)
-    const txBody = enc.toString('hex')
-    return [txId, txBody]
-  } catch (e) {
-    throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
-  }
-}
+type TxIdHexType = string
+type TxBodyHexType = string
 
 function decodedTxToBase(decodedTx) {
   if (Array.isArray(decodedTx)) {
@@ -77,6 +58,25 @@ function decodedTxToBase(decodedTx) {
     }
   }
   throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
+}
+
+function packRawTxIdAndBody(decodedTxBody): [TxIdHexType, TxBodyHexType] {
+  if (!decodedTxBody) {
+    throw new Error('Cannot decode inputs from undefined transaction!')
+  }
+  try {
+    const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
+    const enc = cbor.encode([
+      new CborIndefiniteLengthArray(inputs),
+      new CborIndefiniteLengthArray(outputs),
+      attributes,
+    ])
+    const txId = blake.blake2bHex(enc, null, 32)
+    const txBody = enc.toString('hex')
+    return [txId, txBody]
+  } catch (e) {
+    throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
+  }
 }
 
 const getBlockDataByOffset = (blocksList: any, offset: number) => {
@@ -141,10 +141,11 @@ class CustomDataParser implements RawDataParser {
         const [txId, txBody] = packRawTxIdAndBody(tx)
         return {
           id: txId,
+          blockNum: chainDifficulty,
           inputs: inputs.map(inp => {
             const [type, tagged] = inp
-            const [txId, idx] = cbor.decode(tagged.value)
-            return { type, txId: txId.toString('hex'), idx }
+            const [inputTxId, idx] = cbor.decode(tagged.value)
+            return { type, txId: inputTxId.toString('hex'), idx }
           }),
           outputs: outputs.map(out => {
             const [address, value] = out
@@ -154,7 +155,7 @@ class CustomDataParser implements RawDataParser {
             const [type, tagged] = w
             return { type, sign: cbor.decode(tagged.value) }
           }),
-          txBody: txBody,
+          txBody,
           txTime: blockTime,
         }
       }),
@@ -183,7 +184,7 @@ class CustomDataParser implements RawDataParser {
     const common = {
       hash,
       magic: header[0],
-      prev: header[1].toString('hex'),
+      prevHash: header[1].toString('hex'),
     }
     let blockData
     switch (type) {
@@ -208,12 +209,6 @@ class CustomDataParser implements RawDataParser {
       data.buffer.slice(data.byteOffset,
         data.byteOffset + data.byteLength))
     return epoch
-  }
-
-  parse(data: string) {
-    const parsedData = {}
-    this.#logger.info('Parsed data:', data.length)
-    return parsedData
   }
 }
 
