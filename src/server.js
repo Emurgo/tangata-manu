@@ -1,7 +1,10 @@
 // @flow
+import 'reflect-metadata'
+
 import _ from 'lodash'
 import restify from 'restify'
 import config from 'config'
+import { InversifyRestifyServer } from 'inversify-restify-utils'
 
 import {
   Scheduler,
@@ -15,14 +18,6 @@ import SERVICE_IDENTIFIER from './constants/identifiers'
 import initIoC from './ioc_config'
 
 const serverConfig = config.get('server')
-
-const hello = (req, res, next) => {
-  res.send(`hello ${req.params.name}`)
-  next()
-}
-
-const server = restify.createServer()
-server.get('/hello/:name', hello)
 
 const genesisLoadUtxos = async (container) => {
   const dataProvider = container.get<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
@@ -45,6 +40,9 @@ const startServer = async () => {
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
   const db = container.get<Database>(SERVICE_IDENTIFIER.DATABASE)
 
+  const server = new InversifyRestifyServer(container)
+  const app = server.build()
+
   const genesisLoaded = await db.genesisLoaded()
   if (!genesisLoaded) {
     logger.info('Start to upload genesis.')
@@ -55,8 +53,9 @@ const startServer = async () => {
   // start scheduler to check for updates from cardano-http-bridge
   const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
   scheduler.start()
-  server.listen(serverConfig.port, () => {
-    logger.info('%s listening at %s', server.name, server.url)
+
+  app.listen(serverConfig.port, () => {
+    logger.info('%s listening at %s', app.name, app.url)
   })
 }
 

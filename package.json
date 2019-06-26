@@ -60,6 +60,7 @@
     "cron": "^1.6.0",
     "inversify": "^5.0.1",
     "inversify-config-injection": "^0.0.2",
+    "inversify-restify-utils": "^3.4.0",
     "inversify-vanillajs-helpers": "^2.0.0",
     "lodash": "^4.17.11",
     "node-pg-migrate": "^3.16.1",
