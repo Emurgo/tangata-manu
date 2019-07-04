@@ -212,9 +212,15 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(block: Block, tx: TxType) {
+  async storeTx(tx: TxType) {
     const conn = this.getConn()
-    const { inputs, outputs, id } = tx
+    const {
+      inputs,
+      outputs,
+      id,
+      blockNum,
+      blockHash,
+    } = tx
 
     await this.storeOutputs(tx)
     const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
@@ -222,20 +228,21 @@ class DB implements Database {
 
     assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
 
-    await this.backupAndRemoveUtxos(inputUtxoIds, block.height)
+    await this.backupAndRemoveUtxos(inputUtxoIds, blockNum)
     const inputAddresses = _.map(inputUtxos, 'address')
     const outputAddresses = _.map(outputs, 'address')
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
+    const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     const txDbFields = {
       hash: id,
       inputs_address: inputAddresses,
       inputs_amount: inputAmmounts,
       outputs_address: outputAddresses,
       outputs_amount: outputAmmounts,
-      block_num: block.height,
-      block_hash: block.hash,
-      tx_state: TX_STATUS.TX_SUCCESS_STATUS,
+      block_num: blockNum,
+      block_hash: blockHash,
+      tx_state: txStatus,
       tx_body: tx.txBody,
       time: tx.txTime,
       last_update: tx.txTime,
@@ -243,9 +250,10 @@ class DB implements Database {
     const now = new Date().toUTCString()
     const query = Q.TX_INSERT.setFields(txDbFields)
       .onConflict('hash', {
-        block_num: block.height,
-        block_hash: block.hash,
-        tx_state: TX_STATUS.TX_SUCCESS_STATUS,
+        block_num: blockNum,
+        block_hash: blockHash,
+        time: tx.txTime,
+        tx_state: txStatus,
         last_update: now,
       })
       .toString()
@@ -262,7 +270,7 @@ class DB implements Database {
     /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
-      await this.storeTx(block, txs[index])
+      await this.storeTx(txs[index])
     }
   }
 }

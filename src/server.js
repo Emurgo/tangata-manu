@@ -54,6 +54,7 @@ const startServer = async () => {
   const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
   scheduler.start()
 
+  app.use(restify.plugins.bodyParser())
   app.listen(serverConfig.port, () => {
     logger.info('%s listening at %s', app.name, app.url)
   })
