@@ -37,8 +37,26 @@ CREATE INDEX ON tx_addresses (tx_hash);
 CREATE INDEX ON tx_addresses (address);
 `
 
+const METADATA_SCHEMA = `
+-- Schema
+CREATE SCHEMA yoroi_metadata;
+
+-- Tables
+CREATE TABLE yoroi_metadata.api_statuses  ( id      serial    NOT NULL PRIMARY KEY
+                                          , status  boolean   NOT NULL
+                                          , time    timestamp with time zone NULL
+                                          );
+
+-- Indexes
+CREATE INDEX ON yoroi_metadata.api_statuses (id);
+
+-- Set status first entry
+INSERT INTO yoroi_metadata.api_statuses (status, time) VALUES (TRUE, now());
+`
+
 exports.up = (pgm) => {
   pgm.sql(INITIAL_SCHEMA)
+  pgm.sql(METADATA_SCHEMA)
 }
 
 exports.down = false
