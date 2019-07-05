@@ -203,6 +203,23 @@ class DB implements Database {
     }))
   }
 
+  async getOutputsForTxHashes(hashes: Array<string>): Promise<Array<{}>> {
+    const conn = this.getConn()
+    const query = Q.sql.select().from('txs').where('hash in ?', hashes).toString()
+    const dbRes = await conn.query(query)
+    return dbRes.reduce((res, row) => {
+      const arr = []
+      for (let i = 0; i < row.outputs_address.length; i++) {
+        arr.push({
+          address: row.outputs_address[i],
+          amount: row.outputs_amount[i]
+        })
+      }
+      res[row.hash] = arr;
+      return res
+    }, {})
+  }
+
   async genesisLoaded(): Promise<boolean> {
     /* Check whether utxo and blocks tables are empty.
     */
