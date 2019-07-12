@@ -9,6 +9,7 @@ import { injectable, decorate, inject } from 'inversify'
 import { Logger, RawDataProvider, Database } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
+import { TX_STATUS } from '../blockchain'
 
 class TxController implements IController {
   logger: Logger
@@ -27,23 +28,25 @@ class TxController implements IController {
     const bridgeResp = await this.dataProvider.postSignedTx(req.rawBody)
     resp.status(bridgeResp.status)
     this.logger.debug('TxController.index called', req.params, bridgeResp.status)
-    if (bridgeResp.status !== 200) {
+    if (bridgeResp.status === 200) {
       // store tx as pending
       await this.storeTxAsPending(req.body.signedTx)
     }
     // eslint-disable-next-line no-param-reassign
     resp.statusText = bridgeResp.statusText
-    resp.send(bridgeResp.data)
+    resp.send('bridgeResp.data')
     next()
   }
 
   async storeTxAsPending(txPayload: string) {
     this.logger.debug(`txs.storeTxAsPending ${txPayload}`)
+    const now = new Date().toUTCString()
     const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
     const txObj = utils.rawTxToObj(tx, {
-      txTime: '11',
-      status: 'PENDING',
+      txTime: now,
+      status: TX_STATUS.TX_PENDING_STATUS,
     })
+    await this.db.storeTx(txObj)
     this.logger.debug('txObj', txObj)
   }
 }
