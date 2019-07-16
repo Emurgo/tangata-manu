@@ -34,7 +34,7 @@ class TxController implements IController {
     }
     // eslint-disable-next-line no-param-reassign
     resp.statusText = bridgeResp.statusText
-    resp.send('bridgeResp.data')
+    resp.send(bridgeResp.data)
     next()
   }
 
