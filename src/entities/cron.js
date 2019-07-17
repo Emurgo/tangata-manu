@@ -115,14 +115,15 @@ class CronScheduler implements Scheduler {
     this.resetBlockProcessor()
     const omitEbb = true
     const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
-    if (!blocks) {
-      this.#logger.warn(`empty epoch: ${id}, ${height}`)
-      return
-    }
+    const { value } = blocks.next()
+    const blocksBeforeThisEpoch = value.height - 1
+    const continueFromHeight = height > blocksBeforeThisEpoch ? height - blocksBeforeThisEpoch : 0
 
     // eslint-disable-next-line no-restricted-syntax
     for (const block of blocks) {
-      await this.processBlock(block)
+      if (block.height >= continueFromHeight) {
+        await this.processBlock(block)
+      }
     }
   }
 
