@@ -94,11 +94,8 @@ class CardanoBridgeApi implements RawDataProvider {
   async getParsedEpochById(id: number, omitEbb: boolean = false) {
     const resp = await this.get(`/epoch/${id}`)
     const { data } = resp
-    const blocks = this.#parser.parseEpoch(data)
-    if (!_.isEmpty(blocks) && omitEbb) {
-      return blocks[0].isEBB ? blocks.slice(1) : blocks
-    }
-    return blocks
+    const blocksIterator = this.#parser.parseEpoch(data, { omitEbb })
+    return blocksIterator
   }
 }
 
