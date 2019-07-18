@@ -55,7 +55,7 @@ class TxController implements IController {
 
 
 decorate(injectable(), TxController)
-decorate(Controller('/:network/txs'), TxController)
+decorate(Controller('/api/txs'), TxController)
 decorate(Post('/signed'), TxController.prototype, 'signed')
 
 decorate(inject(SERVICE_IDENTIFIER.LOGGER), TxController, 0)
