@@ -45,6 +45,8 @@ class TxController implements IController {
     const txObj = utils.rawTxToObj(tx, {
       txTime: now,
       status: TX_STATUS.TX_PENDING_STATUS,
+      blockNum: null,
+      blockHash: null,
     })
     await this.db.storeTx(txObj)
     this.logger.debug('txObj', txObj)
