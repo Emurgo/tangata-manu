@@ -2,12 +2,12 @@
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import cbor from 'cbor'
-import bs58 from 'bs58'
 import blake from 'blakejs'
 
 import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import Block from '../../blockchain'
+import utils from '../../blockchain/utils'
 import type { NetworkConfig } from '../../interfaces'
 
 const SLOTS_IN_EPOCH = 21600
@@ -22,62 +22,6 @@ const headerToId = (header, type: number) => {
   return id
 }
 
-class CborIndefiniteLengthArray {
-  elements: Array<{}>
-
-  constructor(elements) {
-    this.elements = elements
-  }
-
-  encodeCBOR(encoder) {
-    return encoder.push(
-      Buffer.concat([
-        Buffer.from([0x9f]), // indefinite array prefix
-        ...this.elements.map((e) => cbor.encode(e)),
-        Buffer.from([0xff]), // end of array
-      ]),
-    )
-  }
-}
-
-type TxIdHexType = string
-type TxBodyHexType = string
-
-function decodedTxToBase(decodedTx) {
-  if (Array.isArray(decodedTx)) {
-    // eslint-disable-next-line default-case
-    switch (decodedTx.length) {
-      case 2: {
-        const signed = decodedTx
-        return signed[0]
-      }
-      case 3: {
-        const base = decodedTx
-        return base
-      }
-    }
-  }
-  throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
-}
-
-function packRawTxIdAndBody(decodedTxBody): [TxIdHexType, TxBodyHexType] {
-  if (!decodedTxBody) {
-    throw new Error('Cannot decode inputs from undefined transaction!')
-  }
-  try {
-    const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
-    const enc = cbor.encode([
-      new CborIndefiniteLengthArray(inputs),
-      new CborIndefiniteLengthArray(outputs),
-      attributes,
-    ])
-    const txId = blake.blake2bHex(enc, null, 32)
-    const txBody = enc.toString('hex')
-    return [txId, txBody]
-  } catch (e) {
-    throw new Error(`Failed to convert raw transaction to ID! ${JSON.stringify(e)}`)
-  }
-}
 
 const getBlockDataByOffset = (blocksList: any, offset: number) => {
   const blockSize = new DataView(blocksList, offset).getUint32(0, false)
@@ -119,7 +63,7 @@ class CustomDataParser implements RawDataParser {
     }
   }
 
-  handleRegularBlock(header: HeaderType, body: {}) {
+  handleRegularBlock(header: HeaderType, body: {}, blockHash: string) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
     const [chainDifficulty] = consensus[2]
@@ -136,29 +80,11 @@ class CustomDataParser implements RawDataParser {
       slot,
       epoch,
       height: chainDifficulty,
-      txs: txs.map(tx => {
-        const [[inputs, outputs], witnesses] = tx
-        const [txId, txBody] = packRawTxIdAndBody(tx)
-        return {
-          id: txId,
-          blockNum: chainDifficulty,
-          inputs: inputs.map(inp => {
-            const [type, tagged] = inp
-            const [inputTxId, idx] = cbor.decode(tagged.value)
-            return { type, txId: inputTxId.toString('hex'), idx }
-          }),
-          outputs: outputs.map(out => {
-            const [address, value] = out
-            return { address: bs58.encode(cbor.encode(address)), value }
-          }),
-          witnesses: witnesses.map(w => {
-            const [type, tagged] = w
-            return { type, sign: cbor.decode(tagged.value) }
-          }),
-          txBody,
-          txTime: blockTime,
-        }
-      }),
+      txs: txs.map(tx => utils.rawTxToObj(tx, {
+        txTime: blockTime,
+        blockNum: chainDifficulty,
+        blockHash,
+      })),
     }
     return (upd1.length || upd2.length) ? { ...res, upd: [upd1, upd2] } : res
   }
@@ -194,7 +120,7 @@ class CustomDataParser implements RawDataParser {
       case 1:
         blockData = {
           ...common,
-          ...this.handleRegularBlock(header, body),
+          ...this.handleRegularBlock(header, body, hash),
         }
         break
       default:
