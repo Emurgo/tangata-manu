@@ -118,17 +118,13 @@ class CronScheduler implements Scheduler {
 
     // get first epoch block and process it
     const firstBlock = blocks.next().value
-
-    const firstBlockHeight = firstBlock.height
-    const continueFromHeight = height > firstBlockHeight ? height : firstBlockHeight
-
-    if (firstBlock.height >= continueFromHeight) {
+    if (firstBlock.height > height) {
       await this.processBlock(firstBlock)
     }
 
     // eslint-disable-next-line no-restricted-syntax
     for (const block of blocks) {
-      if (block.height > continueFromHeight) {
+      if (block.height > height) {
         await this.processBlock(block)
       }
     }
