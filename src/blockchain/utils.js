@@ -98,7 +98,14 @@ const rawTxToObj = (tx: Array<any>, extraData: {}) => {
   }
 }
 
+const headerToId = (header, type: number) => {
+  const headerData = cbor.encode([type, header])
+  const id = blake.blake2bHex(headerData, null, 32)
+  return id
+}
+
 export default {
   structUtxo,
   rawTxToObj,
+  headerToId,
 }
