@@ -2,7 +2,7 @@
   "appName": "yoroi-importer",
   "cardanoBridge": {
     "baseUrl": "http://localhost:8082",
-    "template": "obft-testnet"
+    "template": "testnet2"
   },
   "server": {
     "port": 8080,
@@ -18,13 +18,12 @@
   },
   "checkTipCronTime": "*/15 * * * * *",
   "rollbackBlocksCount": 25,
-  "defaultNetwork": "testnet",
+  "defaultNetwork": "testnet2",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {
-    "obft-testnet": {
-      "genesis": "791f4256e14c67b9035c3b80a0826adf719d3636c18eef16c98b84b833723d51",
-      "bridgeUrl": "http://localhost:8082",
-      "startTime": 1544614190
+    "testnet2": {
+      "genesis": "96fceff972c2c06bd3bb5243c39215333be6d56aaf4823073dca31afe5038471",
+      "startTime": 1564020236
     },
     "staging": {
       "genesis": "c6a004d3d178f600cd8caa10abbebe1549bef878f0665aea2903472d5abf7323",
