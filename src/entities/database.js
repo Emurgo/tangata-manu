@@ -27,10 +27,24 @@ class DB implements Database {
     return this.#conn
   }
 
+  /**
+   * We need to use this function cuz there are some extra-long addresses existing on Cardano mainnet.
+   * Some of them exceed 10K characters in length, and Postgres can't store it.
+   * We don't care about making these non-standard addresses spendable, so any address over 1K characters is just truncated.
+   */
+  static fixUtxoReceiver = (utxo) => {
+    let { receiver } = utxo;
+    if (receiver && receiver.length > 1000) {
+      receiver = `${receiver.substr(0, 497)}...${receiver.substr(receiver.length - 500, 500)}`
+    }
+    return {...utxo, receiver};
+  }
+
   async storeUtxos(utxos: [{}]) {
     const conn = this.getConn()
-    const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
-    this.#logger.debug('storeUtxos', utxos, query)
+    const fixed_utxos = utxos.map(DB.fixUtxoReceiver)
+    const query = Q.UTXOS_INSERT.setFieldsRows(fixed_utxos).toString()
+    this.#logger.debug('storeUtxos', fixed_utxos, query)
     const dbRes = await conn.query(query)
     this.#logger.debug('storeUtxos', dbRes)
     return dbRes
