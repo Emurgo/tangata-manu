@@ -27,6 +27,17 @@ class DB implements Database {
     return this.#conn
   }
 
+  /**
+   * We need to use this function cuz there are some extra-long addresses existing on Cardano mainnet.
+   * Some of them exceed 10K characters in length, and Postgres can't store it.
+   * We don't care about making these non-standard addresses spendable, so any address over 1K characters is just truncated.
+   */
+  static fixLongAddress = (address: string): string => {
+    return address && address.length > 1000 ?
+      `${address.substr(0, 497)}...${address.substr(address.length - 500, 500)}`
+      : address;
+  }
+
   async storeUtxos(utxos: [{}]) {
     const conn = this.getConn()
     const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
@@ -145,7 +156,7 @@ class DB implements Database {
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
       tx_hash: txId,
-      address,
+      address: DB.fixLongAddress(address),
     }))
     const query = Q.TX_ADDRESSES_INSERT.setFieldsRows(dbFields).toString()
     try {
@@ -159,7 +170,7 @@ class DB implements Database {
   async storeOutputs(tx: {id: string, blockNum: number, outputs: []}) {
     const { id, outputs, blockNum } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
-      output.address, output.value, id, index, blockNum))
+      DB.fixLongAddress(output.address), output.value, id, index, blockNum))
     await this.storeUtxos(utxosData)
   }
 
@@ -236,7 +247,7 @@ class DB implements Database {
     }
 
     const inputAddresses = _.map(inputUtxos, 'address')
-    const outputAddresses = _.map(outputs, 'address')
+    const outputAddresses = _.map(outputs, (out) => DB.fixLongAddress(out.address))
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
     const txDbFields = {
