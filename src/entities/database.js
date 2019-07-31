@@ -32,19 +32,16 @@ class DB implements Database {
    * Some of them exceed 10K characters in length, and Postgres can't store it.
    * We don't care about making these non-standard addresses spendable, so any address over 1K characters is just truncated.
    */
-  static fixUtxoReceiver = (utxo) => {
-    let { receiver } = utxo;
-    if (receiver && receiver.length > 1000) {
-      receiver = `${receiver.substr(0, 497)}...${receiver.substr(receiver.length - 500, 500)}`
-    }
-    return {...utxo, receiver};
+  static fixLongAddress = (address: string): string => {
+    return address && address.length > 1000 ?
+      `${address.substr(0, 497)}...${address.substr(address.length - 500, 500)}`
+      : address;
   }
 
   async storeUtxos(utxos: [{}]) {
     const conn = this.getConn()
-    const fixed_utxos = utxos.map(DB.fixUtxoReceiver)
-    const query = Q.UTXOS_INSERT.setFieldsRows(fixed_utxos).toString()
-    this.#logger.debug('storeUtxos', fixed_utxos, query)
+    const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
+    this.#logger.debug('storeUtxos', utxos, query)
     const dbRes = await conn.query(query)
     this.#logger.debug('storeUtxos', dbRes)
     return dbRes
@@ -159,7 +156,7 @@ class DB implements Database {
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
       tx_hash: txId,
-      address,
+      address: DB.fixLongAddress(address),
     }))
     const query = Q.TX_ADDRESSES_INSERT.setFieldsRows(dbFields).toString()
     try {
@@ -173,7 +170,7 @@ class DB implements Database {
   async storeOutputs(tx: {id: string, blockNum: number, outputs: []}) {
     const { id, outputs, blockNum } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
-      output.address, output.value, id, index, blockNum))
+      DB.fixLongAddress(output.address), output.value, id, index, blockNum))
     await this.storeUtxos(utxosData)
   }
 
@@ -250,7 +247,7 @@ class DB implements Database {
     }
 
     const inputAddresses = _.map(inputUtxos, 'address')
-    const outputAddresses = _.map(outputs, 'address')
+    const outputAddresses = _.map(outputs, (out) => DB.fixLongAddress(out.address))
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
     const txDbFields = {
