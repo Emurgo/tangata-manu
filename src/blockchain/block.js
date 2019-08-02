@@ -13,23 +13,23 @@ export default class Block {
 
   prevHash: string
 
-  slot: number
+  slot: ?number
 
   epoch: number
 
   height: number
 
-  txs: any
+  txs: ?any
 
   isEBB: boolean
 
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
   }: {hash: string,
-    slot: number,
+    slot: ?number,
     epoch: number,
     height: number,
-    txs: any,
+    txs: ?any,
     isEBB: boolean,
     prevHash: string}) {
     this.hash = hash
@@ -57,6 +57,7 @@ export default class Block {
       height: chainDifficulty,
       isEBB: true,
       slot: null,
+      txs: null,
     }
   }
 
@@ -74,6 +75,7 @@ export default class Block {
     const res = {
       slot,
       epoch,
+      isEBB: false,
       upd: (upd1.length || upd2.length) ? [upd1, upd2] : null,
       height: chainDifficulty,
       txs: txs.map(tx => utils.rawTxToObj(tx, {

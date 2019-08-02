@@ -28,15 +28,15 @@ class DB implements Database {
   }
 
   /**
-   * We need to use this function cuz there are some extra-long addresses existing on Cardano mainnet.
-   * Some of them exceed 10K characters in length, and Postgres can't store it.
-   * We don't care about making these non-standard addresses spendable, so any address over 1K characters is just truncated.
+   * We need to use this function cuz there are some extra-long addresses
+   * existing on Cardano mainnet. Some of them exceed 10K characters in length,
+   * and Postgres can't store it.
+   * We don't care about making these non-standard addresses spendable, so any address
+   * over 1K characters is just truncated.
    */
-  static fixLongAddress = (address: string): string => {
-    return address && address.length > 1000 ?
-      `${address.substr(0, 497)}...${address.substr(address.length - 500, 500)}`
-      : address;
-  }
+  static fixLongAddress = (address: string): string => (address && address.length > 1000
+    ? `${address.substr(0, 497)}...${address.substr(address.length - 500, 500)}`
+    : address)
 
   async storeUtxos(utxos: [{}]) {
     const conn = this.getConn()
