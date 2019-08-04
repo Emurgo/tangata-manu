@@ -27,7 +27,7 @@ class TxController implements IController {
   async signed(req: Request, resp: Response, next: Function) {
     const bridgeResp = await this.dataProvider.postSignedTx(req.rawBody)
     resp.status(bridgeResp.status)
-    this.logger.debug('TxController.index called', req.params, bridgeResp.status)
+    this.logger.debug('TxController.index called', req.params, bridgeResp.status, `(${bridgeResp.statusText})`, bridgeResp.data)
     if (bridgeResp.status === 200) {
       // store tx as pending
       await this.storeTxAsPending(req.body.signedTx)
