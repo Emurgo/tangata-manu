@@ -1,7 +1,7 @@
 {
   "appName": "yoroi-importer",
   "cardanoBridge": {
-    "baseUrl": "http://localhost:80",
+    "baseUrl": "http://localhost:8082",
     "template": "testnet2"
   },
   "server": {
@@ -19,7 +19,7 @@
   "checkTipCronTime": "*/15 * * * * *",
   "rollbackBlocksCount": 25,
   "defaultNetwork": "testnet2",
-  "defaultBridgeUrl": "http://localhost:80",
+  "defaultBridgeUrl": "http://localhost:8082",
   "networks": {
     "testnet2": {
       "genesis": "96fceff972c2c06bd3bb5243c39215333be6d56aaf4823073dca31afe5038471",
