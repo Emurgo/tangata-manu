@@ -64,7 +64,7 @@ class TxController implements IController {
   }
 
   async storeTxAsPending(tx) {
-    this.logger.debug(`txs.storeTxAsPending ${tx}`)
+    this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
     await this.db.storeTx(tx)
   }
 
