@@ -27,11 +27,23 @@ class DB implements Database {
     return this.#conn
   }
 
+  /**
+   * We need to use this function cuz there are some extra-long addresses
+   * existing on Cardano mainnet. Some of them exceed 10K characters in length,
+   * and Postgres can't store it.
+   * We don't care about making these non-standard addresses spendable, so any address
+   * over 1K characters is just truncated.
+   */
+  static fixLongAddress = (address: string): string => (address && address.length > 1000
+    ? `${address.substr(0, 497)}...${address.substr(address.length - 500, 500)}`
+    : address)
+
   async storeUtxos(utxos: [{}]) {
     const conn = this.getConn()
-    this.#logger.debug('storeUtxos', utxos)
-    const dbRes = await conn.query(
-      Q.UTXOS_INSERT.setFieldsRows(utxos).toString())
+    const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
+    this.#logger.debug('storeUtxos', utxos, query)
+    const dbRes = await conn.query(query)
+    this.#logger.debug('storeUtxos', dbRes)
     return dbRes
   }
 
@@ -144,7 +156,7 @@ class DB implements Database {
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
       tx_hash: txId,
-      address,
+      address: DB.fixLongAddress(address),
     }))
     const query = Q.TX_ADDRESSES_INSERT.setFieldsRows(dbFields).toString()
     try {
@@ -158,7 +170,7 @@ class DB implements Database {
   async storeOutputs(tx: {id: string, blockNum: number, outputs: []}) {
     const { id, outputs, blockNum } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
-      output.address, output.value, id, index, blockNum))
+      DB.fixLongAddress(output.address), output.value, id, index, blockNum))
     await this.storeUtxos(utxosData)
   }
 
@@ -189,6 +201,7 @@ class DB implements Database {
         .field('block_num')
         .field(`${deletedBlockNum}`, 'deleted_block_num'))
       .toString()
+    this.#logger.debug(`backupAndRemoveUtxos ${query}`)
     const dbRes = await conn.query(query)
     return dbRes
   }
@@ -238,19 +251,22 @@ class DB implements Database {
       blockNum,
       blockHash,
     } = tx
-
-    await this.storeOutputs(tx)
+    const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
     const inputUtxos = await this.getUtxos(inputUtxoIds)
 
     assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
+    if (txStatus === TX_STATUS.TX_SUCCESS_STATUS) {
+      // if transaction is successful, store outputs to `utxos`
+      // and remove transaction inputs from `utxos`
+      await this.storeOutputs(tx)
+      await this.backupAndRemoveUtxos(inputUtxoIds, blockNum)
+    }
 
-    await this.backupAndRemoveUtxos(inputUtxoIds, blockNum)
     const inputAddresses = _.map(inputUtxos, 'address')
-    const outputAddresses = _.map(outputs, 'address')
+    const outputAddresses = _.map(outputs, (out) => DB.fixLongAddress(out.address))
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
-    const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     const txDbFields = {
       hash: id,
       inputs_address: inputAddresses,
