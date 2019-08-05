@@ -42,7 +42,7 @@ class TxController implements IController {
     this.logger.debug('TxController.index called', req.params, bridgeResp.status, `(${bridgeResp.statusText})`, bridgeResp.data)
     if (bridgeResp.status === 200) {
       // store tx as pending
-      await this.storeTxAsPending(req.body.signedTx)
+      await this.storeTxAsPending(txObj)
     }
     // eslint-disable-next-line no-param-reassign
     resp.statusText = bridgeResp.statusText
@@ -50,8 +50,8 @@ class TxController implements IController {
     next()
   }
 
-  async storeTxAsPending(txPayload: string) {
-    this.logger.debug(`txs.storeTxAsPending ${txPayload}`)
+  async parseRawTx(txPayload: string) {
+    this.logger.debug(`txs.parseRawTx ${txPayload}`)
     const now = new Date().toUTCString()
     const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
     const txObj = utils.rawTxToObj(tx, {
@@ -60,9 +60,13 @@ class TxController implements IController {
       blockNum: null,
       blockHash: null,
     })
-    await this.db.storeTx(txObj)
-    this.logger.debug('txObj', txObj)
+    this.logger.debug('Parsed txObj', txObj)
     return txObj
+  }
+
+  async storeTxAsPending(tx) {
+    this.logger.debug(`txs.storeTxAsPending ${tx}`)
+    await this.db.storeTx(tx)
   }
 
   async validateTxWitnesses({ id, inputs, witnesses }) {
