@@ -50,7 +50,7 @@ class TxController implements IController {
     next()
   }
 
-  async parseRawTx(txPayload: string) {
+  parseRawTx(txPayload: string) {
     this.logger.debug(`txs.parseRawTx ${txPayload}`)
     const now = new Date().toUTCString()
     const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
@@ -60,7 +60,6 @@ class TxController implements IController {
       blockNum: null,
       blockHash: null,
     })
-    this.logger.debug('Parsed txObj', txObj)
     return txObj
   }
 
@@ -70,9 +69,9 @@ class TxController implements IController {
   }
 
   async validateTxWitnesses({ id, inputs, witnesses }) {
-    this.logger.debug(`Validating witnesses for tx: ${id}`)
     const inp_len = inputs.length
     const wit_len = witnesses.length
+    this.logger.debug(`Validating witnesses for tx: ${id} (${inp_len} inputs)`)
     if (inp_len !== wit_len) {
       throw new Error(`Number of inputs (${inp_len}) != the number of witnesses (${wit_len})`)
     }
@@ -86,20 +85,19 @@ class TxController implements IController {
           JSON.stringify({ inputType, witnessType })
         }`)
       }
-      this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx}`)
       const { address: inputAddress, amount: inputAmount } = fullOutputs[inputTxId][inputIdx]
-      this.logger.debug(`Input details: ${inputAmount} from ${inputAddress}`)
+      this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
       const [addressRoot, addrAttr, addressType] = cbor.decode(cbor.decode(bs58.decode(inputAddress))[0].value)
       if (addressType !== 0) {
         this.logger.debug(`Unsupported address type: ${addressType}. Skipping witness validation for this input.`)
         continue
       }
-      this.logger.debug(`Address root: ${addressRoot.toString('hex')}`)
+      const addressRootHex = addressRoot.toString('hex')
       const expectedStruct = [0, [0, sign[0]], addrAttr]
       const encodedStruct = Buffer.from(sha3_256.update(cbor.encodeCanonical(expectedStruct)).digest());
-      const expectedRoot = blake.blake2bHex(encodedStruct, undefined, 28)
-      if (addressRoot !== expectedRoot) {
-        this.logger.warn(`Witness does not match! ${JSON.stringify({ addressRoot, expectedRoot })}`)
+      const expectedRootHex = blake.blake2bHex(encodedStruct, undefined, 28)
+      if (addressRootHex !== expectedRootHex) {
+        this.logger.warn(`Witness does not match! ${JSON.stringify({ addressRootHex, expectedRoot: expectedRootHex })}`)
       }
     }
   }

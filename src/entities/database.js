@@ -220,7 +220,7 @@ class DB implements Database {
     const conn = this.getConn()
     const query = Q.sql.select().from('txs').where('hash in ?', hashes).toString()
     const dbRes = await conn.query(query)
-    return dbRes.reduce((res, row) => {
+    return dbRes.rows.reduce((res, row) => {
       const arr = []
       for (let i = 0; i < row.outputs_address.length; i++) {
         arr.push({
