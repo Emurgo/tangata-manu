@@ -1,8 +1,10 @@
 // @flow
 import cbor from 'cbor'
 import bs58 from 'bs58'
-import { sha3_256 } from 'js-sha3'
 import blake from 'blakejs'
+import _ from 'lodash'
+// eslint-disable-next-line camelcase
+import { sha3_256 } from 'js-sha3'
 
 import { Request, Response } from 'restify'
 import { Controller, Post } from 'inversify-restify-utils'
@@ -44,19 +46,24 @@ class TxController implements IController {
         this.logger.warn('Local validation error, but network send succeeded!')
       }
     }
+    let statusText
+    let status
+    let respBody
     if (localValidationError && bridgeResp.status !== 200) {
       // We have local validation error and network failed too
       // We send specific local response with network response attached
-      resp.status(400)
-      resp.statusText = `Transaction failed local validation (Network status: ${bridgeResp.statusText})`
-      resp.send(`Transaction validation error: ${localValidationError} (Network response: ${bridgeResp.data})`)
+      status = 400
+      statusText = `Transaction failed local validation (Network status: ${bridgeResp.statusText})`
+      respBody = `Transaction validation error: ${localValidationError} (Network response: ${bridgeResp.data})`
     } else {
       // Locally we have no validation errors - proxy the network response
-      // eslint-disable-next-line no-param-reassign
-      resp.status(bridgeResp.status)
-      resp.statusText = bridgeResp.statusText
-      resp.send(bridgeResp.data)
+      ({ status, statusText } = bridgeResp)
+      respBody = bridgeResp.data
     }
+    resp.status(status)
+    // eslint-disable-next-line no-param-reassign
+    resp.statusText = statusText
+    resp.send(respBody)
     next()
   }
 
@@ -82,44 +89,47 @@ class TxController implements IController {
     try {
       await this.validateTxWitnesses(txObj)
       // TODO: more validation
-      return null;
+      return null
     } catch (e) {
-      return e;
+      return e
     }
   }
 
   async validateTxWitnesses({ id, inputs, witnesses }) {
-    const inp_len = inputs.length
-    const wit_len = witnesses.length
-    this.logger.debug(`Validating witnesses for tx: ${id} (${inp_len} inputs)`)
-    if (inp_len !== wit_len) {
-      throw new Error(`Number of inputs (${inp_len}) != the number of witnesses (${wit_len})`)
+    const inpLen = inputs.length
+    const witLen = witnesses.length
+    this.logger.debug(`Validating witnesses for tx: ${id} (${inpLen} inputs)`)
+    if (inpLen !== witLen) {
+      throw new Error(`Number of inputs (${inpLen}) != the number of witnesses (${witLen})`)
     }
     const txHashes = inputs.map(({ txId }) => txId)
     const fullOutputs = await this.db.getOutputsForTxHashes(txHashes)
-    for (let i = 0; i < inp_len; i++) {
-      const { type: inputType, txId: inputTxId, idx: inputIdx } = inputs[i]
-      const { type: witnessType, sign } = witnesses[i]
+
+    _.zip(inputs, witnesses, fullOutputs).forEach(([input, witness, fullOutput]) => {
+      const { type: inputType, txId: inputTxId, idx: inputIdx } = input
+      const { type: witnessType, sign } = witness
       if (inputType !== 0 || witnessType !== 0) {
         this.logger.debug(`Ignoring non-regular input/witness types: ${
           JSON.stringify({ inputType, witnessType })
         }`)
       }
-      const { address: inputAddress, amount: inputAmount } = fullOutputs[inputTxId][inputIdx]
+      const { address: inputAddress, amount: inputAmount } = fullOutput[inputIdx]
       this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
-      const [addressRoot, addrAttr, addressType] = cbor.decode(cbor.decode(bs58.decode(inputAddress))[0].value)
+      const [addressRoot, addrAttr, addressType] = cbor.decode(
+        cbor.decode(bs58.decode(inputAddress))[0].value)
       if (addressType !== 0) {
         this.logger.debug(`Unsupported address type: ${addressType}. Skipping witness validation for this input.`)
-        continue
+        return
       }
       const addressRootHex = addressRoot.toString('hex')
       const expectedStruct = [0, [0, sign[0]], addrAttr]
-      const encodedStruct = Buffer.from(sha3_256.update(cbor.encodeCanonical(expectedStruct)).digest());
+      const encodedStruct = Buffer.from(sha3_256.update(
+        cbor.encodeCanonical(expectedStruct)).digest())
       const expectedRootHex = blake.blake2bHex(encodedStruct, undefined, 28)
       if (addressRootHex !== expectedRootHex) {
         throw new Error(`Witness does not match! ${JSON.stringify({ addressRootHex, expectedRoot: expectedRootHex })}`)
       }
-    }
+    })
   }
 }
 
