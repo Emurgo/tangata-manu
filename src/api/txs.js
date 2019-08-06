@@ -101,6 +101,10 @@ class TxController implements IController {
       }
     }
   }
+
+  validateDestinationNetwork({ outputs }) {
+    this.logger.debug('out', outputs[0])
+  }
 }
 
 
