@@ -97,7 +97,9 @@ class TxController implements IController {
       const encodedStruct = Buffer.from(sha3_256.update(cbor.encodeCanonical(expectedStruct)).digest());
       const expectedRootHex = blake.blake2bHex(encodedStruct, undefined, 28)
       if (addressRootHex !== expectedRootHex) {
-        this.logger.warn(`Witness does not match! ${JSON.stringify({ addressRootHex, expectedRoot: expectedRootHex })}`)
+        const msg = `Witness does not match! ${JSON.stringify({ addressRootHex, expectedRoot: expectedRootHex })}`
+        this.logger.error(msg)
+        throw new Error(msg)
       }
     }
   }
