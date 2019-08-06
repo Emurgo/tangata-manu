@@ -78,7 +78,7 @@ class TxController implements IController {
     await this.db.storeTx(tx)
   }
 
-  async validateTx({ id, inputs, witnesses }) {
+  async validateTx(txObj) {
     try {
       await this.validateTxWitnesses(txObj)
       // TODO: more validation
