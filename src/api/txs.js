@@ -29,24 +29,34 @@ class TxController implements IController {
 
   async signed(req: Request, resp: Response, next: Function) {
     const txObj = this.parseRawTx(req.body.signedTx)
-    try {
-      await this.validateTxWitnesses(txObj)
-    } catch (e) {
-      resp.status(400)
-      resp.statusText = 'Transaction failed validation'
-      resp.send(`Transaction validation error: ${e}`)
-      next()
+    const localValidationError = await this.validateTx(txObj)
+    if (localValidationError) {
+      this.logger.error(`Local tx validation failed: ${localValidationError}`)
+      this.logger.info('Proceeding to send tx to network for double-check')
     }
     const bridgeResp = await this.dataProvider.postSignedTx(req.rawBody)
-    resp.status(bridgeResp.status)
     this.logger.debug('TxController.index called', req.params, bridgeResp.status, `(${bridgeResp.statusText})`, bridgeResp.data)
     if (bridgeResp.status === 200) {
       // store tx as pending
       await this.storeTxAsPending(txObj)
+      if (localValidationError) {
+        // Network success but locally we failed validation - log local
+        this.logger.warn('Local validation error, but network send succeeded!')
+      }
     }
-    // eslint-disable-next-line no-param-reassign
-    resp.statusText = bridgeResp.statusText
-    resp.send(bridgeResp.data)
+    if (localValidationError && bridgeResp.status !== 200) {
+      // We have local validation error and network failed too
+      // We send specific local response with network response attached
+      resp.status(400)
+      resp.statusText = `Transaction failed local validation (Network status: ${bridgeResp.statusText})`
+      resp.send(`Transaction validation error: ${localValidationError} (Network response: ${bridgeResp.data})`)
+    } else {
+      // Locally we have no validation errors - proxy the network response
+      // eslint-disable-next-line no-param-reassign
+      resp.status(bridgeResp.status)
+      resp.statusText = bridgeResp.statusText
+      resp.send(bridgeResp.data)
+    }
     next()
   }
 
@@ -66,6 +76,16 @@ class TxController implements IController {
   async storeTxAsPending(tx) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
     await this.db.storeTx(tx)
+  }
+
+  async validateTx({ id, inputs, witnesses }) {
+    try {
+      await this.validateTxWitnesses(txObj)
+      // TODO: more validation
+      return null;
+    } catch (e) {
+      return e;
+    }
   }
 
   async validateTxWitnesses({ id, inputs, witnesses }) {
@@ -97,7 +117,7 @@ class TxController implements IController {
       const encodedStruct = Buffer.from(sha3_256.update(cbor.encodeCanonical(expectedStruct)).digest());
       const expectedRootHex = blake.blake2bHex(encodedStruct, undefined, 28)
       if (addressRootHex !== expectedRootHex) {
-        this.logger.warn(`Witness does not match! ${JSON.stringify({ addressRootHex, expectedRoot: expectedRootHex })}`)
+        throw new Error(`Witness does not match! ${JSON.stringify({ addressRootHex, expectedRoot: expectedRootHex })}`)
       }
     }
   }
