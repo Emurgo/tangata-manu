@@ -5,4 +5,5 @@ export interface NetworkConfig {
   genesisHash(): string;
   startTime(): number;
   networkUrl(): string;
+  networkMagic(): number;
 }
