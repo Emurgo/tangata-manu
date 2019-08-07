@@ -221,8 +221,8 @@ class DB implements Database {
     const query = Q.sql.select().from('txs').where('hash in ?', hashes).toString()
     const dbRes = await conn.query(query)
     return dbRes.rows.reduce((res, row) => {
-      const arr = _.zip(row.outputs_address, row.outputs_amount)
-        .forEach(([address, amount]) => ({ address, amount }))
+      const arr = _.map(_.zip(row.outputs_address, row.outputs_amount),
+        ([address, amount]) => ({ address, amount }))
       res[row.hash] = arr
       return res
     }, {})

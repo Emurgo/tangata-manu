@@ -14,7 +14,7 @@ import { injectable, decorate, inject } from 'inversify'
 import { Logger, RawDataProvider, Database } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import { TX_STATUS } from '../blockchain'
+import { TX_STATUS, TxType } from '../blockchain'
 
 class TxController implements IController {
   logger: Logger
@@ -80,12 +80,12 @@ class TxController implements IController {
     return txObj
   }
 
-  async storeTxAsPending(tx) {
+  async storeTxAsPending(tx: TxType) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
     await this.db.storeTx(tx)
   }
 
-  async validateTx(txObj) {
+  async validateTx(txObj: TxType) {
     try {
       await this.validateTxWitnesses(txObj)
       // TODO: more validation
@@ -95,7 +95,8 @@ class TxController implements IController {
     }
   }
 
-  async validateTxWitnesses({ id, inputs, witnesses }) {
+  async validateTxWitnesses({ id, inputs, witnesses }:
+    {id: string, inputs: [], witnesses: []}) {
     const inpLen = inputs.length
     const witLen = witnesses.length
     this.logger.debug(`Validating witnesses for tx: ${id} (${inpLen} inputs)`)
@@ -105,7 +106,7 @@ class TxController implements IController {
     const txHashes = inputs.map(({ txId }) => txId)
     const fullOutputs = await this.db.getOutputsForTxHashes(txHashes)
 
-    _.zip(inputs, witnesses, fullOutputs).forEach(([input, witness, fullOutput]) => {
+    _.zip(inputs, witnesses).forEach(([input, witness]) => {
       const { type: inputType, txId: inputTxId, idx: inputIdx } = input
       const { type: witnessType, sign } = witness
       if (inputType !== 0 || witnessType !== 0) {
@@ -113,7 +114,7 @@ class TxController implements IController {
           JSON.stringify({ inputType, witnessType })
         }`)
       }
-      const { address: inputAddress, amount: inputAmount } = fullOutput[inputIdx]
+      const { address: inputAddress, amount: inputAmount } = fullOutputs[inputTxId][inputIdx]
       this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
       const [addressRoot, addrAttr, addressType] = cbor.decode(
         cbor.decode(bs58.decode(inputAddress))[0].value)

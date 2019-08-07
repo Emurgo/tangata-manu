@@ -75,7 +75,7 @@ const packRawTxIdAndBody = (decodedTxBody): [TxIdHexType, TxBodyHexType] => {
   }
 }
 
-const rawTxToObj = (tx: Array<any>, extraData: {}) => {
+const rawTxToObj = (tx: Array<any>, extraData: {}): TxType => {
   const [[inputs, outputs], witnesses] = tx
   const [txId, txBody] = packRawTxIdAndBody(tx)
   return {
