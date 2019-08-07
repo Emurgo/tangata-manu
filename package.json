@@ -7,7 +7,7 @@
     "migrate": "NODE_ENV=${NODE_ENV:-develop} node-pg-migrate",
     "build": "babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
-    "dev": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js --inspect --exec babel-node | bunyan",
+    "dev": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js --max_old_space_size=4096 --inspect --exec babel-node | bunyan",
     "start": "yarn run dev",
     "test": "jest",
     "build-docker": "./scripts/docker/build-docker.sh"
@@ -62,6 +62,7 @@
     "inversify-config-injection": "^0.0.2",
     "inversify-restify-utils": "^3.4.0",
     "inversify-vanillajs-helpers": "^2.0.0",
+    "js-sha3": "0.8.0",
     "lodash": "^4.17.11",
     "node-pg-migrate": "^3.16.1",
     "pg": "^7.8.1",
