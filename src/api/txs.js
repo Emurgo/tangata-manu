@@ -155,7 +155,9 @@ class TxController implements IController {
   }
 
   static deconstructAddress(address: string) {
-    const [addressRoot, addrAttr, addressType] = cbor.decode(cbor.decode(bs58.decode(address))[0].value)
+    const [addressRoot, addrAttr, addressType] = cbor.decode(
+      cbor.decode(bs58.decode(address))[0].value
+    )
     return { addressRoot, addrAttr, addressType }
   }
 }
