@@ -303,17 +303,19 @@ class DB implements Database {
     const requiredUtxoIds = requiredInputs.map(utils.getUtxoId)
     this.#logger.debug('storeBlockTxs', requiredUtxoIds, block.height)
     const availableUtxos = await this.getUtxos(requiredUtxoIds)
+    const allUtxsos = [...availableUtxos, ...blockUtxos]
+    const mapTxUtxos = (input) => {
+      const inputId = utils.getUtxoId(input)
+      const utxo = _.find(allUtxsos, { id: inputId })
+      return utxo
+    }
     /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
-      const utxos = []
-      const inputUtxoIds = txs[index].inputs.map(utils.getUtxoId)
-      inputUtxoIds.forEach((id) => {
-        const utxo = _.find([...availableUtxos, ...blockUtxos], { id })
-        utxos.push(utxo)
-      })
-      this.#logger.debug('storeBlockTxs', txs[index].id)
-      await this.storeTx(txs[index], utxos)
+      const tx = txs[index]
+      const utxos = tx.inputs.map(mapTxUtxos)
+      this.#logger.debug('storeBlockTxs', tx.id)
+      await this.storeTx(tx, utxos)
     }
     await this.storeUtxos(Object.values(newUtxos))
     await this.backupAndRemoveUtxos(requiredUtxoIds, block.height)
