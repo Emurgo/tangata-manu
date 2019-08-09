@@ -307,7 +307,7 @@ class DB implements Database {
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
       const tx = txs[index]
-      const utxos = tx.inputs.map(input => allUtxoMap[utils.getUtxoId(input)])
+      const utxos = tx.inputs.map(input => allUtxoMap[utils.getUtxoId(input)]).filter(x => x)
       if (utxos.length !== tx.inputs.length) {
         throw new Error(`Failed to query input utxos for tx ${tx.id} for inputs: ${tx.inputs} (all utxos: ${allUtxoMap})`)
       }
