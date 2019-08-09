@@ -308,6 +308,9 @@ class DB implements Database {
       /* eslint-disable no-await-in-loop */
       const tx = txs[index]
       const utxos = tx.inputs.map(input => allUtxoMap[utils.getUtxoId(input)])
+      if (utxos.length !== tx.inputs.length) {
+        throw new Error(`Failed to query input utxos for tx ${tx.id} for inputs: ${tx.inputs} (all utxos: ${allUtxoMap})`)
+      }
       this.#logger.debug('storeBlockTxs', tx.id)
       await this.storeTx(tx, utxos)
     }
