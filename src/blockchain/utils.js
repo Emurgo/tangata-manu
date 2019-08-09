@@ -6,6 +6,8 @@ import blake from 'blakejs'
 type TxIdHexType = string
 type TxBodyHexType = string
 
+const getUtxoId = (input) => `${input.txId}${input.idx}`
+
 const structUtxo = (
   receiver,
   amount,
@@ -128,6 +130,7 @@ const headerToId = (header, type: number) => {
 
 export default {
   structUtxo,
+  getUtxoId,
   fixLongAddress,
   getTxsUtxos,
   rawTxToObj,

@@ -285,7 +285,7 @@ class DB implements Database {
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
     const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
-      const utxoId = `${inp.txId}${inp.idx}`
+      const utxoId = utils.getUtxoId(inp)
       const localUtxo = newUtxos[utxoId]
       if (localUtxo) {
         blockUtxos.push({
@@ -300,14 +300,14 @@ class DB implements Database {
       }
       return true
     })
-    const requiredUtxoIds = requiredInputs.map(inp => `${inp.txId}${inp.idx}`)
+    const requiredUtxoIds = requiredInputs.map(utils.getUtxoId)
     this.#logger.debug('storeBlockTxs', requiredUtxoIds, block.height)
     const availableUtxos = await this.getUtxos(requiredUtxoIds)
     /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
       const utxos = []
-      const inputUtxoIds = txs[index].inputs.map((input) => (`${input.txId}${input.idx}`))
+      const inputUtxoIds = txs[index].inputs.map(utils.getUtxoId)
       inputUtxoIds.forEach((id) => {
         const utxo = _.find([...availableUtxos, ...blockUtxos], { id })
         utxos.push(utxo)
