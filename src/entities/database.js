@@ -1,12 +1,11 @@
 // @flow
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
-import assert from 'assert'
 
 import { Database, DBConnection, Logger } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import Block, { TxType, TX_STATUS } from '../blockchain'
+import Block, { TX_STATUS, TxType } from '../blockchain'
 import Q from '../db-queries'
 
 
@@ -27,23 +26,11 @@ class DB implements Database {
     return this.#conn
   }
 
-  /**
-   * We need to use this function cuz there are some extra-long addresses
-   * existing on Cardano mainnet. Some of them exceed 10K characters in length,
-   * and Postgres can't store it.
-   * We don't care about making these non-standard addresses spendable, so any address
-   * over 1K characters is just truncated.
-   */
-  static fixLongAddress = (address: string): string => (address && address.length > 1000
-    ? `${address.substr(0, 497)}...${address.substr(address.length - 500, 500)}`
-    : address)
-
-  async storeUtxos(utxos: [{}]) {
+  async storeUtxos(utxos) {
     const conn = this.getConn()
     const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
     this.#logger.debug('storeUtxos', utxos, query)
     const dbRes = await conn.query(query)
-    this.#logger.debug('storeUtxos', dbRes)
     return dbRes
   }
 
@@ -156,7 +143,7 @@ class DB implements Database {
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
       tx_hash: txId,
-      address: DB.fixLongAddress(address),
+      address: utils.fixLongAddress(address),
     }))
     const query = Q.TX_ADDRESSES_INSERT.setFieldsRows(dbFields).toString()
     try {
@@ -170,7 +157,7 @@ class DB implements Database {
   async storeOutputs(tx: {id: string, blockNum: number, outputs: []}) {
     const { id, outputs, blockNum } = tx
     const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
-      DB.fixLongAddress(output.address), output.value, id, index, blockNum))
+      utils.fixLongAddress(output.address), output.value, id, index, blockNum))
     await this.storeUtxos(utxosData)
   }
 
@@ -213,6 +200,7 @@ class DB implements Database {
     return dbRes.rows.map((row) => ({
       address: row.receiver,
       amount: row.amount,
+      id: row.utxo_id,
     }))
   }
 
@@ -237,7 +225,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(tx: TxType) {
+  async storeTx(tx: TxType, txUtxos:[] = []) {
     const conn = this.getConn()
     const {
       inputs,
@@ -246,20 +234,18 @@ class DB implements Database {
       blockNum,
       blockHash,
     } = tx
+    let inputUtxos
+    this.#logger.debug('storeTx:', txUtxos)
     const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
-    const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
-    const inputUtxos = await this.getUtxos(inputUtxoIds)
-
-    assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
-    if (txStatus === TX_STATUS.TX_SUCCESS_STATUS) {
-      // if transaction is successful, store outputs to `utxos`
-      // and remove transaction inputs from `utxos`
-      await this.storeOutputs(tx)
-      await this.backupAndRemoveUtxos(inputUtxoIds, blockNum)
+    if (_.isEmpty(txUtxos)) {
+      const inputUtxoIds = inputs.map(utils.getUtxoId)
+      inputUtxos = await this.getUtxos(inputUtxoIds)
+    } else {
+      inputUtxos = txUtxos
     }
 
     const inputAddresses = _.map(inputUtxos, 'address')
-    const outputAddresses = _.map(outputs, (out) => DB.fixLongAddress(out.address))
+    const outputAddresses = _.map(outputs, (out) => utils.fixLongAddress(out.address))
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
     const txDbFields = {
@@ -295,11 +281,38 @@ class DB implements Database {
 
   async storeBlockTxs(block: Block) {
     const { txs } = block
+    const newUtxos = utils.getTxsUtxos(txs)
+    const blockUtxos = []
+    const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
+      const utxoId = utils.getUtxoId(inp)
+      const localUtxo = newUtxos[utxoId]
+      if (localUtxo) {
+        blockUtxos.push({
+          id: localUtxo.utxo_id,
+          address: localUtxo.receiver,
+          amount: localUtxo.amount,
+        })
+        // Delete new Utxo if it's already spent in the same block
+        delete newUtxos[utxoId]
+        // Remove this input from required
+        return false
+      }
+      return true
+    })
+    const requiredUtxoIds = requiredInputs.map(utils.getUtxoId)
+    this.#logger.debug('storeBlockTxs', requiredUtxoIds, block.height)
+    const availableUtxos = await this.getUtxos(requiredUtxoIds)
+    const allUtxoMap = _.keyBy([...availableUtxos, ...blockUtxos], 'id')
     /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
-      await this.storeTx(txs[index])
+      const tx = txs[index]
+      const utxos = tx.inputs.map(input => allUtxoMap[utils.getUtxoId(input)])
+      this.#logger.debug('storeBlockTxs', tx.id)
+      await this.storeTx(tx, utxos)
     }
+    await this.storeUtxos(Object.values(newUtxos))
+    await this.backupAndRemoveUtxos(requiredUtxoIds, block.height)
   }
 }
 
