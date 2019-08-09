@@ -1,12 +1,11 @@
 // @flow
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
-import assert from 'assert'
 
 import { Database, DBConnection, Logger } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import Block, { TxType, TX_STATUS } from '../blockchain'
+import Block, { TX_STATUS, TxType } from '../blockchain'
 import Q from '../db-queries'
 
 
@@ -239,7 +238,7 @@ class DB implements Database {
     this.#logger.debug('storeTx:', txUtxos)
     const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     if (_.isEmpty(txUtxos)) {
-      const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
+      const inputUtxoIds = inputs.map(utils.getUtxoId)
       inputUtxos = await this.getUtxos(inputUtxoIds)
     } else {
       inputUtxos = txUtxos
@@ -303,17 +302,12 @@ class DB implements Database {
     const requiredUtxoIds = requiredInputs.map(utils.getUtxoId)
     this.#logger.debug('storeBlockTxs', requiredUtxoIds, block.height)
     const availableUtxos = await this.getUtxos(requiredUtxoIds)
-    const allUtxsos = [...availableUtxos, ...blockUtxos]
-    const mapTxUtxos = (input) => {
-      const inputId = utils.getUtxoId(input)
-      const utxo = _.find(allUtxsos, { id: inputId })
-      return utxo
-    }
+    const allUtxoMap = _.keyBy([...availableUtxos, ...blockUtxos], 'id')
     /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
       const tx = txs[index]
-      const utxos = tx.inputs.map(mapTxUtxos)
+      const utxos = tx.inputs.map(input => allUtxoMap[utils.getUtxoId(input)])
       this.#logger.debug('storeBlockTxs', tx.id)
       await this.storeTx(tx, utxos)
     }
