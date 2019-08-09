@@ -43,7 +43,6 @@ class DB implements Database {
     const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
     this.#logger.debug('storeUtxos', utxos, query)
     const dbRes = await conn.query(query)
-    this.#logger.debug('storeUtxos', dbRes)
     return dbRes
   }
 
@@ -299,13 +298,13 @@ class DB implements Database {
       outputs.forEach((output, index) => {
         const utxo = utils.structUtxo(
           DB.fixLongAddress(output.address), output.value, id, index, blockNum)
-        res[id] = utxo
+        res[`${id}${index}`] = utxo
       })
       return res
     }, {})
     const blockUtxos = []
-    const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
-      const localUtxo = newUtxos[inp.utxoId]
+    const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter((inp, index) => {
+      const localUtxo = newUtxos[`${inp.utxoId}${inp.idx}`]
       if (localUtxo) {
         blockUtxos.push({
           id: localUtxo.utxo_id,
@@ -313,13 +312,15 @@ class DB implements Database {
           amount: localUtxo.amount,
         })
         // Delete new Utxo if it's already spent in the same block
-        delete newUtxos[inp.utxoId]
+        delete newUtxos[`${inp.utxoId}${inp.idx}`]
         // Remove this input from required
         return false
       }
       return true
     })
     const requiredUtxoIds = requiredInputs.map(inp => `${inp.txId}${inp.idx}`)
+    this.#logger.debug('storeBlockTxs', requiredUtxoIds, block.height,
+      Math.floor(Math.random() * Math.floor(500)))
     const availableUtxos = await this.getUtxos(requiredUtxoIds)
     /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
@@ -330,6 +331,7 @@ class DB implements Database {
         const utxo = _.find([...availableUtxos, ...blockUtxos], { id })
         utxos.push(utxo)
       })
+      this.#logger.debug('storeBlockTxs', txs[index].id)
       await this.storeTx(txs[index], utxos)
     }
     await this.storeUtxos(Object.values(newUtxos))
