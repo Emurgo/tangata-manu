@@ -18,7 +18,7 @@
   },
   "checkTipCronTime": "*/15 * * * * *",
   "rollbackBlocksCount": 25,
-  "defaultNetwork": "testnet2",
+  "defaultNetwork": "mainnet",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {
     "testnet2": {

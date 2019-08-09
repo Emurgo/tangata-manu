@@ -213,6 +213,7 @@ class DB implements Database {
     return dbRes.rows.map((row) => ({
       address: row.receiver,
       amount: row.amount,
+      id: row.utxo_id,
     }))
   }
 
@@ -237,7 +238,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(tx: TxType) {
+  async storeTx(tx: TxType, txUtxos:[] = []) {
     const conn = this.getConn()
     const {
       inputs,
@@ -246,16 +247,14 @@ class DB implements Database {
       blockNum,
       blockHash,
     } = tx
+    let inputUtxos
+    this.#logger.debug('storeTx:', txUtxos)
     const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
-    const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
-    const inputUtxos = await this.getUtxos(inputUtxoIds)
-
-    assert.equal(inputUtxos.length, inputUtxoIds.length, 'Database corrupted.')
-    if (txStatus === TX_STATUS.TX_SUCCESS_STATUS) {
-      // if transaction is successful, store outputs to `utxos`
-      // and remove transaction inputs from `utxos`
-      await this.storeOutputs(tx)
-      await this.backupAndRemoveUtxos(inputUtxoIds, blockNum)
+    if (_.isEmpty(txUtxos)) {
+      const inputUtxoIds = inputs.map((input) => (`${input.txId}${input.idx}`))
+      inputUtxos = await this.getUtxos(inputUtxoIds)
+    } else {
+      inputUtxos = txUtxos
     }
 
     const inputAddresses = _.map(inputUtxos, 'address')
@@ -295,11 +294,46 @@ class DB implements Database {
 
   async storeBlockTxs(block: Block) {
     const { txs } = block
+    const newUtxos = txs.reduce((res, tx) => {
+      const { id, outputs, blockNum } = tx
+      outputs.forEach((output, index) => {
+        const utxo = utils.structUtxo(
+          DB.fixLongAddress(output.address), output.value, id, index, blockNum)
+        res[id] = utxo
+      })
+      return res
+    }, {})
+    const blockUtxos = []
+    const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
+      const localUtxo = newUtxos[inp.utxoId]
+      if (localUtxo) {
+        blockUtxos.push({
+          id: localUtxo.utxo_id,
+          address: localUtxo.receiver,
+          amount: localUtxo.amount,
+        })
+        // Delete new Utxo if it's already spent in the same block
+        delete newUtxos[inp.utxoId]
+        // Remove this input from required
+        return false
+      }
+      return true
+    })
+    const requiredUtxoIds = requiredInputs.map(inp => `${inp.txId}${inp.idx}`)
+    const availableUtxos = await this.getUtxos(requiredUtxoIds)
     /* eslint-disable no-plusplus */
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
-      await this.storeTx(txs[index])
+      const utxos = []
+      const inputUtxoIds = txs[index].inputs.map((input) => (`${input.txId}${input.idx}`))
+      inputUtxoIds.forEach((id) => {
+        const utxo = _.find([...availableUtxos, ...blockUtxos], { id })
+        utxos.push(utxo)
+      })
+      await this.storeTx(txs[index], utxos)
     }
+    await this.storeUtxos(Object.values(newUtxos))
+    await this.backupAndRemoveUtxos(requiredUtxoIds, block.height)
   }
 }
 
