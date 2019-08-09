@@ -309,7 +309,7 @@ class DB implements Database {
       const tx = txs[index]
       const utxos = tx.inputs.map(input => allUtxoMap[utils.getUtxoId(input)]).filter(x => x)
       if (utxos.length !== tx.inputs.length) {
-        throw new Error(`Failed to query input utxos for tx ${tx.id} for inputs: ${tx.inputs} (all utxos: ${allUtxoMap})`)
+        throw new Error(`Failed to query input utxos for tx ${tx.id} for inputs:`, tx.inputs, 'all utxos:', allUtxoMap)
       }
       this.#logger.debug('storeBlockTxs', tx.id)
       await this.storeTx(tx, utxos)
