@@ -1,6 +1,6 @@
 // @flow
 
-import cbor from 'cbor'
+import cbor from 'borc'
 
 import utils from './utils'
 

@@ -1,5 +1,5 @@
 // flow
-import cbor from 'cbor'
+import cbor from 'borc'
 import bs58 from 'bs58'
 import blake from 'blakejs'
 
