@@ -11,7 +11,7 @@ import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'
 import { injectable, decorate, inject } from 'inversify'
 
-import { Logger, RawDataProvider, Database } from '../interfaces'
+import { Logger, RawDataProvider, Database, NetworkConfig } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
 import { TX_STATUS, TxType } from '../blockchain'
@@ -23,10 +23,18 @@ class TxController implements IController {
 
   db: Database
 
-  constructor(logger: Logger, dataProvider: RawDataProvider, db: Database) {
+  expectedNetworkMagic: number
+
+  constructor(
+    logger: Logger,
+    dataProvider: RawDataProvider,
+    db: Database,
+    networkConfig: NetworkConfig,
+  ) {
     this.logger = logger
     this.dataProvider = dataProvider
     this.db = db
+    this.expectedNetworkMagic = networkConfig.networkMagic()
   }
 
   async signed(req: Request, resp: Response, next: Function) {
@@ -88,6 +96,7 @@ class TxController implements IController {
   async validateTx(txObj: TxType) {
     try {
       await this.validateTxWitnesses(txObj)
+      this.validateDestinationNetwork(txObj)
       // TODO: more validation
       return null
     } catch (e) {
@@ -99,7 +108,7 @@ class TxController implements IController {
     {id: string, inputs: [], witnesses: []}) {
     const inpLen = inputs.length
     const witLen = witnesses.length
-    this.logger.debug(`Validating witnesses for tx: ${id} (${inpLen} inputs)`)
+    this.logger.debug(`Validating witnesses for tx: ${id} (inputs: ${inpLen})`)
     if (inpLen !== witLen) {
       throw new Error(`Number of inputs (${inpLen}) != the number of witnesses (${witLen})`)
     }
@@ -116,8 +125,7 @@ class TxController implements IController {
       }
       const { address: inputAddress, amount: inputAmount } = fullOutputs[inputTxId][inputIdx]
       this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
-      const [addressRoot, addrAttr, addressType] = cbor.decode(
-        cbor.decode(bs58.decode(inputAddress))[0].value)
+      const { addressRoot, addrAttr, addressType } = TxController.deconstructAddress(inputAddress)
       if (addressType !== 0) {
         this.logger.debug(`Unsupported address type: ${addressType}. Skipping witness validation for this input.`)
         return
@@ -132,6 +140,26 @@ class TxController implements IController {
       }
     })
   }
+
+  validateDestinationNetwork({ outputs }) {
+    this.logger.debug(`Validating output network (outputs: ${outputs.length})`)
+    outputs.forEach(({ address }, i) => {
+      this.logger.debug(`Validating network for ${address}`)
+      const { addrAttr } = TxController.deconstructAddress(address)
+      const networkAttr: Buffer = addrAttr && addrAttr.get && addrAttr.get(2)
+      const networkMagic = networkAttr && networkAttr.readInt32BE(1)
+      if (networkMagic !== this.expectedNetworkMagic) {
+        throw new Error(`Output #${i} network magic is ${networkMagic}, expected ${this.expectedNetworkMagic}`)
+      }
+    });
+  }
+
+  static deconstructAddress(address: string) {
+    const [addressRoot, addrAttr, addressType] = cbor.decode(
+      cbor.decode(bs58.decode(address))[0].value
+    )
+    return { addressRoot, addrAttr, addressType }
+  }
 }
 
 
@@ -142,5 +170,6 @@ decorate(Post('/signed'), TxController.prototype, 'signed')
 decorate(inject(SERVICE_IDENTIFIER.LOGGER), TxController, 0)
 decorate(inject(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER), TxController, 1)
 decorate(inject(SERVICE_IDENTIFIER.DATABASE), TxController, 2)
+decorate(inject(SERVICE_IDENTIFIER.NETWORK_CONFIG), TxController, 3)
 
 export default TxController
