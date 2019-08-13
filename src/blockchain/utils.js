@@ -1,5 +1,6 @@
 // flow
-import cbor from 'borc'
+import cbor from 'cbor'
+import borc from 'borc'
 import bs58 from 'bs58'
 import blake from 'blakejs'
 
@@ -62,22 +63,37 @@ const decodedTxToBase = (decodedTx) => {
   throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
 }
 
+type CborEncoder = {
+  encode: Function
+}
+
 class CborIndefiniteLengthArray {
   elements: Array<{}>
+  cborEncoder: CborEncoder
 
-  constructor(elements) {
+  constructor(elements, cborEncoder) {
     this.elements = elements
+    this.cborEncoder = cborEncoder
   }
 
   encodeCBOR(encoder) {
     return encoder.push(
       Buffer.concat([
         Buffer.from([0x9f]), // indefinite array prefix
-        ...this.elements.map((e) => cbor.encode(e)),
+        ...this.elements.map((e) => this.cborEncoder.encode(e)),
         Buffer.from([0xff]), // end of array
       ]),
     )
   }
+}
+
+const selectCborEncoder = (outputs): CborEncoder => {
+  const maxAddressLen = Math.max(outputs.map(([[taggedAddress]]) => taggedAddress.value.length))
+  if (maxAddressLen > 5000) {
+    console.log('>>> Output address len exceeds maximum, using alternative CborEncoder')
+    return borc
+  }
+  return cbor
 }
 
 const packRawTxIdAndBody = (decodedTxBody): [TxIdHexType, TxBodyHexType] => {
@@ -86,9 +102,10 @@ const packRawTxIdAndBody = (decodedTxBody): [TxIdHexType, TxBodyHexType] => {
   }
   try {
     const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
-    const enc = cbor.encode([
-      new CborIndefiniteLengthArray(inputs),
-      new CborIndefiniteLengthArray(outputs),
+    const cborEncoder: CborEncoder = selectCborEncoder(outputs)
+    const enc = cborEncoder.encode([
+      new CborIndefiniteLengthArray(inputs, cborEncoder),
+      new CborIndefiniteLengthArray(outputs, cborEncoder),
       attributes,
     ])
     const txId = blake.blake2bHex(enc, null, 32)
