@@ -88,7 +88,7 @@ class CborIndefiniteLengthArray {
 }
 
 const selectCborEncoder = (outputs): CborEncoder => {
-  const maxAddressLen = Math.max(outputs.map(([[taggedAddress]]) => taggedAddress.value.length))
+  const maxAddressLen = Math.max(...outputs.map(([[taggedAddress]]) => taggedAddress.value.length))
   if (maxAddressLen > 5000) {
     console.log('>>> Output address len exceeds maximum, using alternative CborEncoder')
     return borc
