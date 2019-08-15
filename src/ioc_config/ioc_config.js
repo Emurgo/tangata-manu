@@ -8,7 +8,6 @@ import {
   CardanoBridgeApi,
   CustomDataParser,
   CronScheduler,
-  DB,
   GenesisProvider,
   MockBridgeApi,
   MockDataParser,
@@ -17,7 +16,6 @@ import {
   RawDataProvider,
   RawDataParser,
   Scheduler,
-  Database,
   Genesis,
   Logger,
 } from '../interfaces'
@@ -26,6 +24,7 @@ import dbModule from './db'
 import loggerModule from './logger'
 import networkConfigModule from './network-config'
 import initRoutes from './routes'
+import initStorageProcessor from './storage-processor'
 
 const configBinder = new EagerBinder({
   objects: true,
@@ -52,9 +51,9 @@ const initIoC = async () => {
   container.bind<RawDataParser>(SERVICE_IDENTIFIER.RAW_DATA_PARSER)
     .to(dataParserClass).inSingletonScope()
   container.bind<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER).to(CronScheduler).inSingletonScope()
-  container.bind<Database>(SERVICE_IDENTIFIER.DATABASE).to(DB).inSingletonScope()
   container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider).inSingletonScope()
 
+  initStorageProcessor(container)
   initRoutes(container)
 
   return container

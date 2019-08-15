@@ -13,6 +13,7 @@ import {
   RawDataProvider,
   Database,
   Logger,
+  StorageProcessor,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import Block from '../blockchain'
@@ -31,6 +32,8 @@ class CronScheduler implements Scheduler {
   #dataProvider: any
 
   #db: any
+
+  #storageProcessor: any
 
   #logger: any
 
@@ -51,10 +54,12 @@ class CronScheduler implements Scheduler {
     dataProvider: RawDataProvider,
     checkTipCronTime: string,
     db: Database,
+    storageProcessor: StorageProcessor,
     logger: Logger,
     rollbackBlocksCount: number,
   ) {
     this.#dataProvider = dataProvider
+    this.#storageProcessor = storageProcessor
     this.rollbackBlocksCount = rollbackBlocksCount
     logger.debug('Cron time', checkTipCronTime)
     logger.debug('Rollback blocks count', rollbackBlocksCount)
@@ -154,7 +159,7 @@ class CronScheduler implements Scheduler {
         if (blockHaveTxs) {
           await this.#db.storeBlockTxs(block)
         }
-        await this.#db.storeBlocks(this.blocksToStore)
+        await this.#storageProcessor.storeBlocks(this.blocksToStore)
         await this.#db.updateBestBlockNum(block.height)
         this.blocksToStore = []
         await dbConn.query('COMMIT')
@@ -258,6 +263,7 @@ helpers.annotate(CronScheduler,
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
     'checkTipCronTime',
     SERVICE_IDENTIFIER.DATABASE,
+    SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
     SERVICE_IDENTIFIER.LOGGER,
     'rollbackBlocksCount',
   ])
