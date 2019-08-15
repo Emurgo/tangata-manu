@@ -8,10 +8,9 @@ import _ from 'lodash'
 import { helpers } from 'inversify-vanillajs-helpers'
 import queue from 'async/queue'
 
-import {
+import type {
   Scheduler,
   RawDataProvider,
-  Database,
   Logger,
   StorageProcessor,
 } from '../interfaces'
@@ -31,9 +30,7 @@ class CronScheduler implements Scheduler {
 
   #dataProvider: any
 
-  #db: any
-
-  #storageProcessor: any
+  storageProcessor: StorageProcessor
 
   #logger: any
 
@@ -53,13 +50,12 @@ class CronScheduler implements Scheduler {
   constructor(
     dataProvider: RawDataProvider,
     checkTipCronTime: string,
-    db: Database,
     storageProcessor: StorageProcessor,
     logger: Logger,
     rollbackBlocksCount: number,
   ) {
     this.#dataProvider = dataProvider
-    this.#storageProcessor = storageProcessor
+    this.storageProcessor = storageProcessor
     this.rollbackBlocksCount = rollbackBlocksCount
     logger.debug('Cron time', checkTipCronTime)
     logger.debug('Rollback blocks count', rollbackBlocksCount)
@@ -69,7 +65,6 @@ class CronScheduler implements Scheduler {
         this.onTick()
       },
     })
-    this.#db = db
     this.#logger = logger
     this.#epochsInQueue = []
 
@@ -103,15 +98,8 @@ class CronScheduler implements Scheduler {
 
 
     // Recover database state to newest actual block.
-    const { height } = await this.#db.getBestBlockNum()
-    await this.resetToBlockHeight(height - this.rollbackBlocksCount)
-  }
-
-  async resetToBlockHeight(blockHeight: number) {
-    await this.#db.rollBackTransactions(blockHeight)
-    await this.#db.rollBackUtxoBackup(blockHeight)
-    await this.#db.rollBackBlockHistory(blockHeight)
-    await this.#db.updateBestBlockNum(blockHeight)
+    const { height } = await this.storageProcessor.getBestBlockNum()
+    await this.storageProcessor.rollbackTo(height - this.rollbackBlocksCount)
   }
 
 
@@ -143,7 +131,6 @@ class CronScheduler implements Scheduler {
   }
 
   async processBlock(block: Block, flushCache: boolean = false): Promise<Symbol> {
-    const dbConn = this.#db.getConn()
     if (this.lastBlock
       && block.epoch === this.lastBlock.epoch
       && block.prevHash !== this.lastBlock.hash) {
@@ -155,17 +142,17 @@ class CronScheduler implements Scheduler {
     this.blocksToStore.push(block)
     try {
       if (this.blocksToStore.length > BLOCKS_CACHE_SIZE || blockHaveTxs || flushCache) {
-        await dbConn.query('BEGIN')
+        await this.storageProcessor.beginTransaction()
         if (blockHaveTxs) {
-          await this.#db.storeBlockTxs(block)
+          await this.storageProcessor.storeBlockTxs(block)
         }
-        await this.#storageProcessor.storeBlocks(this.blocksToStore)
-        await this.#db.updateBestBlockNum(block.height)
+        await this.storageProcessor.storeBlocks(this.blocksToStore)
+        await this.storageProcessor.updateBestBlockNum(block.height)
         this.blocksToStore = []
-        await dbConn.query('COMMIT')
+        await this.storageProcessor.commitTransaction()
       }
     } catch (e) {
-      await dbConn.query('ROLLBACK')
+      await this.storageProcessor.rollbackTransaction()
       throw e
     } finally {
       if (block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
@@ -179,7 +166,7 @@ class CronScheduler implements Scheduler {
     this.#logger.info('onTick:checking for new blocks...')
     try {
       // local state
-      let { height, epoch, slot } = await this.#db.getBestBlockNum()
+      let { height, epoch, slot } = await this.storageProcessor.getBestBlockNum()
       const lastCachedBlock = _.last(this.blocksToStore)
       if (lastCachedBlock && lastCachedBlock.height > height) {
         ({ height, epoch, slot } = lastCachedBlock)
@@ -262,7 +249,6 @@ helpers.annotate(CronScheduler,
   [
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
     'checkTipCronTime',
-    SERVICE_IDENTIFIER.DATABASE,
     SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
     SERVICE_IDENTIFIER.LOGGER,
     'rollbackBlocksCount',

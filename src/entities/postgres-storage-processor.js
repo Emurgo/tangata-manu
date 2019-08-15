@@ -22,8 +22,38 @@ class PostgresStorageProcessor implements StorageProcessor {
     return dbRes
   }
 
-  rollbackTo(height: number) {
+  async rollbackTo(height: number) {
+    await this.db.rollBackTransactions(height)
+    await this.db.rollBackUtxoBackup(height)
+    await this.db.rollBackBlockHistory(height)
+    await this.db.updateBestBlockNum(height)
+  }
 
+  async getBestBlockNum() {
+    return this.db.getBestBlockNum()
+  }
+
+  async updateBestBlockNum(height: number) {
+    return this.db.updateBestBlockNum(height)
+  }
+
+  async storeBlockTxs(block) {
+    return this.db.storeBlockTxs(block)
+  }
+
+  async beginTransaction() {
+    const dbConn = this.db.getConn()
+    await dbConn.query('BEGIN')
+  }
+
+  async commitTransaction() {
+    const dbConn = this.db.getConn()
+    await dbConn.query('COMMIT')
+  }
+
+  async rollbackTransaction() {
+    const dbConn = this.db.getConn()
+    await dbConn.query('ROLLBACK')
   }
 
 }
