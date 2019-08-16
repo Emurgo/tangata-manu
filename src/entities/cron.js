@@ -102,7 +102,6 @@ class CronScheduler implements Scheduler {
   }
 
   async processBlockHeight(height: number) {
-    this.#logger.info(`processBlockHeight: ${height}`)
     const block = await this.#dataProvider.getBlockByHeight(height)
     const flushCache = true
     return this.processBlock(block, flushCache)
@@ -176,7 +175,7 @@ class CronScheduler implements Scheduler {
               (epochId < packedEpochs); epochId++) {
               const epochStartHeight = (epochId === epoch ? height : 0)
               // Process epoch
-              await this.processEpochId(epoch, height)
+              await this.processEpochId(epochId, height)
             }
           } else {
             // Packed epoch is not available yet
