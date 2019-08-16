@@ -39,7 +39,7 @@ class CronScheduler implements Scheduler {
 
   rollbackBlocksCount: number
 
-  lastBlock: ?Block
+  lastBlock: { epoch: number, hash: string }
 
   constructor(
     dataProvider: RawDataProvider,
@@ -64,11 +64,21 @@ class CronScheduler implements Scheduler {
     // reset scheduler state
     this.blocksToStore = []
     this.lastBlock = null
-    // Recover database state to newest actual block.
-    const { height } = await this.#db.getBestBlockNum()
-    const rollBackTo = height - this.rollbackBlocksCount
-    this.#logger.info(`Current DB height at rollback time: ${height}. Rolling back to: ${rollBackTo}`)
-    await this.resetToBlockHeight(rollBackTo)
+    const dbConn = this.#db.getConn()
+    try {
+      await dbConn.query('BEGIN')
+      // Recover database state to newest actual block.
+      const { height } = await this.#db.getBestBlockNum()
+      const rollBackTo = height - this.rollbackBlocksCount
+      this.#logger.info(`Current DB height at rollback time: ${height}. Rolling back to: ${rollBackTo}`)
+      await this.resetToBlockHeight(rollBackTo)
+      let { epoch, hash } = await this.#db.getBestBlockNum()
+      this.lastBlock = { epoch, hash }
+      await dbConn.query('COMMIT')
+    } catch (e) {
+      await dbConn.query('ROLLBACK')
+      throw e
+    }
   }
 
   async resetToBlockHeight(blockHeight: number) {
@@ -106,7 +116,10 @@ class CronScheduler implements Scheduler {
       this.#logger.info(`(${block.epoch}/${block.slot}) block.prevHash (${block.prevHash}) !== lastBlock.hash (${this.lastBlock.hash}). Performing rollback...`)
       return STATUS_ROLLBACK_REQUIRED
     }
-    this.lastBlock = block
+    this.lastBlock = {
+      epoch: block.epoch,
+      hash: block.hash
+    }
     const blockHaveTxs = !_.isEmpty(block.txs)
     this.blocksToStore.push(block)
     try {

@@ -34,12 +34,13 @@ class DB implements Database {
     return dbRes
   }
 
-  async getBestBlockNum(): Promise<{ height: number, epoch?: number, slot?: number }> {
+  async getBestBlockNum(): Promise<{ height: number, epoch?: number, slot?: number, hash: string }> {
     const conn = this.getConn()
     const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM.toString())
     if (dbRes.rowCount > 0) {
       const row = dbRes.rows[0]
       return {
+        hash: row.block_hash,
         height: Number(row.block_height),
         epoch: Number(row.epoch),
         slot: Number(row.slot),
