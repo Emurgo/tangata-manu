@@ -53,7 +53,7 @@ const startServer = async () => {
   // start scheduler to check for updates from cardano-http-bridge
   const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
   scheduler.startAsync().then(res => {
-    logger.warn(`Scheduler.startAsync() existed successfully. This is unexpected to happen by itself! (result=${res})`)
+    logger.error(`Scheduler.startAsync exited successfully. This is unexpected to happen by itself! (result=${res})`)
   }, err => {
     logger.error('Scheduler.startAsync exited with an error:', err)
   })
