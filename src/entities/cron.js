@@ -20,10 +20,14 @@ const MAX_BLOCKS_PER_LOOP = 9000
 const LOG_BLOCK_PARSED_THRESHOLD = 30
 const BLOCKS_CACHE_SIZE = 800
 const ERROR_META = {
-  'ECONNREFUSED': {
+  'NODE_INACCESSIBLE': {
     msg: 'node is inaccessible',
     sleep: 60000
-  }
+  },
+  'ECONNREFUSED': {
+    msg: 'some unidentified network service is inaccessible',
+    sleep: 60000
+  },
 }
 
 const STATUS_ROLLBACK_REQUIRED = Symbol.for('ROLLBACK_REQUIRED')
@@ -207,7 +211,6 @@ class CronScheduler implements Scheduler {
       let errorSleep = 0;
       try {
         await this.checkTip()
-        errorSleep = 0
       } catch (e) {
         const meta = ERROR_META[e.code]
         if (meta) {

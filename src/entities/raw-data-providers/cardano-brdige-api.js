@@ -32,12 +32,21 @@ class CardanoBridgeApi implements RawDataProvider {
   async get(path: string, options?: {}) {
     const opts = options || {}
     const endpointUrl = urljoin(this.#networkBaseUrl, path)
-    const resp = await axios(endpointUrl,
-      {
-        responseType: 'arraybuffer',
-        ...opts,
-      })
-    return resp
+    try {
+      const resp = await axios(endpointUrl,
+        {
+          responseType: 'arraybuffer',
+          ...opts,
+        })
+      return resp
+    } catch (e) {
+      if (e.code === 'ECONNREFUSED') {
+        const error = new Error('cardano-http-bridge is not accessible (ECONNREFUSED)')
+        error.code = 'NODE_INACCESSIBLE'
+        throw error
+      }
+      throw e
+    }
   }
 
   async post(path: string, payload: string) {
