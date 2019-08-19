@@ -199,7 +199,7 @@ class CronScheduler implements Scheduler {
   }
 
   async startAsync() {
-    this.#logger.info('Scheduler async: starting chain syncing look')
+    this.#logger.info('Scheduler async: starting chain syncing loop')
     const currentMillis = () => new Date().getTime()
     const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
     while (true) {
