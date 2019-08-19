@@ -58,7 +58,6 @@
     "cardano-wallet": "^0.3.0",
     "cbor": "4.2.1",
     "config": "^3.0.1",
-    "cron": "^1.6.0",
     "inversify": "^5.0.1",
     "inversify-config-injection": "^0.0.2",
     "inversify-restify-utils": "^3.4.0",
