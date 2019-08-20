@@ -1,6 +1,6 @@
 // @flow
 export interface StorageProcessor {
-  storeBlocks([]): void;
+  storeBlocksData([]): void;
 
   rollbackTo(height: number): void;
 
