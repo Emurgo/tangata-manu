@@ -59,6 +59,14 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.updateBestBlockNum(height)
   }
 
+  async genesisLoaded() {
+    return this.db.genesisLoaded()
+  }
+
+  async storeUtxos(utxos) {
+    return this.db.storeUtxos(utxos)
+  }
+
   async storeBlockTxs(block) {
     return this.db.storeBlockTxs(block)
   }
