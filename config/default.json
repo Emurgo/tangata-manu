@@ -17,7 +17,7 @@
       "minimumTimeImporterHealthCheck": 90000
     }
   },
-  "checkTipCronTime": "*/15 * * * * *",
+  "checkTipSeconds": 15,
   "rollbackBlocksCount": 25,
   "defaultNetwork": "testnet2",
   "defaultBridgeUrl": "http://localhost:8082",

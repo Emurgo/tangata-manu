@@ -52,7 +52,11 @@ const startServer = async () => {
 
   // start scheduler to check for updates from cardano-http-bridge
   const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
-  scheduler.start()
+  scheduler.startAsync().then(res => {
+    logger.warn(`Scheduler.startAsync() existed successfully. This is unexpected to happen by itself! (result=${res})`)
+  }, err => {
+    logger.error('Scheduler.startAsync exited with an error:', err)
+  })
 
   app.use(restify.plugins.bodyParser())
   app.listen(serverConfig.port, () => {

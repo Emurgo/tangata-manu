@@ -1,4 +1,6 @@
 // @flow
+import _ from 'lodash'
+
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import { StorageProcessor, Logger, Database } from '../interfaces'
@@ -17,16 +19,36 @@ class PostgresStorageProcessor implements StorageProcessor {
     this.db = db
   }
 
-  async storeBlocks(blocks: []) {
-    const dbRes = await this.db.storeBlocks(blocks)
-    return dbRes
+  async storeBlocksData(block, cachedBlocks) {
+    const dbConn = this.db.getConn()
+    const blockHaveTxs = !_.isEmpty(block.txs)
+    try {
+      await dbConn.query('BEGIN')
+      if (blockHaveTxs) {
+        await this.db.storeBlockTxs(block)
+      }
+      await this.db.storeBlocks(cachedBlocks)
+      await this.db.updateBestBlockNum(block.height)
+      await dbConn.query('COMMIT')
+    } catch (e) {
+      await dbConn.query('ROLLBACK')
+      throw e
+    }
   }
 
   async rollbackTo(height: number) {
-    await this.db.rollBackTransactions(height)
-    await this.db.rollBackUtxoBackup(height)
-    await this.db.rollBackBlockHistory(height)
-    await this.db.updateBestBlockNum(height)
+    const dbConn = this.db.getConn()
+    try {
+      await dbConn.query('BEGIN')
+      await this.db.rollBackTransactions(height)
+      await this.db.rollBackUtxoBackup(height)
+      await this.db.rollBackBlockHistory(height)
+      await this.db.updateBestBlockNum(height)
+      await dbConn.query('COMMIT')
+    } catch (e) {
+      await dbConn.query('ROLLBACK')
+      throw e
+    }
   }
 
   async getBestBlockNum() {
@@ -39,21 +61,6 @@ class PostgresStorageProcessor implements StorageProcessor {
 
   async storeBlockTxs(block) {
     return this.db.storeBlockTxs(block)
-  }
-
-  async beginTransaction() {
-    const dbConn = this.db.getConn()
-    await dbConn.query('BEGIN')
-  }
-
-  async commitTransaction() {
-    const dbConn = this.db.getConn()
-    await dbConn.query('COMMIT')
-  }
-
-  async rollbackTransaction() {
-    const dbConn = this.db.getConn()
-    await dbConn.query('ROLLBACK')
   }
 
 }

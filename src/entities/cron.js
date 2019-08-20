@@ -2,11 +2,9 @@
 /* eslint-disable no-plusplus */
 /* eslint-disable no-await-in-loop */
 
-import cron from 'cron'
 import _ from 'lodash'
 
 import { helpers } from 'inversify-vanillajs-helpers'
-import queue from 'async/queue'
 
 import type {
   Scheduler,
@@ -18,38 +16,41 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 import Block from '../blockchain'
 
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
-const QUEUE_MAX_LENGTH = 10000
+const MAX_BLOCKS_PER_LOOP = 9000
 const LOG_BLOCK_PARSED_THRESHOLD = 30
 const BLOCKS_CACHE_SIZE = 800
+const ERROR_META = {
+  NODE_INACCESSIBLE: {
+    msg: 'node is inaccessible',
+    sleep: 60000,
+  },
+  ECONNREFUSED: {
+    msg: 'some unidentified network service is inaccessible',
+    sleep: 60000,
+  },
+}
 
 const STATUS_ROLLBACK_REQUIRED = Symbol.for('ROLLBACK_REQUIRED')
 const BLOCK_STATUS_PROCESSED = Symbol.for('BLOCK_PROCESSED')
 
 class CronScheduler implements Scheduler {
-  #job: any
-
   #dataProvider: any
 
   storageProcessor: StorageProcessor
 
   #logger: any
 
-  #blockProcessQueue: any
-
-  #epochProcessQueue: any
-
-
-  #epochsInQueue: any
+  checkTipMillis: number
 
   blocksToStore: any
 
   rollbackBlocksCount: number
 
-  lastBlock: ?Block
+  lastBlock: { epoch: number, hash: string }
 
   constructor(
     dataProvider: RawDataProvider,
-    checkTipCronTime: string,
+    checkTipSeconds: string,
     storageProcessor: StorageProcessor,
     logger: Logger,
     rollbackBlocksCount: number,
@@ -57,64 +58,34 @@ class CronScheduler implements Scheduler {
     this.#dataProvider = dataProvider
     this.storageProcessor = storageProcessor
     this.rollbackBlocksCount = rollbackBlocksCount
-    logger.debug('Cron time', checkTipCronTime)
+    this.checkTipMillis = checkTipSeconds * 1000
+    logger.debug('Checking tip every', checkTipSeconds, 'seconds')
     logger.debug('Rollback blocks count', rollbackBlocksCount)
-    this.#job = new cron.CronJob({
-      cronTime: checkTipCronTime,
-      onTick: () => {
-        this.onTick()
-      },
-    })
     this.#logger = logger
-    this.#epochsInQueue = []
-
-    this.#blockProcessQueue = queue(async ({ height }, cb) => {
-      const status = await this.processBlockHeight(height)
-      if (status === STATUS_ROLLBACK_REQUIRED) {
-        this.#logger.info('Rollback required.')
-        await this.rollback()
-      }
-      cb()
-    }, 1)
-
-    this.#epochProcessQueue = queue(async ({ epoch, height }, cb) => {
-      await this.processEpochId(epoch, height)
-      cb()
-    }, 1)
     this.blocksToStore = []
-    this.resetBlockProcessor()
-  }
-
-  resetBlockProcessor() {
     this.lastBlock = null
-    this.#blockProcessQueue.remove(() => true)
   }
 
-  async rollback() {
-    this.#logger.info(`Rollback to ${this.rollbackBlocksCount} back.`)
+  async rollback(atBlockHeight) {
+    this.#logger.info(`Rollback at height ${atBlockHeight} to ${this.rollbackBlocksCount} blocks back.`)
     // reset scheduler state
     this.blocksToStore = []
-    this.resetBlockProcessor()
-
+    this.lastBlock = null
 
     // Recover database state to newest actual block.
     const { height } = await this.storageProcessor.getBestBlockNum()
-    await this.storageProcessor.rollbackTo(height - this.rollbackBlocksCount)
+    const rollBackTo = height - this.rollbackBlocksCount
+    this.#logger.info(`Current DB height at rollback time: ${height}. Rolling back to: ${rollBackTo}`)
+    await this.storageProcessor.rollbackTo(rollBackTo)
+    const { epoch, hash } = await this.storageProcessor.getBestBlockNum()
+    this.lastBlock = { epoch, hash }
   }
 
 
   async processEpochId(id: number, height: number) {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
-    this.resetBlockProcessor()
     const omitEbb = true
     const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
-
-    // get first epoch block and process it
-    const firstBlock = blocks.next().value
-    if (firstBlock.height > height) {
-      await this.processBlock(firstBlock)
-    }
-
     // eslint-disable-next-line no-restricted-syntax
     for (const block of blocks) {
       if (block.height > height) {
@@ -124,7 +95,6 @@ class CronScheduler implements Scheduler {
   }
 
   async processBlockHeight(height: number) {
-    this.#logger.info(`processBlockHeight: ${height}`)
     const block = await this.#dataProvider.getBlockByHeight(height)
     const flushCache = true
     return this.processBlock(block, flushCache)
@@ -134,121 +104,113 @@ class CronScheduler implements Scheduler {
     if (this.lastBlock
       && block.epoch === this.lastBlock.epoch
       && block.prevHash !== this.lastBlock.hash) {
-      this.#logger.info(`block.prevHash(${block.prevHash})!== lastBlock.hash(${this.lastBlock.hash}). Performing rollback...`)
+      this.#logger.info(`(${block.epoch}/${block.slot}) block.prevHash (${block.prevHash}) !== lastBlock.hash (${this.lastBlock.hash}). Performing rollback...`)
       return STATUS_ROLLBACK_REQUIRED
     }
-    this.lastBlock = block
+    this.lastBlock = {
+      epoch: block.epoch,
+      hash: block.hash,
+    }
     const blockHaveTxs = !_.isEmpty(block.txs)
     this.blocksToStore.push(block)
-    try {
-      if (this.blocksToStore.length > BLOCKS_CACHE_SIZE || blockHaveTxs || flushCache) {
-        await this.storageProcessor.beginTransaction()
-        if (blockHaveTxs) {
-          await this.storageProcessor.storeBlockTxs(block)
-        }
-        await this.storageProcessor.storeBlocks(this.blocksToStore)
-        await this.storageProcessor.updateBestBlockNum(block.height)
-        this.blocksToStore = []
-        await this.storageProcessor.commitTransaction()
-      }
-    } catch (e) {
-      await this.storageProcessor.rollbackTransaction()
-      throw e
-    } finally {
-      if (block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
-        this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
-      }
+
+    if (this.blocksToStore.length > BLOCKS_CACHE_SIZE || blockHaveTxs || flushCache) {
+      await this.storageProcessor.storeBlocksData(block, this.blocksToStore)
+      this.blocksToStore = []
+    }
+
+    if (flushCache || block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
+      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
     }
     return BLOCK_STATUS_PROCESSED
   }
 
-  async onTick() {
-    this.#logger.info('onTick:checking for new blocks...')
-    try {
-      // local state
-      let { height, epoch, slot } = await this.storageProcessor.getBestBlockNum()
-      const lastCachedBlock = _.last(this.blocksToStore)
-      if (lastCachedBlock && lastCachedBlock.height > height) {
-        ({ height, epoch, slot } = lastCachedBlock)
-      }
+  async checkTip() {
+    this.#logger.info('checkTip: checking for new blocks...')
+    // local state
+    const { height, epoch, slot } = await this.storageProcessor.getBestBlockNum()
 
-      // Blocks which already in queue, but not yet processed.
-      const notProcessedBlocks = this.#blockProcessQueue.length()
-      if (notProcessedBlocks > QUEUE_MAX_LENGTH) {
-        this.#logger.info('Too many not yet processed blocks in queue. Skip to add new blocks.')
-      }
-
-      // cardano-http-bridge state
-      const nodeStatus = await this.#dataProvider.getStatus()
-      const { packedEpochs } = nodeStatus
-      const tipStatus = nodeStatus.tip.local
-      const remoteStatus = nodeStatus.tip.remote
-      if (!tipStatus) {
-        this.#logger.info('cardano-http-brdige not yet synced')
+    // cardano-http-bridge state
+    const nodeStatus = await this.#dataProvider.getStatus()
+    const { packedEpochs, tip: nodeTip } = nodeStatus
+    const tipStatus = nodeTip.local
+    const remoteStatus = nodeTip.remote
+    if (!tipStatus) {
+      this.#logger.info('cardano-http-brdige not yet synced')
+      return
+    }
+    this.#logger.debug(`Last imported block ${height}. Node status: local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
+    const [remEpoch, remSlot] = remoteStatus.slot
+    if (epoch < remEpoch) {
+      // If local epoch is lower than the current network tip
+      // there's a potential for us to download full epochs, instead of single blocks
+      // Calculate latest stable remote epoch
+      const lastRemStableEpoch = remEpoch - (remSlot > 2160 ? 1 : 2)
+      const thereAreMoreStableEpoch = epoch < lastRemStableEpoch
+      const thereAreManyStableSlots = epoch === lastRemStableEpoch
+        && slot < EPOCH_DOWNLOAD_THRESHOLD
+      // Check if there's any point to bother with whole epochs
+      if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
+        if (packedEpochs > epoch) {
+          for (let epochId = epoch;
+               (epochId < packedEpochs); epochId++) {
+            const epochStartHeight = (epochId === epoch ? height : 0)
+            // Process epoch
+            await this.processEpochId(epochId, height)
+          }
+        } else {
+          // Packed epoch is not available yet
+          this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+        }
         return
       }
-      this.#logger.debug(`Last block ${height}. Node status local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
-      const [remEpoch, remSlot] = remoteStatus.slot
-      if (epoch < remEpoch) {
-        // If local epoch is lower than the current network tip
-        // there's a potential for us to download full epochs, instead of single blocks
-        // Calculate latest stable remote epoch
-        const lastRemStableEpoch = remEpoch - (remSlot > 2160 ? 1 : 2)
-        const thereAreMoreStableEpoch = epoch < lastRemStableEpoch
-        const thereAreManyStableSlots = epoch === lastRemStableEpoch
-          && slot < EPOCH_DOWNLOAD_THRESHOLD
-        // Check if there's any point to bother with whole epochs
-        if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
-          if (packedEpochs > epoch) {
-            for (let epochId = epoch;
-              (epochId < packedEpochs); epochId++) {
-              const epochStartHeight = (epochId === epoch ? height : 0)
-
-              const lastEpochInQueue = _.last(this.#epochsInQueue)
-              if (!lastEpochInQueue || lastEpochInQueue < epochId) {
-                if (lastEpochInQueue && epochId - lastEpochInQueue > 1) {
-                  throw new Error('There are some missing epochs numbers for the queue')
-                }
-                // add epoch to queue
-                this.#epochProcessQueue.push({
-                  epoch: epochId,
-                  height: epochStartHeight,
-                })
-                this.#logger.debug(`Pushed to queue: ${epochId} ${epochStartHeight}`)
-                this.#epochsInQueue.push(epochId)
-              }
-            }
-          } else {
-            // Packed epoch is not available yet
-            this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
-          }
-          return
-        }
+    }
+    for (let blockHeight = height + 1, i = 0;
+      (blockHeight <= tipStatus.height) && (i < MAX_BLOCKS_PER_LOOP);
+      blockHeight++, i++) {
+      const status = await this.processBlockHeight(blockHeight)
+      if (status === STATUS_ROLLBACK_REQUIRED) {
+        this.#logger.info('Rollback required.')
+        await this.rollback(blockHeight)
+        return
       }
-      const notYetProcessedEpochsCount = this.#epochProcessQueue.length()
-      if (notYetProcessedEpochsCount === 0) {
-        for (let blockHeight = height + 1, i = 0; (blockHeight <= tipStatus.height) && (i < 9000);
-          blockHeight++, i++) {
-          this.#blockProcessQueue.push({ height: blockHeight })
-        }
-      } else {
-        this.#logger.debug('There are still not processed epochs.', notYetProcessedEpochsCount)
-      }
-    } catch (e) {
-      this.#logger.debug('Error occured:', e)
-      throw e
     }
   }
 
-  start() {
-    this.#job.start()
+  async startAsync() {
+    this.#logger.info('Scheduler async: starting chain syncing loop')
+    const currentMillis = () => new Date().getTime()
+    const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
+    while (true) {
+      const millisStart = currentMillis()
+      let errorSleep = 0
+      try {
+        await this.checkTip()
+      } catch (e) {
+        const meta = ERROR_META[e.code]
+        if (meta) {
+          errorSleep = meta.sleep
+          this.#logger.warn(`Scheduler async: failed to check tip :: ${meta.msg}. Sleeping and retrying (err_sleep=${errorSleep})`)
+        } else {
+          throw e
+        }
+      }
+      const millisEnd = currentMillis()
+      const millisPassed = millisEnd - millisStart
+      this.#logger.debug(`Scheduler async: loop finished (millisPassed=${millisPassed})`)
+      const millisSleep = errorSleep || (this.checkTipMillis - millisPassed)
+      if (millisSleep > 0) {
+        this.#logger.debug('Scheduler async: sleeping for', millisSleep)
+        await sleep(millisSleep)
+      }
+    }
   }
 }
 
 helpers.annotate(CronScheduler,
   [
     SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
-    'checkTipCronTime',
+    'checkTipSeconds',
     SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
     SERVICE_IDENTIFIER.LOGGER,
     'rollbackBlocksCount',

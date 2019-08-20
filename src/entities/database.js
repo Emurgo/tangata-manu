@@ -34,12 +34,13 @@ class DB implements Database {
     return dbRes
   }
 
-  async getBestBlockNum(): Promise<{ height: number, epoch?: number, slot?: number }> {
+  async getBestBlockNum(): Promise<{ height: number, epoch?: number, slot?: number, hash: string }> {
     const conn = this.getConn()
     const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM.toString())
     if (dbRes.rowCount > 0) {
       const row = dbRes.rows[0]
       return {
+        hash: row.block_hash,
         height: Number(row.block_height),
         epoch: Number(row.epoch),
         slot: Number(row.slot),
@@ -281,7 +282,7 @@ class DB implements Database {
 
   async storeBlockTxs(block: Block) {
     const { hash, epoch, slot, txs } = block
-    this.#logger.debug(`storeBlockTxs (${epoch}/${slot}, ${hash})`)
+    this.#logger.debug(`storeBlockTxs (${epoch}/${slot}, ${hash}, ${block.height})`)
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
     const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
@@ -301,7 +302,7 @@ class DB implements Database {
       return true
     })
     const requiredUtxoIds = requiredInputs.map(utils.getUtxoId)
-    this.#logger.debug('storeBlockTxs', requiredUtxoIds, block.height)
+    this.#logger.debug('storeBlockTxs.requiredUtxo', requiredUtxoIds)
     const availableUtxos = await this.getUtxos(requiredUtxoIds)
     const allUtxoMap = _.keyBy([...availableUtxos, ...blockUtxos], 'id')
     /* eslint-disable no-plusplus */
@@ -315,7 +316,7 @@ class DB implements Database {
             tx.id} for inputs: ${JSON.stringify(tx.inputs)} all utxos: ${JSON.stringify(allUtxoMap)}`
         )
       }
-      this.#logger.debug('storeBlockTxs', tx.id)
+      this.#logger.debug('storeBlockTxs.storeTx', tx.id)
       await this.storeTx(tx, utxos)
     }
     await this.storeUtxos(Object.values(newUtxos))
