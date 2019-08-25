@@ -50,7 +50,7 @@ class CronScheduler implements Scheduler {
 
   constructor(
     dataProvider: RawDataProvider,
-    checkTipSeconds: string,
+    checkTipSeconds: number,
     storageProcessor: StorageProcessor,
     logger: Logger,
     rollbackBlocksCount: number,
@@ -115,7 +115,7 @@ class CronScheduler implements Scheduler {
     this.blocksToStore.push(block)
 
     if (this.blocksToStore.length > BLOCKS_CACHE_SIZE || blockHaveTxs || flushCache) {
-      await this.storageProcessor.storeBlocksData(block, this.blocksToStore)
+      await this.storageProcessor.storeBlockData(block, this.blocksToStore)
       this.blocksToStore = []
     }
 
@@ -157,6 +157,7 @@ class CronScheduler implements Scheduler {
             const epochStartHeight = (epochId === epoch ? height : 0)
             // Process epoch
             await this.processEpochId(epochId, height)
+            this.#logger.debug(`Epoch parsed: ${epochId}, ${height}`)
           }
         } else {
           // Packed epoch is not available yet

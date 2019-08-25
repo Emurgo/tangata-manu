@@ -4,6 +4,7 @@
     "baseUrl": "http://localhost:8082",
     "template": "testnet2"
   },
+  "elasticNode": "http://localhost:9200",
   "storageProcessor": "yoroi-postgres",
   "server": {
     "port": 8080,

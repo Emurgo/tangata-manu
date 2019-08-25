@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@babel/polyfill": "^7.2.5",
+    "@elastic/elasticsearch": "^7.3.0",
     "async": "^2.6.2",
     "axios": "^0.18.0",
     "base64url": "^3.0.1",

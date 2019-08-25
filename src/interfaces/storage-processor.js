@@ -1,7 +1,14 @@
 // @flow
+import type { Block } from '../blockchain'
+
+export type BlockInfoType = {
+  height: number,
+  epoch?: number,
+  slot?: number,
+  hash?: string }
+
 export interface StorageProcessor {
-  storeBlocksData([]): void;
+  getBestBlockNum(): Promise<BlockInfoType>;
 
-  rollbackTo(height: number): void;
-
+  storeBlockData(block: Block, cachedBlocks: []): Promise<void>
 }

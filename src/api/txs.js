@@ -11,7 +11,7 @@ import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'
 import { injectable, decorate, inject } from 'inversify'
 
-import { Logger, RawDataProvider, Database, NetworkConfig } from '../interfaces'
+import { Logger, RawDataProvider, StorageProcessor, NetworkConfig } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
 import { TX_STATUS, TxType } from '../blockchain'
@@ -21,19 +21,19 @@ class TxController implements IController {
 
   dataProvider: RawDataProvider
 
-  db: Database
+  storageProcessor: StorageProcessor
 
   expectedNetworkMagic: number
 
   constructor(
     logger: Logger,
     dataProvider: RawDataProvider,
-    db: Database,
+    storageProcessor: StorageProcessor,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger
     this.dataProvider = dataProvider
-    this.db = db
+    this.storageProcessor = storageProcessor
     this.expectedNetworkMagic = networkConfig.networkMagic()
   }
 
@@ -90,7 +90,7 @@ class TxController implements IController {
 
   async storeTxAsPending(tx: TxType) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-    await this.db.storeTx(tx)
+    await this.storageProcessor.storeTx(tx)
   }
 
   async validateTx(txObj: TxType) {
@@ -113,7 +113,7 @@ class TxController implements IController {
       throw new Error(`Number of inputs (${inpLen}) != the number of witnesses (${witLen})`)
     }
     const txHashes = inputs.map(({ txId }) => txId)
-    const fullOutputs = await this.db.getOutputsForTxHashes(txHashes)
+    const fullOutputs = await this.storageProcessor.getOutputsForTxHashes(txHashes)
 
     _.zip(inputs, witnesses).forEach(([input, witness]) => {
       const { type: inputType, txId: inputTxId, idx: inputIdx } = input
@@ -169,7 +169,7 @@ decorate(Post('/signed'), TxController.prototype, 'signed')
 
 decorate(inject(SERVICE_IDENTIFIER.LOGGER), TxController, 0)
 decorate(inject(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER), TxController, 1)
-decorate(inject(SERVICE_IDENTIFIER.DATABASE), TxController, 2)
+decorate(inject(SERVICE_IDENTIFIER.STORAGE_PROCESSOR), TxController, 2)
 decorate(inject(SERVICE_IDENTIFIER.NETWORK_CONFIG), TxController, 3)
 
 export default TxController

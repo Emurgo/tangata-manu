@@ -3,7 +3,8 @@ import _ from 'lodash'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import { StorageProcessor, Logger, Database } from '../interfaces'
+import type { StorageProcessor, Logger, Database } from '../interfaces'
+import type { BlockInfoType } from '../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 class PostgresStorageProcessor implements StorageProcessor {
@@ -19,7 +20,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     this.db = db
   }
 
-  async storeBlocksData(block, cachedBlocks) {
+  async storeBlockData(block, cachedBlocks) {
     const dbConn = this.db.getConn()
     const blockHaveTxs = !_.isEmpty(block.txs)
     try {
@@ -51,7 +52,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     }
   }
 
-  async getBestBlockNum() {
+  async getBestBlockNum(): Promise<BlockInfoType> {
     return this.db.getBestBlockNum()
   }
 
@@ -69,6 +70,14 @@ class PostgresStorageProcessor implements StorageProcessor {
 
   async storeBlockTxs(block) {
     return this.db.storeBlockTxs(block)
+  }
+
+  async storeTx(tx) {
+    return this.db.storeTx(tx)
+  }
+
+  async getOutputsForTxHashes(txHashes) {
+    return this.db.getOutputsForTxHashes(txHashes)
   }
 
 }

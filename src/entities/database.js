@@ -2,7 +2,8 @@
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
 
-import { Database, DBConnection, Logger } from '../interfaces'
+import type { Database, DBConnection, Logger } from '../interfaces'
+import type { BlockInfoType } from '../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
 import Block, { TX_STATUS, TxType } from '../blockchain'
@@ -34,7 +35,7 @@ class DB implements Database {
     return dbRes
   }
 
-  async getBestBlockNum(): Promise<{ height: number, epoch?: number, slot?: number, hash: string }> {
+  async getBestBlockNum(): Promise<BlockInfoType> {
     const conn = this.getConn()
     const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM.toString())
     if (dbRes.rowCount > 0) {
