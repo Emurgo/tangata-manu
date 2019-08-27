@@ -153,8 +153,7 @@ class CronScheduler implements Scheduler {
       if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
         if (packedEpochs > epoch) {
           for (let epochId = epoch;
-               (epochId < packedEpochs); epochId++) {
-            const epochStartHeight = (epochId === epoch ? height : 0)
+            (epochId < packedEpochs); epochId++) {
             // Process epoch
             await this.processEpochId(epochId, height)
             this.#logger.debug(`Epoch parsed: ${epochId}, ${height}`)
@@ -182,7 +181,7 @@ class CronScheduler implements Scheduler {
     this.#logger.info('Scheduler async: starting chain syncing loop')
     const currentMillis = () => new Date().getTime()
     const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
-    while (true) {
+    for (;;) {
       const millisStart = currentMillis()
       let errorSleep = 0
       try {

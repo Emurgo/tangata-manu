@@ -1,5 +1,5 @@
 // @flow
 
 export interface Scheduler {
-  startAsync(): Promise;
+  startAsync(): Promise<void>;
 }

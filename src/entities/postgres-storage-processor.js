@@ -6,6 +6,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import type { StorageProcessor, Logger, Database } from '../interfaces'
 import type { BlockInfoType } from '../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
+import type { Block } from '../blockchain'
 
 class PostgresStorageProcessor implements StorageProcessor {
   logger: Logger
@@ -20,7 +21,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     this.db = db
   }
 
-  async storeBlockData(block, cachedBlocks) {
+  async storeBlockData(block: Block, cachedBlocks: [] = []) {
     const dbConn = this.db.getConn()
     const blockHaveTxs = !_.isEmpty(block.txs)
     try {
@@ -68,7 +69,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.storeUtxos(utxos)
   }
 
-  async storeBlockTxs(block) {
+  async storeBlockTxs(block: Block) {
     return this.db.storeBlockTxs(block)
   }
 
@@ -76,10 +77,9 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.storeTx(tx)
   }
 
-  async getOutputsForTxHashes(txHashes) {
+  async getOutputsForTxHashes(txHashes: []) {
     return this.db.getOutputsForTxHashes(txHashes)
   }
-
 }
 
 helpers.annotate(PostgresStorageProcessor,

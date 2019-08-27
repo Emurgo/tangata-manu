@@ -11,7 +11,9 @@ import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'
 import { injectable, decorate, inject } from 'inversify'
 
-import { Logger, RawDataProvider, StorageProcessor, NetworkConfig } from '../interfaces'
+import {
+  Logger, RawDataProvider, StorageProcessor, NetworkConfig,
+} from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
 import { TX_STATUS, TxType } from '../blockchain'
@@ -151,12 +153,12 @@ class TxController implements IController {
       if (networkMagic !== this.expectedNetworkMagic) {
         throw new Error(`Output #${i} network magic is ${networkMagic}, expected ${this.expectedNetworkMagic}`)
       }
-    });
+    })
   }
 
   static deconstructAddress(address: string) {
     const [addressRoot, addrAttr, addressType] = cbor.decode(
-      cbor.decode(bs58.decode(address))[0].value
+      cbor.decode(bs58.decode(address))[0].value,
     )
     return { addressRoot, addrAttr, addressType }
   }

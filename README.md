@@ -5,7 +5,7 @@ New Yoroi data-importer (replacement for the `project-icarus-importer`)
 
 ## Pre-requisites
 
-* NodeJS v10.14.2. We recommend [nvm](https://github.com/creationix/nvm) to install it
+* NodeJS v12.9.1. We recommend [nvm](https://github.com/creationix/nvm) to install it
 * [Postgres 11.2] (https://www.postgresql.org/) as DB engine. For development purposes we
   suggest using Docker but local installation could be used as well (not both,
   obviously). For Mac, we recommend https://postgresapp.com.

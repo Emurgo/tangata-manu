@@ -282,7 +282,9 @@ class DB implements Database {
   }
 
   async storeBlockTxs(block: Block) {
-    const { hash, epoch, slot, txs } = block
+    const {
+      hash, epoch, slot, txs,
+    } = block
     this.#logger.debug(`storeBlockTxs (${epoch}/${slot}, ${hash}, ${block.height})`)
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
@@ -314,7 +316,7 @@ class DB implements Database {
       if (utxos.length !== tx.inputs.length) {
         throw new Error(
           `Failed to query input utxos for tx ${
-            tx.id} for inputs: ${JSON.stringify(tx.inputs)} all utxos: ${JSON.stringify(allUtxoMap)}`
+            tx.id} for inputs: ${JSON.stringify(tx.inputs)} all utxos: ${JSON.stringify(allUtxoMap)}`,
         )
       }
       this.#logger.debug('storeBlockTxs.storeTx', tx.id)

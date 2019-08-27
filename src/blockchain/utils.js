@@ -63,13 +63,14 @@ const decodedTxToBase = (decodedTx) => {
   throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
 }
 
-type CborEncoder = {
+type CborEncoderType = {
   encode: Function
 }
 
 class CborIndefiniteLengthArray {
   elements: Array<{}>
-  cborEncoder: CborEncoder
+
+  cborEncoder: CborEncoderType
 
   constructor(elements, cborEncoder) {
     this.elements = elements
@@ -90,7 +91,6 @@ class CborIndefiniteLengthArray {
 const selectCborEncoder = (outputs): CborEncoder => {
   const maxAddressLen = Math.max(...outputs.map(([[taggedAddress]]) => taggedAddress.value.length))
   if (maxAddressLen > 5000) {
-    console.log('>>> Output address len exceeds maximum, using alternative CborEncoder')
     return borc
   }
   return cbor

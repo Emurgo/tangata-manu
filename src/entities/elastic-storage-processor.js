@@ -5,6 +5,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
 import type { StorageProcessor, Logger } from '../interfaces'
+import type { Block } from '../blockchain'
 import type { BlockInfoType } from '../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
@@ -13,14 +14,14 @@ const INDEX_SLOT = 'seiza.slot'
 class ElasticStorageProcessor implements StorageProcessor {
   logger: Logger
 
-  es: Client
+  client: Client
 
   constructor(
     logger: Logger,
     elasticNode: string,
   ) {
     this.logger = logger
-    this.es = new Client({ node: elasticNode })
+    this.client = new Client({ node: elasticNode })
   }
 
   async genesisLoaded() {
@@ -30,17 +31,14 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   async getBestBlockNum(): Promise<BlockInfoType> {
     const emptyDb = { height: 0, epoch: 0 }
-    const indexExists = await this.es.indices.exists({ index: INDEX_SLOT })
-    if (!indexExists.body) {
-      return emptyDb
-    }
-    const { hits } = (await this.es.search({
+    const esResponse = await this.client.search({
       index: INDEX_SLOT,
       body: {
         sort: [{ epoch: { order: 'desc' } }, { slot: { order: 'desc' } }],
         size: 1,
       },
-    })).body.hits
+    })
+    const { hits } = esResponse.body.hits
     if (_.isEmpty(hits)) {
       return emptyDb
     }
@@ -50,8 +48,22 @@ class ElasticStorageProcessor implements StorageProcessor {
     return source
   }
 
-  async storeBlockData(block, cache) {
-    this.logger.debug('storeBlockData', block, cache)
+  async storeBlockData(block: Block, cache: any = []) {
+    this.logger.debug('storeBlockData', block)
+    const body = cache.flatMap(doc => [
+      {
+        index: {
+          _index: INDEX_SLOT,
+          _id: doc.hash,
+        },
+      },
+      doc,
+    ])
+    const resp = await this.client.bulk({
+      refresh: true,
+      body,
+    })
+    this.logger.debug('storeBlockData', resp)
   }
 }
 
