@@ -31,7 +31,6 @@ create database yoroi_blockchain_importer;
 1.  Clone this repo, `git@github.com:Emurgo/yoroi-importer.git`
 1.  Select correct NodeJs version, `nvm use`
 1.  Install dependencies, `yarn install`
-1.  Run tests, `yarn test`
 1.  Init database schema, `yarn run migrate up`
 1.  Start the app, `yarn run dev`.
 
@@ -44,6 +43,6 @@ We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrati
 
 1. Start postgres, `docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres`
 1. Go to `cardano-http-bridge` directory, `cd cardano-http-bridge`
-1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=testnet`
+1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=testnet2`
 1. Go to `yoroi-importer` directory, `cd yoroi-importer`
 1. Start the app, `yarn run dev`.
