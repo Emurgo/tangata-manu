@@ -22,7 +22,7 @@ On startup `yoroi-importer` checks whether the network genesis is stored in the 
 ## <a name="scheduler"></a>Scheduler
 ### Source: [cron.js](https://github.com/Emurgo/yoroi-importer/blob/master/src/entities/cron.js)
 ### Overview
-Every [checkTipCronTime](https://github.com/Emurgo/yoroi-importer/blob/master/config/default.json#L19) scheduler requests [RawDataProvider](#rawdataprovider) for updates from the blockchain. Depending on how far behind the current local DB tip is from the remote state there are two cases:
+Every [checkTipSeconds](https://github.com/Emurgo/yoroi-importer/blob/master/config/default.json#L19) scheduler requests [RawDataProvider](#rawdataprovider) for updates from the blockchain. Depending on how far behind the current local DB tip is from the remote state there are two cases:
 
   * Local tip height is behind for one or more epochs. More details are in the ["Full Epoch Processing"](#fullepochprocessing)
   * Local tip height is behind for less than a full epoch. More details are in the ["Single Blocks Processing"](#singleblocksprocessing)

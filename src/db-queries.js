@@ -25,6 +25,7 @@ const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses').onConflict()
 
 const GET_BEST_BLOCK_NUM = sql.select()
   .from('blocks')
+  .field('block_hash')
   .field('block_height')
   .field('epoch')
   .field('slot')
