@@ -78,8 +78,9 @@ export default class Block {
       isEBB: false,
       upd: (upd1.length || upd2.length) ? [upd1, upd2] : null,
       height: chainDifficulty,
-      txs: txs.map(tx => utils.rawTxToObj(tx, {
+      txs: txs.map((tx, index) => utils.rawTxToObj(tx, {
         txTime: blockTime,
+        txOrdinal: index,
         blockNum: chainDifficulty,
         blockHash,
       })),
