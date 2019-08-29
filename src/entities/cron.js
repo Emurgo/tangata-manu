@@ -125,7 +125,7 @@ class CronScheduler implements Scheduler {
     }
     this.lastBlock = {
       epoch: block.epoch,
-      hash: block.hash
+      hash: block.hash,
     }
     const blockHaveTxs = !_.isEmpty(block.txs)
     this.blocksToStore.push(block)
