@@ -46,13 +46,18 @@ class TxController implements IController {
     }
     const bridgeResp = await this.dataProvider.postSignedTx(req.rawBody)
     this.logger.debug('TxController.index called', req.params, bridgeResp.status, `(${bridgeResp.statusText})`, bridgeResp.data)
-    if (bridgeResp.status === 200) {
-      // store tx as pending
-      await this.storeTxAsPending(txObj)
-      if (localValidationError) {
-        // Network success but locally we failed validation - log local
-        this.logger.warn('Local validation error, but network send succeeded!')
+    try {
+      if (bridgeResp.status === 200) {
+        // store tx as pending
+        await this.storeTxAsPending(txObj)
+        if (localValidationError) {
+          // Network success but locally we failed validation - log local
+          this.logger.warn('Local validation error, but network send succeeded!')
+        }
       }
+    } catch (err) {
+      this.logger.error('Failed to store tx as pending!', err);
+      throw new Error('Internal DB fail in the importer!')
     }
     let statusText
     let status
