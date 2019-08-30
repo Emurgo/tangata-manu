@@ -86,6 +86,7 @@ class TxController implements IController {
     const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
     const txObj = utils.rawTxToObj(tx, {
       txTime: now,
+      txOrdinal: null,
       status: TX_STATUS.TX_PENDING_STATUS,
       blockNum: null,
       blockHash: null,
