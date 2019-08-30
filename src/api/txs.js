@@ -114,7 +114,8 @@ class TxController implements IController {
     if (inpLen !== witLen) {
       throw new Error(`Number of inputs (${inpLen}) != the number of witnesses (${witLen})`)
     }
-    const txHashes = inputs.map(({ txId }) => txId)
+
+    const txHashes = _.uniq(inputs.map(({ txId }) => txId))
     const fullOutputs = await this.storageProcessor.getOutputsForTxHashes(txHashes)
 
     _.zip(inputs, witnesses).forEach(([input, witness]) => {
@@ -125,7 +126,11 @@ class TxController implements IController {
           JSON.stringify({ inputType, witnessType })
         }`)
       }
-      const { address: inputAddress, amount: inputAmount } = fullOutputs[inputTxId][inputIdx]
+      const txOutputs = fullOutputs[inputTxId]
+      if (!txOutputs) {
+        throw new Error(`No UTxO is found for tx ${inputTxId}! Maybe the blockchain is still syncing? If not - something is wrong.`)
+      }
+      const { address: inputAddress, amount: inputAmount } = txOutputs[inputIdx]
       this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
       const { addressRoot, addrAttr, addressType } = TxController.deconstructAddress(inputAddress)
       if (addressType !== 0) {

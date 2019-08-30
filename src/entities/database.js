@@ -203,6 +203,8 @@ class DB implements Database {
       address: row.receiver,
       amount: row.amount,
       id: row.utxo_id,
+      index: row.tx_index,
+      txHash: row.tx_hash,
     }))
   }
 
@@ -245,13 +247,13 @@ class DB implements Database {
     } else {
       inputUtxos = txUtxos
     }
-
     const inputAddresses = _.map(inputUtxos, 'address')
     const outputAddresses = _.map(outputs, (out) => utils.fixLongAddress(out.address))
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
     const txDbFields = {
       hash: id,
+      inputs: JSON.stringify(inputUtxos),
       inputs_address: inputAddresses,
       inputs_amount: inputAmmounts,
       outputs_address: outputAddresses,
@@ -260,6 +262,7 @@ class DB implements Database {
       block_hash: blockHash,
       tx_state: txStatus,
       tx_body: tx.txBody,
+      tx_ordinal: tx.txOrdinal,
       time: tx.txTime,
       last_update: tx.txTime,
     }
@@ -271,6 +274,7 @@ class DB implements Database {
         time: tx.txTime,
         tx_state: txStatus,
         last_update: now,
+        tx_ordinal: tx.txOrdinal,
       })
       .toString()
     this.#logger.debug('Insert TX:', query, inputAddresses, inputAmmounts)
@@ -296,6 +300,8 @@ class DB implements Database {
           id: localUtxo.utxo_id,
           address: localUtxo.receiver,
           amount: localUtxo.amount,
+          txHash: localUtxo.tx_hash,
+          index: localUtxo.tx_index,
         })
         // Delete new Utxo if it's already spent in the same block
         delete newUtxos[utxoId]
@@ -316,7 +322,8 @@ class DB implements Database {
       if (utxos.length !== tx.inputs.length) {
         throw new Error(
           `Failed to query input utxos for tx ${
-            tx.id} for inputs: ${JSON.stringify(tx.inputs)} all utxos: ${JSON.stringify(allUtxoMap)}`,
+            tx.id} for inputs: ${JSON.stringify(tx.inputs)}
+            all utxos: ${JSON.stringify(allUtxoMap)}`,
         )
       }
       this.#logger.debug('storeBlockTxs.storeTx', tx.id)
