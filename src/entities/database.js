@@ -6,7 +6,8 @@ import type { Database, DBConnection, Logger } from '../interfaces'
 import type { BlockInfoType } from '../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import Block, { TX_STATUS, TxType } from '../blockchain'
+import { Block, TX_STATUS } from '../blockchain'
+import type { TxType } from '../blockchain'
 import Q from '../db-queries'
 
 
@@ -27,7 +28,7 @@ class DB implements Database {
     return this.#conn
   }
 
-  async storeUtxos(utxos) {
+  async storeUtxos(utxos: Array<mixed>) {
     const conn = this.getConn()
     const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
     this.#logger.debug('storeUtxos', utxos, query)
@@ -229,7 +230,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(tx: TxType, txUtxos:[] = []) {
+  async storeTx(tx: TxType, txUtxos:Array<mixed> = []) {
     const conn = this.getConn()
     const {
       inputs,
@@ -251,6 +252,7 @@ class DB implements Database {
     const outputAddresses = _.map(outputs, (out) => utils.fixLongAddress(out.address))
     const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
     const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
+    const txUTCTime = tx.txTime.toUTCString()
     const txDbFields = {
       hash: id,
       inputs: JSON.stringify(inputUtxos),
@@ -263,15 +265,15 @@ class DB implements Database {
       tx_state: txStatus,
       tx_body: tx.txBody,
       tx_ordinal: tx.txOrdinal,
-      time: tx.txTime,
-      last_update: tx.txTime,
+      time: txUTCTime,
+      last_update: txUTCTime,
     }
     const now = new Date().toUTCString()
     const query = Q.TX_INSERT.setFields(txDbFields)
       .onConflict('hash', {
         block_num: blockNum,
         block_hash: blockHash,
-        time: tx.txTime,
+        time: txUTCTime,
         tx_state: txStatus,
         last_update: now,
         tx_ordinal: tx.txOrdinal,
@@ -289,7 +291,7 @@ class DB implements Database {
     const {
       hash, epoch, slot, txs,
     } = block
-    this.#logger.debug(`storeBlockTxs (${epoch}/${slot}, ${hash}, ${block.height})`)
+    this.#logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.height})`)
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
     const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {

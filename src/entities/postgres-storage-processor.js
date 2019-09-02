@@ -1,4 +1,5 @@
 // @flow
+
 import _ from 'lodash'
 
 import { helpers } from 'inversify-vanillajs-helpers'
@@ -6,7 +7,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import type { StorageProcessor, Logger, Database } from '../interfaces'
 import type { BlockInfoType } from '../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-import type { Block } from '../blockchain'
+import type { Block, TxType } from '../blockchain'
 
 class PostgresStorageProcessor implements StorageProcessor {
   logger: Logger
@@ -65,7 +66,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.genesisLoaded()
   }
 
-  async storeUtxos(utxos) {
+  async storeUtxos(utxos: Array<mixed>) {
     return this.db.storeUtxos(utxos)
   }
 
@@ -73,7 +74,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.storeBlockTxs(block)
   }
 
-  async storeTx(tx) {
+  async storeTx(tx: TxType) {
     return this.db.storeTx(tx)
   }
 

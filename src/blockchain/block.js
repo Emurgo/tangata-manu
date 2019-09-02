@@ -4,6 +4,8 @@ import cbor from 'cbor'
 
 import utils from './utils'
 
+import type { TxType } from './tx'
+
 const SLOTS_IN_EPOCH = 21600
 
 export type HeaderType = Array<any>
@@ -19,19 +21,27 @@ export default class Block {
 
   height: number
 
-  txs: ?any
+  txs: Array<TxType>
 
   isEBB: boolean
 
+  time: Date
+
+  lead: ?string
+
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
+    time, lead,
   }: {hash: string,
     slot: ?number,
     epoch: number,
     height: number,
-    txs: ?any,
+    txs: Array<TxType>,
     isEBB: boolean,
-    prevHash: string}) {
+    prevHash: string,
+    time: Date,
+    lead: ?string,
+  }) {
     this.hash = hash
     this.prevHash = prevHash
     this.slot = slot
@@ -39,6 +49,8 @@ export default class Block {
     this.height = height
     this.txs = txs
     this.isEBB = isEBB
+    this.time = time
+    this.lead = lead
   }
 
   serialize() {
@@ -52,12 +64,15 @@ export default class Block {
 
   static handleEpochBoundaryBlock(header: HeaderType) {
     const [epoch, [chainDifficulty]] = header[3]
+    const lead = null
     return {
       epoch,
+      time: new Date(),
+      lead,
       height: chainDifficulty,
       isEBB: true,
       slot: null,
-      txs: null,
+      txs: [],
     }
   }
 
@@ -65,16 +80,20 @@ export default class Block {
     networkStartTime: number) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
+    const lead = null
     const [chainDifficulty] = consensus[2]
     const txs = body[0]
     const [upd1, upd2] = body[3]
     const blockTime = new Date(
       (networkStartTime
       + (epoch * SLOTS_IN_EPOCH + slot) * 20)
-      * 1000).toUTCString()
+      * 1000)
+
     const res = {
       slot,
       epoch,
+      lead,
+      time: blockTime,
       isEBB: false,
       upd: (upd1.length || upd2.length) ? [upd1, upd2] : null,
       height: chainDifficulty,

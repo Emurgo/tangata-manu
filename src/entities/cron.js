@@ -13,7 +13,7 @@ import type {
   StorageProcessor,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-import Block from '../blockchain'
+import type { Block } from '../blockchain'
 
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
 const MAX_BLOCKS_PER_LOOP = 9000
@@ -46,7 +46,7 @@ class CronScheduler implements Scheduler {
 
   rollbackBlocksCount: number
 
-  lastBlock: { epoch: number, hash: string }
+  lastBlock: ?{ epoch: number, hash: string }
 
   constructor(
     dataProvider: RawDataProvider,
@@ -66,7 +66,7 @@ class CronScheduler implements Scheduler {
     this.lastBlock = null
   }
 
-  async rollback(atBlockHeight) {
+  async rollback(atBlockHeight: number) {
     this.#logger.info(`Rollback at height ${atBlockHeight} to ${this.rollbackBlocksCount} blocks back.`)
     // reset scheduler state
     this.blocksToStore = []
@@ -104,7 +104,8 @@ class CronScheduler implements Scheduler {
     if (this.lastBlock
       && block.epoch === this.lastBlock.epoch
       && block.prevHash !== this.lastBlock.hash) {
-      this.#logger.info(`(${block.epoch}/${block.slot}) block.prevHash (${block.prevHash}) !== lastBlock.hash (${this.lastBlock.hash}). Performing rollback...`)
+      const lastBlockHash = this.lastBlock ? this.lastBlock.hash : ''
+      this.#logger.info(`(${block.epoch}/${String(block.slot)}) block.prevHash (${block.prevHash}) !== lastBlock.hash (${lastBlockHash}). Performing rollback...`)
       return STATUS_ROLLBACK_REQUIRED
     }
     this.lastBlock = {
@@ -120,7 +121,7 @@ class CronScheduler implements Scheduler {
     }
 
     if (flushCache || block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
-      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${block.slot} ${block.height}`)
+      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${String(block.slot)} ${block.height}`)
     }
     return BLOCK_STATUS_PROCESSED
   }
@@ -187,7 +188,7 @@ class CronScheduler implements Scheduler {
       try {
         await this.checkTip()
       } catch (e) {
-        const meta = ERROR_META[e.code]
+        const meta = ERROR_META[e.name]
         if (meta) {
           errorSleep = meta.sleep
           this.#logger.warn(`Scheduler async: failed to check tip :: ${meta.msg}. Sleeping and retrying (err_sleep=${errorSleep})`)

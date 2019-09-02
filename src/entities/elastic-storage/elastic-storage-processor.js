@@ -4,10 +4,12 @@ import _ from 'lodash'
 import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
-import type { StorageProcessor, Logger } from '../interfaces'
-import type { Block } from '../blockchain'
-import type { BlockInfoType } from '../interfaces/storage-processor'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
+import type { StorageProcessor, Logger } from '../../interfaces'
+import type { Block } from '../../blockchain'
+import type { BlockInfoType } from '../../interfaces/storage-processor'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+
+import BlockData from './block-data'
 
 const INDEX_SLOT = 'seiza.slot'
 
@@ -50,14 +52,14 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   async storeBlockData(block: Block, cache: any = []) {
     this.logger.debug('storeBlockData', block)
-    const body = cache.flatMap(doc => [
+    const body = cache.flatMap(blk => [
       {
         index: {
           _index: INDEX_SLOT,
-          _id: doc.hash,
+          _id: blk.hash,
         },
       },
-      doc,
+      (new BlockData(blk)).toPlainObject(),
     ])
     const resp = await this.client.bulk({
       refresh: true,

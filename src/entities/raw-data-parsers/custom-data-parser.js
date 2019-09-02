@@ -1,4 +1,5 @@
 // @flow
+
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import { RawDataParser } from '../../interfaces'
@@ -23,7 +24,7 @@ class CustomDataParser implements RawDataParser {
     return Block.fromCBOR(blob, this.networkStartTime)
   }
 
-  parseEpoch(data: Buffer, options:{} = {}) {
+  parseEpoch(data: Buffer, options:{omitEbb?: boolean} = {}) {
     const epoch = Epoch.fromCBOR(data, this.networkStartTime)
     return epoch.getBlocksIterator(options)
   }

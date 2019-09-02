@@ -1,4 +1,5 @@
 // @flow
+
 import cbor from 'cbor'
 import bs58 from 'bs58'
 import blake from 'blakejs'
@@ -16,7 +17,9 @@ import {
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import { TX_STATUS, TxType } from '../blockchain'
+import { TX_STATUS } from '../blockchain'
+
+import type { TxType } from '../blockchain'
 
 class TxController implements IController {
   logger: Logger
@@ -58,7 +61,7 @@ class TxController implements IController {
         }
       }
     } catch (err) {
-      this.logger.error('Failed to store tx as pending!', err);
+      this.logger.error('Failed to store tx as pending!', err)
       throw new Error('Internal DB fail in the importer!')
     }
     let statusText
@@ -82,9 +85,9 @@ class TxController implements IController {
     next()
   }
 
-  parseRawTx(txPayload: string) {
+  parseRawTx(txPayload: string): TxType {
     this.logger.debug(`txs.parseRawTx ${txPayload}`)
-    const now = new Date().toUTCString()
+    const now = new Date()
     const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
     const txObj = utils.rawTxToObj(tx, {
       txTime: now,
@@ -112,8 +115,7 @@ class TxController implements IController {
     }
   }
 
-  async validateTxWitnesses({ id, inputs, witnesses }:
-    {id: string, inputs: [], witnesses: []}) {
+  async validateTxWitnesses({ id, inputs, witnesses }: TxType) {
     const inpLen = inputs.length
     const witLen = witnesses.length
     this.logger.debug(`Validating witnesses for tx: ${id} (inputs: ${inpLen})`)
@@ -154,7 +156,7 @@ class TxController implements IController {
     })
   }
 
-  validateDestinationNetwork({ outputs }) {
+  validateDestinationNetwork({ outputs }: TxType) {
     this.logger.debug(`Validating output network (outputs: ${outputs.length})`)
     outputs.forEach(({ address }, i) => {
       this.logger.debug(`Validating network for ${address}`)
