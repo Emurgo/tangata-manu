@@ -1,5 +1,5 @@
 # Tangata Manu
-![Tangata Manu GitHub](./Tangata-Manu-GitHub.jpg)
+![Tangata Manu GitHub](./tangata-manu-bg.png)
 
 Cardano chain data-importer (replacement for the `project-icarus-importer`)
 
@@ -7,11 +7,9 @@ Cardano chain data-importer (replacement for the `project-icarus-importer`)
 
 Tangata Manu is a tool to import Cardano blockchain data into an easily usable database storage (e.g. Postgres database). The main goal of the project is to provide the main middle-layer functionality and to allow easy connection for new custom data-storage connectors or data-provider connectors, basically allowing to read blockchain data from any source with an API (for example, different full-node implementations), and export it into any custom storage or database that you can connect.
 
-# Setup
-
 ## Pre-requisites
 
-* NodeJS v10.14.2. We recommend [nvm](https://github.com/creationix/nvm) to install it
+* [Node.js 10.14.2] We recommend [nvm](https://github.com/creationix/nvm) to install it.
 * [Postgres 11.2] (https://www.postgresql.org/) as DB engine. For development purposes we
   suggest using Docker but local installation could be used as well (not both,
   obviously). For Mac, we recommend https://postgresapp.com.
@@ -52,3 +50,9 @@ We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrati
 1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=testnet2`
 1. Go to `yoroi-importer` directory, `cd yoroi-importer`
 1. Start the app, `yarn run dev`.
+
+# Tangata Manu meaning
+
+The Tangata manu ("bird-man," from tangata "human beings" + manu "bird") was the winner of a traditional competition on Rapa Nui (Easter Island). The ritual was an annual competition to collect the first sooty tern (manu tara) egg of the season from the islet of Motu Nui, swim back to Rapa Nui and climb the sea cliff of Rano Kau to the clifftop village of Orongo.
+
+From: Wikipedia contributors, "Tangata manu," Wikipedia, The Free Encyclopedia, https://en.wikipedia.org/w/index.php?title=Tangata_manu&oldid=907590181 (accessed September 3, 2019).
