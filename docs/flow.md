@@ -33,8 +33,8 @@
 |                  |  R  |                              |NO    |   YES                                |                 |
 |                  |     |                              v      +-----------+                          |                 |
 |                  |     |    get_genesis    +----------+-----------+      |                          |                 |
-|                  |     +^------------------+Supplier is asked for |      |                          |                 |
-|                  |     +------------------v+the Genesis block data|      |                          |                 |
+|                  |     +<------------------+Supplier is asked for |      |                          |                 |
+|                  |     +------------------>+the Genesis block data|      |                          |                 |
 |                  |     |                   +----------------------+      |                          |                 |
 |                  |     |                   |Parsed genesis is sent|    +---+       put_genesis      |                 |
 |                  |     |                   |    to the storage    +-------------------------------->+                 |
@@ -49,9 +49,9 @@
 |                  |     |                             |            ^-------------------------+       |                 |
 |                  |     |                             v                                      |       |                 |
 |                  |     |           +-----------------+--------------------+                 |       |                 |
-|                  |     | get_block |Supplier is asked to provide the block|                 |       |                 |
-|                  |     +^----------+at height (tip + 1), and it either    |                 |       |                 |
-|                  |     +----------v+exists right now or not               |                 |       |                 |
+|                  |     +<----------|Supplier is asked to provide the block|                 |       |                 |
+|                  |     | get_block |at height (tip + 1), and it either    |                 |       |                 |
+|                  |     +---------->+exists right now or not               |                 |       |                 |
 |                  |     |           +-+---------+-----------------+--------+                 |       |                 |
 +------------------+-----+             ^         |                 |                          |       |                 |
                                        |         |IF NO            |IF YES                    |       |                 |
