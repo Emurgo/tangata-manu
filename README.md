@@ -53,6 +53,16 @@ We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrati
 
 # Documentation
 
+```
+        +----------------------+
+        |                      |
+        | Tangata Manu Starts  |
+        |                      |
+        +-----------+----------+
+                    |
+                    v
+```
+
 1. Architecture explained: [docs/architecture.md](docs/architecture.md)
 2. Flow chart visualisation: [docs/flow.md](docs/flow.md)
 
