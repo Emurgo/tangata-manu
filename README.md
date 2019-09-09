@@ -51,6 +51,21 @@ We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrati
 1. Go to `yoroi-importer` directory, `cd yoroi-importer`
 1. Start the app, `yarn run dev`.
 
+# Documentation
+
+```
+        +----------------------+
+        |                      |
+        | Tangata Manu Starts  |
+        |                      |
+        +-----------+----------+
+                    |
+                    v
+```
+
+1. Architecture explained: [docs/architecture.md](docs/architecture.md)
+2. Flow chart visualisation: [docs/flow.md](docs/flow.md)
+
 # Tangata Manu meaning
 
 The Tangata manu ("bird-man," from tangata "human beings" + manu "bird") was the winner of a traditional competition on Rapa Nui (Easter Island). The ritual was an annual competition to collect the first sooty tern (manu tara) egg of the season from the islet of Motu Nui, swim back to Rapa Nui and climb the sea cliff of Rano Kau to the clifftop village of Orongo.
