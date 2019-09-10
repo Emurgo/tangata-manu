@@ -71,3 +71,7 @@ We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrati
 The Tangata manu ("bird-man," from tangata "human beings" + manu "bird") was the winner of a traditional competition on Rapa Nui (Easter Island). The ritual was an annual competition to collect the first sooty tern (manu tara) egg of the season from the islet of Motu Nui, swim back to Rapa Nui and climb the sea cliff of Rano Kau to the clifftop village of Orongo.
 
 From: Wikipedia contributors, "Tangata manu," Wikipedia, The Free Encyclopedia, https://en.wikipedia.org/w/index.php?title=Tangata_manu&oldid=907590181 (accessed September 3, 2019).
+
+# Special Thanks
+
+To the [Cardano Foundation](https://cardanofoundation.org/en/) for their support so this project could be open-sourced to the community.
