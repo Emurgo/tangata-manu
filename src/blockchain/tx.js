@@ -21,6 +21,12 @@ export type TxType = {
   txBody: string,
   txOrdinal: ?number,
   witnesses: [],
+  isGenesis: ?boolean,
+}
+
+export type GenesisTxType = {
+  ...TxType,
+  genesis: boolean,
 }
 
 export const TX_SUCCESS_STATUS = 'Successful'

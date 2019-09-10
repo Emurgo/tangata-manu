@@ -24,13 +24,11 @@ const genesisLoadUtxos = async (container) => {
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
   const { protocolMagic } = genesisFile.protocolConsts
 
-  if (!_.isEmpty(genesisFile.nonAvvmBalances)) {
-    await storageProcessor.storeUtxos(genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances))
-  }
-  if (!_.isEmpty(genesisFile.avvmDistr)) {
-    await storageProcessor.storeUtxos(genesis.avvmDistrToUtxos(genesisFile.avvmDistr,
-      protocolMagic))
-  }
+  const genesisUtxos = [
+    ...genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances || []),
+    ...genesis.avvmDistrToUtxos(genesisFile.avvmDistr || [], protocolMagic),
+  ]
+  await storageProcessor.storeGenesisUtxos(genesisUtxos)
 }
 
 const startServer = async () => {

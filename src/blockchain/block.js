@@ -1,5 +1,6 @@
 // @flow
 
+import _ from 'lodash'
 import cbor from 'cbor'
 
 import utils from './utils'
@@ -105,6 +106,28 @@ export default class Block {
       })),
     }
     return res
+  }
+
+  getTime(): Date {
+    return this.time
+  }
+
+  getReceivedAmount(): number {
+    // TODO: reduce number of iterations
+    const sent = _.sumBy(_.flatten(_.map(this.txs, 'outputs')), o => o.value)
+    return sent
+  }
+
+  getSentAmount() {
+    const txInputs = _.flatten(_.map(this.txs, 'inputs'))
+    const amount = 0
+    return amount
+  }
+
+  getFees(): number {
+    const sentAmount = this.getSentAmount()
+    const receivedAmount = this.getReceivedAmount()
+    return sentAmount - receivedAmount
   }
 
   static parseBlock(blob: Buffer, handleRegularBlock: number): Block {

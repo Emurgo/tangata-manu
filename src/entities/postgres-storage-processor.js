@@ -66,6 +66,10 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.genesisLoaded()
   }
 
+  async storeGenesisUtxos(utxos: Array<mixed>) {
+    return this.db.storeUtxos(utxos)
+  }
+
   async storeUtxos(utxos: Array<mixed>) {
     return this.db.storeUtxos(utxos)
   }
