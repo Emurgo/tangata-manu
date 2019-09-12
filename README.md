@@ -32,7 +32,7 @@ docker exec -it postgres psql -U postgres;
 create database yoroi_blockchain_importer;
 ```
 
-1.  Clone this repo, `git@github.com:Emurgo/yoroi-importer.git`
+1.  Clone this repo, `git@github.com:Emurgo/tangata-manu.git`
 1.  Select correct NodeJs version, `nvm use`
 1.  Install dependencies, `yarn install`
 1.  Init database schema, `yarn run migrate up`
