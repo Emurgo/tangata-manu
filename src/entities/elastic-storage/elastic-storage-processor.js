@@ -12,7 +12,7 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { UtxoType } from './utxo-data'
 
 import BlockData from './block-data'
-import UtxoData from './utxo-data'
+import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import TxData from './tx-data'
 
 const INDEX_SLOT = 'seiza.slot'
@@ -70,7 +70,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       {
         index: {
           _index: INDEX_TX,
-          _id: utxoData.getId(),
+          _id: utxoData.getHash(),
         },
       },
       TxData.fromGenesisUtxo(utxoData, this.networkStartTime).toPlainObject(),
@@ -101,22 +101,60 @@ class ElasticStorageProcessor implements StorageProcessor {
     return source
   }
 
-  async storeBlockData(block: Block, cache: any = []) {
-    this.logger.debug('storeBlockData', block)
-    const body = cache.flatMap(blk => [
+  async bulkUpload(body) {
+    const resp = await this.client.bulk({
+      refresh: true,
+      body,
+    })
+    this.logger.debug('bulkUpload', resp)
+    return resp
+  }
+
+  async storeBlocksToSlotIdx(blocks: Array<Block>, storedUTxOs: Array<UtxoType>) {
+    const body = blocks.flatMap(blk => [
       {
         index: {
           _index: INDEX_SLOT,
           _id: blk.hash,
         },
       },
-      (new BlockData(blk)).toPlainObject(),
+      (new BlockData(blk, storedUTxOs)).toPlainObject(),
     ])
-    const resp = await this.client.bulk({
-      refresh: true,
-      body,
-    })
-    this.logger.debug('storeBlockData', resp)
+    await this.bulkUpload(body)
+  }
+
+  async storeBlockUtxos(block: Block) {
+    const blockUtxos = (new BlockData(block)).getBlockUtxos()
+    const body = blockUtxos.flatMap(utxo => [
+      {
+        index: {
+          _index: INDEX_TXIO,
+          _id: utxo.id,
+        },
+      },
+      utxo,
+    ])
+    await this.bulkUpload(body)
+  }
+
+  async storeBlockData(block: Block, cache: any = []) {
+    const txInputsIds = _.flatten(_.map(block.txs, 'inputs')).map(getTxInputUtxoId)
+    let storedUTxOs = []
+    if (txInputsIds.length > 0) {
+      this.logger.debug('storeBlockData', block)
+      const txInputs = await this.client.mget({
+        index: INDEX_TXIO,
+        body: {
+          ids: txInputsIds,
+        },
+      })
+      storedUTxOs = _.map(txInputs.body.docs, '_source')
+    }
+
+    if (block.getTxs().length > 0) {
+      await this.storeBlockUtxos(block)
+    }
+    await this.storeBlocksToSlotIdx(cache, storedUTxOs)
   }
 }
 

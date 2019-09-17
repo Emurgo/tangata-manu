@@ -4,6 +4,8 @@ import ElasticData, { coinFormat } from './elastic-data'
 
 const UTXO_OUTPUT_TYPE = 'output'
 
+export const getTxInputUtxoId = (input) => `${UTXO_OUTPUT_TYPE}:${input.txId}:${input.idx}`
+
 export type UtxoType = {
   tx_hash: string,
   tx_index: number,

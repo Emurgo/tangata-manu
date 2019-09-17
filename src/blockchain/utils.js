@@ -128,6 +128,7 @@ const rawTxToObj = (tx: Array<any>, extraData: {
   const [[inputs, outputs], witnesses] = tx
   const [txId, txBody] = packRawTxIdAndBody(tx)
   return {
+    isGenesis: false,
     id: txId,
     inputs: inputs.map(inp => {
       const [type, tagged] = inp
