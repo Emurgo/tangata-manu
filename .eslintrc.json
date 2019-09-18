@@ -14,6 +14,12 @@
     "arrow-parens": "off",
     "function-paren-newline": "off",
     "no-extra-semi": "error",
+    "no-restricted-syntax": [
+      "off",
+      "ForOfStatement"
+    ],
+
+
     "semi": ["error", "never"]
   },
   "env": {

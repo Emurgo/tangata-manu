@@ -1,3 +1,5 @@
+// @flow
+
 import server from './server'
 
 // Don't check client certs

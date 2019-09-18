@@ -1,4 +1,5 @@
 // @flow
+
 import _ from 'lodash'
 
 import { helpers } from 'inversify-vanillajs-helpers'
@@ -101,7 +102,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     return source
   }
 
-  async bulkUpload(body) {
+  async bulkUpload(body: Array<mixed>) {
     const resp = await this.client.bulk({
       refresh: true,
       body,
@@ -137,24 +138,25 @@ class ElasticStorageProcessor implements StorageProcessor {
     await this.bulkUpload(body)
   }
 
-  async storeBlockData(block: Block, cache: any = []) {
-    const txInputsIds = _.flatten(_.map(block.txs, 'inputs')).map(getTxInputUtxoId)
-    let storedUTxOs = []
-    if (txInputsIds.length > 0) {
-      this.logger.debug('storeBlockData', block)
-      const txInputs = await this.client.mget({
-        index: INDEX_TXIO,
-        body: {
-          ids: txInputsIds,
-        },
-      })
-      storedUTxOs = _.map(txInputs.body.docs, '_source')
+  async storeBlocksData(blocks: Array<Block>) {
+    const storedUTxOs = []
+    for (const block of blocks) {
+      const txs = block.getTxs()
+      const txInputsIds = _.flatten(
+        _.map(txs, 'inputs')).map(getTxInputUtxoId)
+      if (txs.length > 0) {
+        this.logger.debug('storeBlockData', block)
+        const txInputs = await this.client.mget({
+          index: INDEX_TXIO,
+          body: {
+            ids: txInputsIds,
+          },
+        })
+        storedUTxOs.concat(_.map(txInputs.body.docs, '_source'))
+        await this.storeBlockUtxos(block)
+      }
     }
-
-    if (block.getTxs().length > 0) {
-      await this.storeBlockUtxos(block)
-    }
-    await this.storeBlocksToSlotIdx(cache, storedUTxOs)
+    await this.storeBlocksToSlotIdx(blocks, storedUTxOs)
   }
 }
 

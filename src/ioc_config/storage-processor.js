@@ -1,4 +1,5 @@
 // @flow
+
 import { Container } from 'inversify'
 
 import type { StorageProcessor, Database } from '../interfaces'

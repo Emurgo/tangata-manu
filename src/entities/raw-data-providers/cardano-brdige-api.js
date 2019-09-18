@@ -1,4 +1,5 @@
 // @flow
+
 import urljoin from 'url-join'
 import axios from 'axios'
 

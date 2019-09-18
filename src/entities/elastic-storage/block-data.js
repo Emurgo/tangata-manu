@@ -13,7 +13,7 @@ class BlockData extends ElasticData {
 
   utxos: Array<mixed>
 
-  blockUtxos: Array<mixed>
+  blockUtxos: Array<{id: string}>
 
   storedUTxOs: Array<UtxoType>
 
@@ -25,7 +25,8 @@ class BlockData extends ElasticData {
     super()
     this.block = block
     this.storedUTxOs = storedUTxOs
-    this.blockUtxos = block.getTxs().flatMap(tx => tx.outputs.map(
+    const txs = block.getTxs()
+    this.blockUtxos = txs.flatMap(tx => tx.outputs.map(
       (out, idx) => (new UtxoData({
         tx_hash: tx.id,
         tx_index: idx,
@@ -38,12 +39,11 @@ class BlockData extends ElasticData {
       ...this.blockUtxos,
     ], u => `${u.tx_hash}${u.io_ordinal}`)
 
-    this.inputsData = _.flatMap(_.flatMap(this.block.getTxs(), 'inputs'), inp => {
-      return this.allUtxos[`${inp.txId}${inp.idx}`]
-    })
+    this.inputsData = _.flatMap(txs, 'inputs')
+      .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
   }
 
-  getBlockUtxos() {
+  getBlockUtxos(): Array<{id: string}> {
     return this.blockUtxos
   }
 

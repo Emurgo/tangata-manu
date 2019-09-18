@@ -1,4 +1,5 @@
 // @flow
+
 import { AsyncContainerModule, interfaces } from 'inversify'
 import pg from 'pg'
 import type { PgPoolConfig, Pool } from 'pg'

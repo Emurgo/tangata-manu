@@ -1,3 +1,5 @@
+// @flow
+
 import CardanoBridgeApi from './cardano-brdige-api'
 
 class MockBridgeApi extends CardanoBridgeApi {
