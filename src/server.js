@@ -50,8 +50,10 @@ const startServer = async () => {
   const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
   scheduler.startAsync().then(res => {
     logger.error(`Scheduler.startAsync exited successfully. This is unexpected to happen by itself! (result=${res})`)
+    process.exit(1)
   }, err => {
     logger.error('Scheduler.startAsync exited with an error:', err)
+    process.exit(1)
   })
 
   app.use(restify.plugins.bodyParser())
