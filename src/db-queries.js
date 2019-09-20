@@ -36,19 +36,8 @@ const GET_BEST_BLOCK_NUM = sql.select()
 const GET_UTXOS_BLOCKS_COUNT = sql.select()
   .field('(select count(*) from utxos ) + ( select count(*) from blocks) as cnt')
 
-
-const utxoOnConflictUpdateBlockNum = (query) => {
-  // squel don't support 'EXCLUDED'
-  // workaround taken from https://github.com/hiddentao/squel/issues/342
-  const onConflictClause = ' ON CONFLICT (utxo_id) DO UPDATE SET block_num = EXCLUDED.block_num'
-  const queryParam = query.toParam()
-  queryParam.text += onConflictClause
-  return queryParam
-}
-
 export default {
   sql,
-  utxoOnConflictUpdateBlockNum,
   UTXOS_INSERT,
   GET_BEST_BLOCK_NUM,
   BEST_BLOCK_UPDATE,

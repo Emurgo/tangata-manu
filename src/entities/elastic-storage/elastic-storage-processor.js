@@ -1,11 +1,12 @@
 // @flow
 
 import _ from 'lodash'
+import type BLogger from 'bunyan'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
-import type { StorageProcessor, Logger, NetworkConfig } from '../../interfaces'
+import type { StorageProcessor, NetworkConfig } from '../../interfaces'
 import type { Block } from '../../blockchain'
 import type { BlockInfoType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
@@ -19,22 +20,52 @@ import TxData from './tx-data'
 const INDEX_SLOT = 'seiza.slot'
 const INDEX_TX = 'seiza.tx'
 const INDEX_TXIO = 'seiza.txio'
+const INDEX_CHUNK = 'seiza.chunk'
+const INDEX_POINTER_ALL = 'seiza.*'
 
 class ElasticStorageProcessor implements StorageProcessor {
-  logger: Logger
+  logger: BLogger
 
   client: Client
 
   networkStartTime: number
 
   constructor(
-    logger: Logger,
+    logger: BLogger,
     elasticNode: string,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger
     this.client = new Client({ node: elasticNode })
     this.networkStartTime = networkConfig.startTime()
+  }
+
+  async esSearch(params: {}) {
+    const resp = await this.client.search(params)
+    const { hits } = resp.body
+    return hits
+  }
+
+  async getLatestStableChunk() {
+    const hits = await this.esSearch({
+      index: INDEX_CHUNK,
+      body: {
+        sort: [{ _chunk: { order: 'desc' } }],
+        size: 1,
+      },
+    })
+    this.logger.debugs('getLatestStableChunk', hits)
+  }
+
+  async deleteChunksAfter(chunk: number) {
+    const resp = await this.client.deleteByQuery({
+      index: INDEX_POINTER_ALL,
+      body: {
+        query: { range: { _chunk: { gt: chunk } } },
+      },
+    })
+    const deletedDocs = resp.body.total
+    this.logger.info(`deleteChunksAfter(${chunk}), total deleted:${deletedDocs}`, resp)
   }
 
   async genesisLoaded() {
@@ -139,13 +170,18 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async storeBlocksData(blocks: Array<Block>) {
+    try {
+      await this.deleteChunksAfter(5)
+    } catch (e) {
+      this.logger.error(e)
+    }
     const storedUTxOs = []
     for (const block of blocks) {
       const txs = block.getTxs()
       const txInputsIds = _.flatten(
         _.map(txs, 'inputs')).map(getTxInputUtxoId)
       if (txs.length > 0) {
-        this.logger.debug('storeBlockData', block)
+        this.logger.debug('storeBlocksData', block)
         const txInputs = await this.client.mget({
           index: INDEX_TXIO,
           body: {

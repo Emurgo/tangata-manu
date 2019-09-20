@@ -2,7 +2,14 @@
 
 import config from 'config'
 
-const getNetworkConfig = (networkName): {} => {
+type NetworkConfigType = {
+  bridgeUrl: string,
+  genesis: string,
+  startTime: number,
+  networkMagic: number,
+}
+
+const getNetworkConfig = (networkName: string): NetworkConfigType => {
   const network = { ...config.get('networks')[networkName] }
   network.bridgeUrl = network.bridgeUrl || config.get('defaultBridgeUrl')
   return network

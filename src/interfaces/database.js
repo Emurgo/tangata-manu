@@ -2,6 +2,7 @@
 
 export interface Database {
   getBestBlockNum(): any;
+  storeUtxos(utxos: Array<mixed>): Promise<any>;
 
   getConn(): any;
 
