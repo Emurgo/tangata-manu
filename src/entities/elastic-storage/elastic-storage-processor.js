@@ -163,8 +163,15 @@ class ElasticStorageProcessor implements StorageProcessor {
     })
   }
 
+  async removeUnsealed() {
+    const lastChunk = await this.getLatestStableChunk()
+    this.logger.debug('Remove unsealed blocks after', lastChunk)
+    await this.deleteChunksAfter(lastChunk)
+  }
+
   async genesisLoaded() {
     // await this.ensureElasticTemplates()
+    await this.removeUnsealed()
     const esResponse = await this.client.cat.count({
       index: this.indexFor(INDEX_TX),
       format: 'json',
