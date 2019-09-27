@@ -4,7 +4,7 @@ import type { Block } from '../blockchain'
 
 export type BlockInfoType = {
   height: number,
-  epoch?: number,
+  epoch: number,
   slot?: number,
   hash?: string,
 }

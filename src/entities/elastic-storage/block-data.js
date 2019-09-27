@@ -34,10 +34,14 @@ class BlockData extends ElasticData {
         amount: out.value,
       })).toPlainObject(),
     ))
+    try {
     this.allUtxos = _.keyBy([
       ...this.storedUTxOs,
       ...this.blockUtxos,
     ], u => `${u.tx_hash}${u.io_ordinal}`)
+  } catch (e) {
+      console.log('hello')
+    }
 
     this.inputsData = _.flatMap(txs, 'inputs')
       .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])

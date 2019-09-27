@@ -1,7 +1,7 @@
 // @flow
 
 import _ from 'lodash'
-import type BLogger from 'bunyan'
+import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import type {
@@ -34,7 +34,7 @@ class CronScheduler implements Scheduler {
 
   storageProcessor: StorageProcessor
 
-  logger: BLogger
+  logger: Logger
 
   checkTipMillis: number
 
@@ -50,7 +50,7 @@ class CronScheduler implements Scheduler {
     dataProvider: RawDataProvider,
     checkTipSeconds: number,
     storageProcessor: StorageProcessor,
-    logger: BLogger,
+    logger: Logger,
     rollbackBlocksCount: number,
     maxBlockBatchSize: number,
   ) {
