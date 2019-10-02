@@ -28,11 +28,9 @@ const ELASTIC_TEMPLATES = {
   seiza_tx: {
     index_patterns: ['seiza*.tx'],
     mappings: {
-      tx: {
-        properties: {
-          addresses: {
-            type: 'nested',
-          },
+      properties: {
+        addresses: {
+          type: 'nested',
         },
       },
     },
@@ -96,6 +94,12 @@ class ElasticStorageProcessor implements StorageProcessor {
     return `${this.elasticConfig.indexPrefix}.${name}`
   }
 
+  async rollbackTo(height: number) {
+    await sleep(10000)
+    const latestStableChunk = await this.getLatestStableChunk()
+    return this.deleteChunksAfter(Math.min(latestStableChunk, height))
+  }
+
 
   async esSearch(params: {}) {
     const resp = await this.client.search(params)
@@ -104,8 +108,15 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async getLatestStableChunk() {
+    const index = this.indexFor(INDEX_CHUNK)
+    const indexExists = (await this.client.indices.exists({
+      index,
+    })).body
+    if (!indexExists) {
+      return 0
+    }
     const hits = await this.esSearch({
-      index: this.indexFor(INDEX_CHUNK),
+      index,
       allowNoIndices: true,
       ignoreUnavailable: true,
       body: {
@@ -129,16 +140,6 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async ensureElasticTemplates() {
-    /*
-    Does not works. Fail with next exception:
-    UnhandledPromiseRejectionWarning: ResponseError: mapper_parsing_exception
-    at IncomingMessage.<anonymous>
-    (/Users/macbook/yoroi-importer/node_modules/@elastic/elasticsearch/lib/Transport.js:287:25)
-    at IncomingMessage.emit (events.js:214:15)
-    at IncomingMessage.EventEmitter.emit (domain.js:476:20)
-    at endReadableNT (_stream_readable.js:1178:12)
-    at processTicksAndRejections (internal/process/task_queues.js:77:11)
-    */
     for (const [name, tmpl] of _.toPairs(ELASTIC_TEMPLATES)) {
       // eslint-disable-next-line no-await-in-loop
       const tmplExists = await this.client.indices.existsTemplate({
@@ -149,6 +150,7 @@ class ElasticStorageProcessor implements StorageProcessor {
         const resp = await this.client.indices.putTemplate({
           name,
           body: tmpl,
+          include_type_name: false,
         })
         this.logger.debug(`Put template ${name}`, resp)
       }
@@ -166,14 +168,23 @@ class ElasticStorageProcessor implements StorageProcessor {
   async removeUnsealed() {
     const lastChunk = await this.getLatestStableChunk()
     this.logger.debug('Remove unsealed blocks after', lastChunk)
-    await this.deleteChunksAfter(lastChunk)
+    if (lastChunk > 0) {
+      await this.deleteChunksAfter(lastChunk)
+    }
   }
 
   async genesisLoaded() {
-    // await this.ensureElasticTemplates()
+    await this.ensureElasticTemplates()
     await this.removeUnsealed()
+    const index = this.indexFor(INDEX_TX)
+    const indexExists = (await this.client.indices.exists({
+      index,
+    })).body
+    if (!indexExists) {
+      return false
+    }
     const esResponse = await this.client.cat.count({
-      index: this.indexFor(INDEX_TX),
+      index,
       format: 'json',
     })
     this.logger.debug('Check elastic whether genesis loaded...', esResponse)
@@ -198,7 +209,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       index: this.indexFor(INDEX_TX),
       getId: (o) => o.getHash(),
       getData: (o) => ({
-        ...TxData.fromGenesisUtxo(o, this.networkStartTime).toPlainObject(),
+        ...TxData.fromGenesisUtxo(o.utxo, this.networkStartTime).toPlainObject(),
         _chunk: chunk,
       }),
     })
@@ -215,8 +226,15 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   async getBestBlockNum(): Promise<BlockInfoType> {
     const emptyDb = { height: 0, epoch: 0 }
+    const index = this.indexFor(INDEX_SLOT)
+    const indexExists = (await this.client.indices.exists({
+      index,
+    })).body
+    if (!indexExists) {
+      return emptyDb
+    }
     const esResponse = await this.client.search({
-      index: this.indexFor(INDEX_SLOT),
+      index,
       body: {
         sort: [{ epoch: { order: 'desc' } }, { slot: { order: 'desc' } }],
         size: 1,
@@ -253,15 +271,15 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   getBlockUtxos(block: Block, options:{} = {}) {
-    const blockUtxos = (new BlockData(block)).getBlockUtxos()
-    return formatBulkUploadBody(blockUtxos, {
-      index: this.indexFor(INDEX_TXIO),
-      getId: (o) => o.id,
-      getData: (o) => ({
-        ...o,
-        ...options,
-      }),
-    })
+    const blockUtxos = block.getTxs().flatMap(tx => tx.outputs.map(
+      (out, idx) => (new UtxoData({
+        tx_hash: tx.id,
+        tx_index: idx,
+        receiver: out.address,
+        amount: out.value,
+      })).toPlainObject(),
+    ))
+    return blockUtxos
   }
 
   async storeBlocksData(blocks: Array<Block>) {
@@ -272,11 +290,11 @@ class ElasticStorageProcessor implements StorageProcessor {
     const chunk = (await this.getLatestStableChunk()) + 1
     for (const block of blocks) {
       const txs = block.getTxs()
-      blockTxs.push(...txs)
-      txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
       if (txs.length > 0) {
+        txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
         this.logger.debug('storeBlocksData', block)
         utxosToStore.push(...this.getBlockUtxos(block, { _chunk: chunk }))
+        blockTxs.push(...txs)
       }
     }
     if (!_.isEmpty(txInputsIds)) {
@@ -288,9 +306,14 @@ class ElasticStorageProcessor implements StorageProcessor {
       })
       storedUTxOs.push(..._.map(txInputs.body.docs.filter(d => d.found), '_source'))
     }
+    const utxosBody = formatBulkUploadBody(utxosToStore, {
+      index: this.indexFor(INDEX_TXIO),
+      getId: (o) => o.id,
+      getData: (o) => o,
+    })
     const blocksBody = this.getBlocksForSlotIdx(blocks,
       [...storedUTxOs, ...utxosToStore], { _chunk: chunk })
-    await this.bulkUpload([...utxosToStore, ...blocksBody])
+    await this.bulkUpload([...utxosBody, ...blocksBody])
 
     await sleep(5000)
     await this.storeChunk({

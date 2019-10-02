@@ -6,14 +6,12 @@ import type { Block } from '../../blockchain'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type { UtxoType } from './utxo-data'
-import UtxoData from './utxo-data'
+import TxData from './tx-data'
 
 class BlockData extends ElasticData {
   block: Block
 
   utxos: Array<mixed>
-
-  blockUtxos: Array<{id: string}>
 
   storedUTxOs: Array<UtxoType>
 
@@ -23,32 +21,19 @@ class BlockData extends ElasticData {
 
   constructor(block: Block, storedUTxOs: Array<UtxoType> = []) {
     super()
+    this.inputsData = []
     this.block = block
     this.storedUTxOs = storedUTxOs
     const txs = block.getTxs()
-    this.blockUtxos = txs.flatMap(tx => tx.outputs.map(
-      (out, idx) => (new UtxoData({
-        tx_hash: tx.id,
-        tx_index: idx,
-        receiver: out.address,
-        amount: out.value,
-      })).toPlainObject(),
-    ))
-    try {
+
     this.allUtxos = _.keyBy([
       ...this.storedUTxOs,
-      ...this.blockUtxos,
     ], u => `${u.tx_hash}${u.io_ordinal}`)
-  } catch (e) {
-      console.log('hello')
+
+    if (!_.isEmpty(txs)) {
+      this.inputsData = _.flatMap(txs, 'inputs')
+        .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
     }
-
-    this.inputsData = _.flatMap(txs, 'inputs')
-      .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
-  }
-
-  getBlockUtxos(): Array<{id: string}> {
-    return this.blockUtxos
   }
 
   getReceivedAmount(): number {
@@ -62,6 +47,11 @@ class BlockData extends ElasticData {
     return sent
   }
 
+  getTxsData() {
+    const txs = this.block.getTxs()
+    return txs.map(tx => (new TxData(tx, this.allUtxos)).toPlainObject())
+  }
+
   getFees(): number {
     const sentAmount = this.getSentAmount()
     const receivedAmount = this.getReceivedAmount()
@@ -72,7 +62,8 @@ class BlockData extends ElasticData {
     const time = this.block.getTime().toISOString()
     let sent = 0
     let fees = 0
-    if (this.block.getTxs().length > 0) {
+    const txs = this.block.getTxs()
+    if (txs.length > 0) {
       sent = this.getSentAmount()
       fees = this.getFees()
     }
@@ -83,7 +74,8 @@ class BlockData extends ElasticData {
       height: this.block.height,
       time,
       branch: 0,
-      tx_num: this.block.txs.length,
+      tx_num: txs.length,
+      tx: this.getTxsData(),
       sent: coinFormat(sent),
       fees: coinFormat(fees),
     }
