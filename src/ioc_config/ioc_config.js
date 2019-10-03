@@ -10,8 +10,10 @@ import {
   CronScheduler,
   DB,
   GenesisProvider,
+  JormungandrApi,
   MockBridgeApi,
   MockDataParser,
+  ShelleyDataParser,
 } from '../entities'
 import {
   RawDataProvider,
@@ -39,7 +41,9 @@ const initIoC = async () => {
 
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
 
-  let apiClass = CardanoBridgeApi
+  let apiClass = JormungandrApi
+  //let apiClass = CardanoBridgeApi
+  //let dataParserClass = ShelleyDataParser
   let dataParserClass = CustomDataParser
   if (process.env.YOROI_IMPORTER_TEST) {
     logger.info('$YOROI_IMPORTER_TEST env var is set. Mocking API and data parser.')
