@@ -4,7 +4,7 @@ const SQL = `
 CREATE TABLE pending_snapshots  (
   tx_hash   text,
   block_hash text,
-  bloch_height integer,
+  block_height integer,
   PRIMARY KEY (tx_hash, block_hash)
 );
 `

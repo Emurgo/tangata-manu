@@ -284,6 +284,43 @@ class DB implements Database {
     )
   }
 
+  async queryLoosePendingTxs() {
+    const snapshotsTable = 'pending_snapshots'
+    const query = Q.sql.select().from(snapshotsTable)
+      .field('tx_hash')
+      .where('block_height = ?', Q.sql.select().from(snapshotsTable)
+        .field('MAX(block_height)'))
+      .union(Q.sql.select().from('txs')
+        .field('hash')
+        .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
+        .where('NOT EXISTS ?', Q.sql.select().from(snapshotsTable)
+          .field('1')
+          .where('tx_hash = hash')))
+      .toString()
+    const dbRes = await this.getConn().query(query)
+    this.#logger.debug('queryLoosePendingTxs:', query, dbRes)
+    return _.map(dbRes.rows, 'tx_hash')
+  }
+
+  async storeNewPendingSnapshot(block: Block) {
+    const loosePendingSet = await this.queryLoosePendingTxs()
+    const txHashes = _.map(block.txs, 'id')
+    const nextSnapshot = loosePendingSet.filter(hash => !txHashes.includes(hash))
+    if (_.isEmpty(nextSnapshot)) {
+      this.#logger.debug('storeNewPendingSnapshot: No new loose txs.')
+      return
+    }
+    const dbFields = nextSnapshot.map(txHash => ({
+      tx_hash: txHash,
+      block_hash: block.hash,
+      block_height: block.height,
+      status: TX_STATUS.TX_PENDING_STATUS,
+    }))
+    this.#logger.debug('storeNewPendingSnapshot: ', nextSnapshot)
+    const query = Q.sql.insert().into('pending_snapshots').setFieldsRows(dbFields).toString()
+    return this.getConn().query(query)
+  }
+
   async storeBlockTxs(block: Block) {
     const {
       hash, epoch, slot, txs,

@@ -134,6 +134,7 @@ class CronScheduler implements Scheduler {
         await dbConn.query('BEGIN')
         if (blockHaveTxs) {
           await this.#db.storeBlockTxs(block)
+          await this.#db.storeNewPendingSnapshot(block)
         }
         await this.#db.storeBlocks(this.blocksToStore)
         await this.#db.updateBestBlockNum(block.height)
