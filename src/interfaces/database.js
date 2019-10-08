@@ -1,5 +1,9 @@
 // @flow
+
 export interface Database {
+  getBestBlockNum(): any;
+
+  getConn(): any;
 
 }
 

@@ -22,16 +22,18 @@ class PostgresStorageProcessor implements StorageProcessor {
     this.db = db
   }
 
-  async storeBlockData(block: Block, cachedBlocks: [] = []) {
+  async storeBlocksData(blocks: Array<Block>) {
     const dbConn = this.db.getConn()
-    const blockHaveTxs = !_.isEmpty(block.txs)
     try {
       await dbConn.query('BEGIN')
-      if (blockHaveTxs) {
-        await this.db.storeBlockTxs(block)
+      await this.db.storeBlocks(blocks)
+      for (const block of blocks) {
+        const blockHaveTxs = !_.isEmpty(block.txs)
+        if (blockHaveTxs) {
+          await this.db.storeBlockTxs(block)
+        }
       }
-      await this.db.storeBlocks(cachedBlocks)
-      await this.db.updateBestBlockNum(block.height)
+      await this.db.updateBestBlockNum(_.last(blocks).height)
       await dbConn.query('COMMIT')
     } catch (e) {
       await dbConn.query('ROLLBACK')

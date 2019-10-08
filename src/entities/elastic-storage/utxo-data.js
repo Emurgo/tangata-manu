@@ -1,6 +1,7 @@
 // @flow
 
 import ElasticData, { coinFormat } from './elastic-data'
+import type { TxInputType } from '../../blockchain/tx'
 
 const UTXO_OUTPUT_TYPE = 'output'
 
@@ -10,6 +11,8 @@ export type UtxoType = {
   receiver: string,
   amount: number,
 }
+
+export const getTxInputUtxoId = (input: TxInputType) => `${UTXO_OUTPUT_TYPE}:${input.txId}:${input.idx}`
 
 class UtxoData extends ElasticData {
   utxo: UtxoType

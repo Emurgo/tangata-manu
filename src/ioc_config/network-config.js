@@ -1,4 +1,5 @@
 // @flow
+
 import { ContainerModule, interfaces } from 'inversify'
 
 import { NetworkConfig } from '../interfaces'

@@ -1,3 +1,5 @@
+// @flow
+
 import { helpers } from 'inversify-vanillajs-helpers'
 import { BLAKE2b } from 'bcrypto'
 import bs58 from 'bs58'

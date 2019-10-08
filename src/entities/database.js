@@ -1,4 +1,5 @@
 // @flow
+
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
 

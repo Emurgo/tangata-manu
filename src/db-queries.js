@@ -1,4 +1,5 @@
-// flow
+// @flow
+
 import squel from 'squel'
 import _ from 'lodash'
 

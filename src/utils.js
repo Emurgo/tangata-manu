@@ -1,4 +1,5 @@
-// flow
+// @flow
+
 import config from 'config'
 
 const getNetworkConfig = (networkName): {} => {

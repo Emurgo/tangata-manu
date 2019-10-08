@@ -1,9 +1,6 @@
 // @flow
-/* eslint-disable no-plusplus */
-/* eslint-disable no-await-in-loop */
 
 import _ from 'lodash'
-
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import type {
@@ -18,7 +15,6 @@ import type { Block } from '../blockchain'
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
 const MAX_BLOCKS_PER_LOOP = 9000
 const LOG_BLOCK_PARSED_THRESHOLD = 30
-const BLOCKS_CACHE_SIZE = 800
 const ERROR_META = {
   NODE_INACCESSIBLE: {
     msg: 'node is inaccessible',
@@ -46,6 +42,8 @@ class CronScheduler implements Scheduler {
 
   rollbackBlocksCount: number
 
+  maxBlockBatchSize: number
+
   lastBlock: ?{ epoch: number, hash: string }
 
   constructor(
@@ -54,11 +52,13 @@ class CronScheduler implements Scheduler {
     storageProcessor: StorageProcessor,
     logger: Logger,
     rollbackBlocksCount: number,
+    maxBlockBatchSize: number,
   ) {
     this.#dataProvider = dataProvider
     this.storageProcessor = storageProcessor
     this.rollbackBlocksCount = rollbackBlocksCount
     this.checkTipMillis = checkTipSeconds * 1000
+    this.maxBlockBatchSize = maxBlockBatchSize
     logger.debug('Checking tip every', checkTipSeconds, 'seconds')
     logger.debug('Rollback blocks count', rollbackBlocksCount)
     this.#logger = logger
@@ -86,7 +86,6 @@ class CronScheduler implements Scheduler {
     this.#logger.info(`processEpochId: ${id}, ${height}`)
     const omitEbb = true
     const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
-    // eslint-disable-next-line no-restricted-syntax
     for (const block of blocks) {
       if (block.height > height) {
         await this.processBlock(block)
@@ -112,11 +111,9 @@ class CronScheduler implements Scheduler {
       epoch: block.epoch,
       hash: block.hash,
     }
-    const blockHaveTxs = !_.isEmpty(block.txs)
     this.blocksToStore.push(block)
-
-    if (this.blocksToStore.length > BLOCKS_CACHE_SIZE || blockHaveTxs || flushCache) {
-      await this.storageProcessor.storeBlockData(block, this.blocksToStore)
+    if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
+      await this.storageProcessor.storeBlocksData(this.blocksToStore)
       this.blocksToStore = []
     }
 
@@ -153,8 +150,7 @@ class CronScheduler implements Scheduler {
       // Check if there's any point to bother with whole epochs
       if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
         if (packedEpochs > epoch) {
-          for (let epochId = epoch;
-            (epochId < packedEpochs); epochId++) {
+          for (const epochId of _.range(epoch, packedEpochs)) {
             // Process epoch
             await this.processEpochId(epochId, height)
             this.#logger.debug(`Epoch parsed: ${epochId}, ${height}`)
@@ -215,6 +211,7 @@ helpers.annotate(CronScheduler,
     SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
     SERVICE_IDENTIFIER.LOGGER,
     'rollbackBlocksCount',
+    'maxBlockBatchSize',
   ])
 
 export default CronScheduler
