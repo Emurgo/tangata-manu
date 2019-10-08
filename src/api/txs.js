@@ -1,4 +1,5 @@
 // @flow
+
 import cbor from 'cbor'
 import bs58 from 'bs58'
 import blake from 'blakejs'
@@ -11,29 +12,33 @@ import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'
 import { injectable, decorate, inject } from 'inversify'
 
-import { Logger, RawDataProvider, Database, NetworkConfig } from '../interfaces'
+import {
+  Logger, RawDataProvider, StorageProcessor, NetworkConfig,
+} from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
-import { TX_STATUS, TxType } from '../blockchain'
+import { TX_STATUS } from '../blockchain'
+
+import type { TxType } from '../blockchain'
 
 class TxController implements IController {
   logger: Logger
 
   dataProvider: RawDataProvider
 
-  db: Database
+  storageProcessor: StorageProcessor
 
   expectedNetworkMagic: number
 
   constructor(
     logger: Logger,
     dataProvider: RawDataProvider,
-    db: Database,
+    storageProcessor: StorageProcessor,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger
     this.dataProvider = dataProvider
-    this.db = db
+    this.storageProcessor = storageProcessor
     this.expectedNetworkMagic = networkConfig.networkMagic()
   }
 
@@ -56,7 +61,7 @@ class TxController implements IController {
         }
       }
     } catch (err) {
-      this.logger.error('Failed to store tx as pending!', err);
+      this.logger.error('Failed to store tx as pending!', err)
       throw new Error('Internal DB fail in the importer!')
     }
     let statusText
@@ -80,9 +85,9 @@ class TxController implements IController {
     next()
   }
 
-  parseRawTx(txPayload: string) {
+  parseRawTx(txPayload: string): TxType {
     this.logger.debug(`txs.parseRawTx ${txPayload}`)
-    const now = new Date().toUTCString()
+    const now = new Date()
     const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
     const txObj = utils.rawTxToObj(tx, {
       txTime: now,
@@ -96,7 +101,7 @@ class TxController implements IController {
 
   async storeTxAsPending(tx: TxType) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-    await this.db.storeTx(tx)
+    await this.storageProcessor.storeTx(tx)
   }
 
   async validateTx(txObj: TxType) {
@@ -110,16 +115,17 @@ class TxController implements IController {
     }
   }
 
-  async validateTxWitnesses({ id, inputs, witnesses }:
-    {id: string, inputs: [], witnesses: []}) {
+  async validateTxWitnesses({ id, inputs, witnesses }: TxType) {
     const inpLen = inputs.length
     const witLen = witnesses.length
     this.logger.debug(`Validating witnesses for tx: ${id} (inputs: ${inpLen})`)
     if (inpLen !== witLen) {
       throw new Error(`Number of inputs (${inpLen}) != the number of witnesses (${witLen})`)
     }
+
     const txHashes = _.uniq(inputs.map(({ txId }) => txId))
-    const fullOutputs = await this.db.getOutputsForTxHashes(txHashes)
+    const fullOutputs = await this.storageProcessor.getOutputsForTxHashes(txHashes)
+
     _.zip(inputs, witnesses).forEach(([input, witness]) => {
       const { type: inputType, txId: inputTxId, idx: inputIdx } = input
       const { type: witnessType, sign } = witness
@@ -128,7 +134,7 @@ class TxController implements IController {
           JSON.stringify({ inputType, witnessType })
         }`)
       }
-      let txOutputs = fullOutputs[inputTxId];
+      const txOutputs = fullOutputs[inputTxId]
       if (!txOutputs) {
         throw new Error(`No UTxO is found for tx ${inputTxId}! Maybe the blockchain is still syncing? If not - something is wrong.`)
       }
@@ -150,7 +156,7 @@ class TxController implements IController {
     })
   }
 
-  validateDestinationNetwork({ outputs }) {
+  validateDestinationNetwork({ outputs }: TxType) {
     this.logger.debug(`Validating output network (outputs: ${outputs.length})`)
     outputs.forEach(({ address }, i) => {
       this.logger.debug(`Validating network for ${address}`)
@@ -160,12 +166,12 @@ class TxController implements IController {
       if (networkMagic !== this.expectedNetworkMagic) {
         throw new Error(`Output #${i} network magic is ${networkMagic}, expected ${this.expectedNetworkMagic}`)
       }
-    });
+    })
   }
 
   static deconstructAddress(address: string) {
     const [addressRoot, addrAttr, addressType] = cbor.decode(
-      cbor.decode(bs58.decode(address))[0].value
+      cbor.decode(bs58.decode(address))[0].value,
     )
     return { addressRoot, addrAttr, addressType }
   }
@@ -178,7 +184,7 @@ decorate(Post('/signed'), TxController.prototype, 'signed')
 
 decorate(inject(SERVICE_IDENTIFIER.LOGGER), TxController, 0)
 decorate(inject(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER), TxController, 1)
-decorate(inject(SERVICE_IDENTIFIER.DATABASE), TxController, 2)
+decorate(inject(SERVICE_IDENTIFIER.STORAGE_PROCESSOR), TxController, 2)
 decorate(inject(SERVICE_IDENTIFIER.NETWORK_CONFIG), TxController, 3)
 
 export default TxController

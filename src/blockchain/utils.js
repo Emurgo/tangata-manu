@@ -1,20 +1,23 @@
-// flow
+// @flow
+
 import cbor from 'cbor'
 import borc from 'borc'
 import bs58 from 'bs58'
 import blake from 'blakejs'
 
+import type { TxInputType, TxType } from './tx'
+
 type TxIdHexType = string
 type TxBodyHexType = string
 
-const getUtxoId = (input) => `${input.txId}${input.idx}`
+const getUtxoId = (input: TxInputType) => `${input.txId}${input.idx}`
 
 const structUtxo = (
-  receiver,
-  amount,
-  utxoHash,
-  txIndex = 0,
-  blockNum = 0,
+  receiver: string,
+  amount: number,
+  utxoHash: string,
+  txIndex: number = 0,
+  blockNum: ?number = 0,
 ) => ({
   utxo_id: `${utxoHash}${txIndex}`,
   tx_hash: utxoHash,
@@ -36,7 +39,7 @@ const fixLongAddress = (address: string): string => (address && address.length >
   : address)
 
 
-const getTxsUtxos = (txs) => txs.reduce((res, tx) => {
+const getTxsUtxos = (txs: Array<TxType>) => txs.reduce((res, tx) => {
   const { id, outputs, blockNum } = tx
   outputs.forEach((output, index) => {
     const utxo = structUtxo(
@@ -63,13 +66,14 @@ const decodedTxToBase = (decodedTx) => {
   throw new Error(`Unexpected decoded tx structure! ${JSON.stringify(decodedTx)}`)
 }
 
-type CborEncoder = {
+type CborEncoderType = {
   encode: Function
 }
 
 class CborIndefiniteLengthArray {
   elements: Array<{}>
-  cborEncoder: CborEncoder
+
+  cborEncoder: CborEncoderType
 
   constructor(elements, cborEncoder) {
     this.elements = elements
@@ -87,10 +91,9 @@ class CborIndefiniteLengthArray {
   }
 }
 
-const selectCborEncoder = (outputs): CborEncoder => {
+const selectCborEncoder = (outputs): CborEncoderType => {
   const maxAddressLen = Math.max(...outputs.map(([[taggedAddress]]) => taggedAddress.value.length))
   if (maxAddressLen > 5000) {
-    console.log('>>> Output address len exceeds maximum, using alternative CborEncoder')
     return borc
   }
   return cbor
@@ -102,7 +105,7 @@ const packRawTxIdAndBody = (decodedTxBody): [TxIdHexType, TxBodyHexType] => {
   }
   try {
     const [inputs, outputs, attributes] = decodedTxToBase(decodedTxBody)
-    const cborEncoder: CborEncoder = selectCborEncoder(outputs)
+    const cborEncoder: CborEncoderType = selectCborEncoder(outputs)
     const enc = cborEncoder.encode([
       new CborIndefiniteLengthArray(inputs, cborEncoder),
       new CborIndefiniteLengthArray(outputs, cborEncoder),
@@ -116,7 +119,12 @@ const packRawTxIdAndBody = (decodedTxBody): [TxIdHexType, TxBodyHexType] => {
   }
 }
 
-const rawTxToObj = (tx: Array<any>, extraData: {}): TxType => {
+const rawTxToObj = (tx: Array<any>, extraData: {
+  blockHash: ?string,
+  blockNum: ?number,
+  txOrdinal: ?number,
+  txTime: Date,
+}): TxType => {
   const [[inputs, outputs], witnesses] = tx
   const [txId, txBody] = packRawTxIdAndBody(tx)
   return {
@@ -139,7 +147,7 @@ const rawTxToObj = (tx: Array<any>, extraData: {}): TxType => {
   }
 }
 
-const headerToId = (header, type: number) => {
+const headerToId = (header: string, type: number) => {
   const headerData = cbor.encode([type, header])
   const id = blake.blake2bHex(headerData, null, 32)
   return id

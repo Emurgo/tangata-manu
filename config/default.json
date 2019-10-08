@@ -4,6 +4,8 @@
     "baseUrl": "http://localhost:8082",
     "template": "testnet2"
   },
+  "elasticNode": "http://localhost:9200",
+  "storageProcessor": "seiza-elastic",
   "server": {
     "port": 8080,
     "logLevel": "debug",

@@ -1,4 +1,5 @@
 // @flow
+
 import Block from './block'
 
 export default class Epoch {

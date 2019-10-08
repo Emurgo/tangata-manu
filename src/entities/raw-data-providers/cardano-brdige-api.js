@@ -42,7 +42,7 @@ class CardanoBridgeApi implements RawDataProvider {
     } catch (e) {
       if (e.code === 'ECONNREFUSED') {
         const error = new Error('cardano-http-bridge is not accessible (ECONNREFUSED)')
-        error.code = 'NODE_INACCESSIBLE'
+        error.name = 'NODE_INACCESSIBLE'
         throw error
       }
       throw e
