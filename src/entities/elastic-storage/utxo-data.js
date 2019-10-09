@@ -40,7 +40,7 @@ class UtxoData extends ElasticData {
       tx_hash: this.utxo.tx_hash,
       branch: 0,
       tx_ordinal: 0,
-      io_ordinal: 0,
+      io_ordinal: this.utxo.tx_index,
       address: this.utxo.receiver,
       value: coinFormat(Number(this.utxo.amount)),
     }

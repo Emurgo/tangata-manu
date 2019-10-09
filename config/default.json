@@ -4,7 +4,10 @@
     "baseUrl": "http://localhost:8082",
     "template": "testnet2"
   },
-  "elasticNode": "http://localhost:9200",
+  "elastic": {
+    "node": "http://localhost:9200",
+    "indexPrefix": "seiza"
+  },
   "storageProcessor": "seiza-elastic",
   "server": {
     "port": 8080,
@@ -20,7 +23,7 @@
   },
   "checkTipSeconds": 15,
   "rollbackBlocksCount": 25,
-  "maxBlockBatchSize": 800,
+  "maxBlockBatchSize": 900,
   "defaultNetwork": "testnet2",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {

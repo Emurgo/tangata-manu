@@ -1,5 +1,7 @@
 // @flow
 
+import type { Logger } from 'bunyan'
+
 import cbor from 'cbor'
 import bs58 from 'bs58'
 import blake from 'blakejs'
@@ -13,7 +15,7 @@ import { Controller as IController } from 'inversify-restify-utils/lib/interface
 import { injectable, decorate, inject } from 'inversify'
 
 import {
-  Logger, RawDataProvider, StorageProcessor, NetworkConfig,
+  RawDataProvider, StorageProcessor, NetworkConfig,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'

@@ -1,12 +1,12 @@
 // @flow
 
 import _ from 'lodash'
+import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import type {
   Scheduler,
   RawDataProvider,
-  Logger,
   StorageProcessor,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
@@ -34,7 +34,7 @@ class CronScheduler implements Scheduler {
 
   storageProcessor: StorageProcessor
 
-  #logger: any
+  logger: Logger
 
   checkTipMillis: number
 
@@ -61,13 +61,13 @@ class CronScheduler implements Scheduler {
     this.maxBlockBatchSize = maxBlockBatchSize
     logger.debug('Checking tip every', checkTipSeconds, 'seconds')
     logger.debug('Rollback blocks count', rollbackBlocksCount)
-    this.#logger = logger
+    this.logger = logger
     this.blocksToStore = []
     this.lastBlock = null
   }
 
   async rollback(atBlockHeight: number) {
-    this.#logger.info(`Rollback at height ${atBlockHeight} to ${this.rollbackBlocksCount} blocks back.`)
+    this.logger.info(`Rollback at height ${atBlockHeight} to ${this.rollbackBlocksCount} blocks back.`)
     // reset scheduler state
     this.blocksToStore = []
     this.lastBlock = null
@@ -75,7 +75,7 @@ class CronScheduler implements Scheduler {
     // Recover database state to newest actual block.
     const { height } = await this.storageProcessor.getBestBlockNum()
     const rollBackTo = height - this.rollbackBlocksCount
-    this.#logger.info(`Current DB height at rollback time: ${height}. Rolling back to: ${rollBackTo}`)
+    this.logger.info(`Current DB height at rollback time: ${height}. Rolling back to: ${rollBackTo}`)
     await this.storageProcessor.rollbackTo(rollBackTo)
     const { epoch, hash } = await this.storageProcessor.getBestBlockNum()
     this.lastBlock = { epoch, hash }
@@ -83,7 +83,7 @@ class CronScheduler implements Scheduler {
 
 
   async processEpochId(id: number, height: number) {
-    this.#logger.info(`processEpochId: ${id}, ${height}`)
+    this.logger.info(`processEpochId: ${id}, ${height}`)
     const omitEbb = true
     const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
     for (const block of blocks) {
@@ -104,7 +104,7 @@ class CronScheduler implements Scheduler {
       && block.epoch === this.lastBlock.epoch
       && block.prevHash !== this.lastBlock.hash) {
       const lastBlockHash = this.lastBlock ? this.lastBlock.hash : ''
-      this.#logger.info(`(${block.epoch}/${String(block.slot)}) block.prevHash (${block.prevHash}) !== lastBlock.hash (${lastBlockHash}). Performing rollback...`)
+      this.logger.info(`(${block.epoch}/${String(block.slot)}) block.prevHash (${block.prevHash}) !== lastBlock.hash (${lastBlockHash}). Performing rollback...`)
       return STATUS_ROLLBACK_REQUIRED
     }
     this.lastBlock = {
@@ -118,13 +118,13 @@ class CronScheduler implements Scheduler {
     }
 
     if (flushCache || block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
-      this.#logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${String(block.slot)} ${block.height}`)
+      this.logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${String(block.slot)} ${block.height}`)
     }
     return BLOCK_STATUS_PROCESSED
   }
 
   async checkTip() {
-    this.#logger.info('checkTip: checking for new blocks...')
+    this.logger.info('checkTip: checking for new blocks...')
     // local state
     const { height, epoch, slot } = await this.storageProcessor.getBestBlockNum()
 
@@ -134,10 +134,10 @@ class CronScheduler implements Scheduler {
     const tipStatus = nodeTip.local
     const remoteStatus = nodeTip.remote
     if (!tipStatus) {
-      this.#logger.info('cardano-http-brdige not yet synced')
+      this.logger.info('cardano-http-brdige not yet synced')
       return
     }
-    this.#logger.debug(`Last imported block ${height}. Node status: local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
+    this.logger.debug(`Last imported block ${height}. Node status: local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
     const [remEpoch, remSlot] = remoteStatus.slot
     if (epoch < remEpoch) {
       // If local epoch is lower than the current network tip
@@ -153,11 +153,11 @@ class CronScheduler implements Scheduler {
           for (const epochId of _.range(epoch, packedEpochs)) {
             // Process epoch
             await this.processEpochId(epochId, height)
-            this.#logger.debug(`Epoch parsed: ${epochId}, ${height}`)
+            this.logger.debug(`Epoch parsed: ${epochId}, ${height}`)
           }
         } else {
           // Packed epoch is not available yet
-          this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+          this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
         }
         return
       }
@@ -167,7 +167,7 @@ class CronScheduler implements Scheduler {
       blockHeight++, i++) {
       const status = await this.processBlockHeight(blockHeight)
       if (status === STATUS_ROLLBACK_REQUIRED) {
-        this.#logger.info('Rollback required.')
+        this.logger.info('Rollback required.')
         await this.rollback(blockHeight)
         return
       }
@@ -175,7 +175,7 @@ class CronScheduler implements Scheduler {
   }
 
   async startAsync() {
-    this.#logger.info('Scheduler async: starting chain syncing loop')
+    this.logger.info('Scheduler async: starting chain syncing loop')
     const currentMillis = () => new Date().getTime()
     const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
     for (;;) {
@@ -187,17 +187,17 @@ class CronScheduler implements Scheduler {
         const meta = ERROR_META[e.name]
         if (meta) {
           errorSleep = meta.sleep
-          this.#logger.warn(`Scheduler async: failed to check tip :: ${meta.msg}. Sleeping and retrying (err_sleep=${errorSleep})`)
+          this.logger.warn(`Scheduler async: failed to check tip :: ${meta.msg}. Sleeping and retrying (err_sleep=${errorSleep})`)
         } else {
           throw e
         }
       }
       const millisEnd = currentMillis()
       const millisPassed = millisEnd - millisStart
-      this.#logger.debug(`Scheduler async: loop finished (millisPassed=${millisPassed})`)
+      this.logger.debug(`Scheduler async: loop finished (millisPassed=${millisPassed})`)
       const millisSleep = errorSleep || (this.checkTipMillis - millisPassed)
       if (millisSleep > 0) {
-        this.#logger.debug('Scheduler async: sleeping for', millisSleep)
+        this.logger.debug('Scheduler async: sleeping for', millisSleep)
         await sleep(millisSleep)
       }
     }

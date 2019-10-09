@@ -1,6 +1,6 @@
 // @flow
 
 export interface RawDataParser {
-  parseBlock(data: string): any;
-  parseEpoch(data: string): any;
+  parseBlock(data: Buffer): any;
+  parseEpoch(data: Buffer): any;
 }

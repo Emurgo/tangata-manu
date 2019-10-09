@@ -3,17 +3,21 @@
 import type { TxType } from '../../blockchain'
 
 import ElasticData from './elastic-data'
-import type UtxoData from './utxo-data'
+import UtxoData from './utxo-data'
+import InputData from './input-data'
 
 class TxData extends ElasticData {
   tx: TxType
 
-  constructor(tx: TxType) {
+  inputsUtxos: {}
+
+  constructor(tx: TxType, inputsUtxos: {} = {}) {
     super()
     this.tx = tx
+    this.inputsUtxos = inputsUtxos
   }
 
-  static fromGenesisUtxo(utxo: UtxoData, networkStartTime: number) {
+  static fromGenesisUtxo(utxo: any, networkStartTime: number) {
     return new TxData({
       isGnesis: true,
       blockHash: null,
@@ -24,11 +28,27 @@ class TxData extends ElasticData {
       txOrdinal: 0,
       txTime: new Date(networkStartTime * 1000),
       witnesses: [],
-      id: utxo.getHash(),
+      id: utxo.tx_hash,
       branch: 0,
       outputs: [
-        utxo.toPlainObject(),
+        utxo,
       ],
+    })
+  }
+
+  getOutputsData() {
+    return this.tx.outputs.map((utxo, idx) => (new UtxoData({
+      address: utxo.address,
+      amount: utxo.value,
+      tx_index: idx,
+      tx_hash: this.tx.id,
+    })).toPlainObject())
+  }
+
+  getInputsData() {
+    return this.tx.inputs.map((inp, idx) => {
+      const inputUtxo = this.inputsUtxos[`${inp.txId}${inp.idx}`]
+      return (new InputData(inp, idx, inputUtxo, this.tx)).toPlainObject()
     })
   }
 
@@ -37,7 +57,8 @@ class TxData extends ElasticData {
       ...TxData.getBaseFields(),
       is_genesis: this.tx.isGenesis || false,
       hash: this.tx.id,
-      outputs: this.tx.outputs,
+      outputs: this.getOutputsData(),
+      inputs: this.getInputsData(),
       time: this.tx.txTime.toISOString(),
     }
   }

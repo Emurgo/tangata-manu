@@ -40,7 +40,7 @@ class GenesisProvider implements Genesis {
     this.#logger = logger
   }
 
-  nonAvvmBalancesToUtxos(nonAvvmBalances) {
+  nonAvvmBalancesToUtxos(nonAvvmBalances: []) {
     this.#logger.debug('nonAvvmBalances to utxos')
     return _.map(nonAvvmBalances, (amount, receiver) => {
       const utxoHash = generateUtxoHash(receiver)
@@ -48,7 +48,7 @@ class GenesisProvider implements Genesis {
     })
   }
 
-  avvmDistrToUtxos(avvmDistr, protocolMagic) {
+  avvmDistrToUtxos(avvmDistr: [], protocolMagic: number) {
     this.#logger.debug('avvmDistrToUtxos called.')
     const settings = Cardano.BlockchainSettings.from_json({
       protocol_magic: protocolMagic,
