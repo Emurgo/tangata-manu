@@ -89,6 +89,7 @@ export default class Block {
   }
 
   static parseBlock(blob: Buffer, handleRegularBlock: number): Block {
+    console.log('BYRON Block::parseBlock()')
     const [type, [header, body]] = cbor.decode(blob)
     const hash = utils.headerToId(header, type)
     const common = {

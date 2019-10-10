@@ -19,6 +19,8 @@ class JormungandrApi implements RawDataProvider {
 
   #parser: any
 
+  #idToHeight: any
+
   constructor(
     networkConfig: NetworkConfig,
     parser: RawDataParser,
@@ -94,18 +96,39 @@ class JormungandrApi implements RawDataProvider {
     throw new Error("JormungandrApi::getEpoch() not implemented")
   }
 
+  // TODO: remove when height endpoint exists
+  async parseBlock(raw: any) {
+    return this.#parser.parseBlock(raw)
+  }
+
   async getBlock(id: string): Promise<string> {
     const resp = await this.get(`block/${id}`)
     const { data } = resp
     return data
   }
 
-  // ???
+  // TODO: remove once we support querying by height
+  async getNextBlockId(id: string): Promise<string> {
+    console.log('getNextBlockId(' + id + ')')
+    const resp = await this.get(`block/${id}/next_id`)
+    const { data } = resp
+    console.log(' = ' + data)
+    return data
+  }
+
   async getGenesis(hash: string): Promise<string> {
     // const resp = await this.getJson(`/genesis/${hash}`)
     // const { data } = resp
     // return data
-    throw new Error("JormungandrApi::getGenesis() not implemented")
+    // not supported right now in jormungandr, so we're hardcoding this for now
+    // as something empty to not cause any issues.
+    return {
+      protocolConsts: {
+        protocolMagic: null
+      },
+      nonAvvmBalances: [],
+      avvmDistr: [],
+    }
   }
 
   // Does not contain the same information. Partly requested here: https://github.com/input-output-hk/jormungandr/issues/769
@@ -115,8 +138,8 @@ class JormungandrApi implements RawDataProvider {
     const { data } = resp
     const x = {
       height: data.lastBlockHeight,
-      slot: data.lastBlockHeight % 21600,
-      hash: Math.floor(data.lastBlockHeight / 21600),
+      slot: [Math.floor(data.lastBlockHeight / 21600), data.lastBlockHeight % 21600],
+      hash: "<fake hash>", // we aren't actually reading this afaik
     }
     return {
       tip: {
@@ -132,17 +155,17 @@ class JormungandrApi implements RawDataProvider {
     // const resp = await this.get(`/height/${height}`)
     // const { data } = resp
     // return this.#parser.parseBlock(data)
-    throw new Error("JormungandrApi::getBlockByHeight() not implemented")
+    throw new Error('JormungandrApi::getBlockByHeight() not implemented')
   }
 
-  // See comment on getEpoch()
-  async getParsedEpochById(id: number, omitEbb: boolean = false) {
-    // const resp = await this.get(`/epoch/${id}`)
-    // const { data } = resp
-    // const blocksIterator = this.#parser.parseEpoch(data, { omitEbb })
-    // return blocksIterator
-    throw new Error("JormungandrApi::getParsedEpochById() not implemented")
-  }
+  // // See comment on getEpoch()
+  // async getParsedEpochById(id: number, omitEbb: boolean = false) {
+  //   // const resp = await this.get(`/epoch/${id}`)
+  //   // const { data } = resp
+  //   // const blocksIterator = this.#parser.parseEpoch(data, { omitEbb })
+  //   // return blocksIterator
+  //   throw new Error("JormungandrApi::getParsedEpochById() not implemented")
+  // }
 }
 
 helpers.annotate(JormungandrApi, [

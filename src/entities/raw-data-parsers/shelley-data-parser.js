@@ -6,6 +6,7 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import { Block, Epoch } from '../../blockchain-shelley'
 import type { NetworkConfig } from '../../interfaces'
 
+
 class ShelleyDataParser implements RawDataParser {
   #logger: any
 
@@ -19,13 +20,12 @@ class ShelleyDataParser implements RawDataParser {
     this.networkStartTime = networkConfig.startTime()
   }
 
-  parseBlock(blob: Buffer): Block {
-    return Block.fromCBOR(blob, this.networkStartTime)
+  parseBlock(blob: Buffer) {
+    return Block.parseBlock(blob, this.networkStartTime)
   }
 
   parseEpoch(data: Buffer, options:{} = {}) {
-    const epoch = Epoch.fromCBOR(data, this.networkStartTime)
-    return epoch.getBlocksIterator(options)
+    throw new Error('ShelleyDataParser::parseEpoch() is not implemented')
   }
 }
 

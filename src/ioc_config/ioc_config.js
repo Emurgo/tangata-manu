@@ -43,8 +43,8 @@ const initIoC = async () => {
 
   let apiClass = JormungandrApi
   //let apiClass = CardanoBridgeApi
-  //let dataParserClass = ShelleyDataParser
-  let dataParserClass = CustomDataParser
+  let dataParserClass = ShelleyDataParser
+  //let dataParserClass = CustomDataParser
   if (process.env.YOROI_IMPORTER_TEST) {
     logger.info('$YOROI_IMPORTER_TEST env var is set. Mocking API and data parser.')
     apiClass = MockBridgeApi

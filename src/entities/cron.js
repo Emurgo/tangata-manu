@@ -13,7 +13,7 @@ import {
   Logger,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-import Block from '../blockchain'
+import Block from '../blockchain-shelley'
 
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
 const MAX_BLOCKS_PER_LOOP = 9000
@@ -161,6 +161,7 @@ class CronScheduler implements Scheduler {
     const { packedEpochs, tip: nodeTip } = nodeStatus
     const tipStatus = nodeTip.local
     const remoteStatus = nodeTip.remote
+    this.#logger.debug("remoteStatus: " + JSON.stringify(remoteStatus))
     if (!tipStatus) {
       this.#logger.info('cardano-http-brdige not yet synced')
       return
@@ -177,23 +178,35 @@ class CronScheduler implements Scheduler {
         && slot < EPOCH_DOWNLOAD_THRESHOLD
       // Check if there's any point to bother with whole epochs
       if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
-        if (packedEpochs > epoch) {
-          for (let epochId = epoch;
-               (epochId < packedEpochs); epochId++) {
-            const epochStartHeight = (epochId === epoch ? height : 0)
-            // Process epoch
-            await this.processEpochId(epochId, height)
+        // TODO: remove this once jormungandr supports epoch downloading
+        if ("getParsedEpochById" in this.#dataProvider) {
+          if (packedEpochs > epoch) {
+            for (let epochId = epoch;
+                (epochId < packedEpochs); epochId++) {
+              const epochStartHeight = (epochId === epoch ? height : 0)
+              // Process epoch
+              await this.processEpochId(epochId, height)
+            }
+          } else {
+            // Packed epoch is not available yet
+            this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
           }
-        } else {
-          // Packed epoch is not available yet
-          this.#logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+          return
         }
-        return
       }
     }
     for (let blockHeight = height + 1, i = 0; (blockHeight <= tipStatus.height) && (i < MAX_BLOCKS_PER_LOOP);
          blockHeight++, i++) {
-      const status = await this.processBlockHeight(blockHeight)
+      this.#logger.info('requesting block at height ' + blockHeight)
+      // TODO: remove this once jormungandr supports blocks by height, just querying consecutive blocks here temporarily instead
+      const lastBlockHash = ((this.lastBlock == null) ? "adbdd5ede31637f6c9bad5c271eec0bc3d0cb9efb86a5b913bb55cba549d0770" : this.lastBlock.hash)
+      const nextBlockId = (await this.#dataProvider.getNextBlockId(lastBlockHash)).toString('hex')
+      this.#logger.debug('nextBlockId: ' + nextBlockId)
+      const nextBlockRaw = await this.#dataProvider.getBlock(nextBlockId)
+      this.#logger.debug('nextBlockRaw aquired.')
+      const nextBlock = await this.#dataProvider.parseBlock(nextBlockRaw)
+      this.#logger.debug('block parsed')
+      const status = await this.processBlock(nextBlock)//await this.processBlockHeight(blockHeight)
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.#logger.info('Rollback required.')
         await this.rollback(blockHeight)
@@ -203,7 +216,7 @@ class CronScheduler implements Scheduler {
   }
 
   async startAsync() {
-    this.#logger.info('Scheduler async: starting chain syncing loop')
+    this.#logger.debug('Scheduler async: starting chain syncing loop')
     const currentMillis = () => new Date().getTime()
     const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
     while (true) {
