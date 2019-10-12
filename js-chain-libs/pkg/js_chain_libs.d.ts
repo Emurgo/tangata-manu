@@ -38,6 +38,19 @@ export class Account {
 * @returns {Account} 
 */
   static from_public_key(key: PublicKey): Account;
+/**
+* @returns {AccountIdentifier} 
+*/
+  to_identifier(): AccountIdentifier;
+}
+/**
+*/
+export class AccountIdentifier {
+  free(): void;
+/**
+* @returns {string} 
+*/
+  to_hex(): string;
 }
 /**
 * An address of any type, this can be one of
@@ -161,22 +174,10 @@ export class Block {
 */
   parent_id(): BlockId;
 /**
-*This involves copying all the messages
+*This involves copying all the fragments
 * @returns {Fragments} 
 */
   fragments(): Fragments;
-/**
-* @returns {number} 
-*/
-  epoch(): number;
-/**
-* @returns {number} 
-*/
-  slot(): number;
-/**
-* @returns {number} 
-*/
-  chain_length(): number;
 }
 /**
 */

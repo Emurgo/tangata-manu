@@ -1,57 +1,22 @@
-import * as wasm from './js_chain_libs_bg.wasm';
+let wasm;
+const { TextDecoder } = require(String.raw`util`);
 
 let WASM_VECTOR_LEN = 0;
 
-let cachedTextEncoder = new TextEncoder('utf-8');
-
-const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
-    ? function (arg, view) {
-    return cachedTextEncoder.encodeInto(arg, view);
-}
-    : function (arg, view) {
-    const buf = cachedTextEncoder.encode(arg);
-    view.set(buf);
-    return {
-        read: arg.length,
-        written: buf.length
-    };
-});
-
-let cachegetUint8Memory = null;
-function getUint8Memory() {
-    if (cachegetUint8Memory === null || cachegetUint8Memory.buffer !== wasm.memory.buffer) {
-        cachegetUint8Memory = new Uint8Array(wasm.memory.buffer);
+let cachegetNodeBufferMemory = null;
+function getNodeBufferMemory() {
+    if (cachegetNodeBufferMemory === null || cachegetNodeBufferMemory.buffer !== wasm.memory.buffer) {
+        cachegetNodeBufferMemory = Buffer.from(wasm.memory.buffer);
     }
-    return cachegetUint8Memory;
+    return cachegetNodeBufferMemory;
 }
 
 function passStringToWasm(arg) {
 
-    let len = arg.length;
-    let ptr = wasm.__wbindgen_malloc(len);
-
-    const mem = getUint8Memory();
-
-    let offset = 0;
-
-    for (; offset < len; offset++) {
-        const code = arg.charCodeAt(offset);
-        if (code > 0x7F) break;
-        mem[ptr + offset] = code;
-    }
-
-    if (offset !== len) {
-        if (offset !== 0) {
-            arg = arg.slice(offset);
-        }
-        ptr = wasm.__wbindgen_realloc(ptr, len, len = offset + arg.length * 3);
-        const view = getUint8Memory().subarray(ptr + offset, ptr + len);
-        const ret = encodeString(arg, view);
-
-        offset += ret.written;
-    }
-
-    WASM_VECTOR_LEN = offset;
+    const len = Buffer.byteLength(arg);
+    const ptr = wasm.__wbindgen_malloc(len);
+    getNodeBufferMemory().write(arg, ptr, len);
+    WASM_VECTOR_LEN = len;
     return ptr;
 }
 
@@ -64,6 +29,14 @@ function getInt32Memory() {
 }
 
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
+
+let cachegetUint8Memory = null;
+function getUint8Memory() {
+    if (cachegetUint8Memory === null || cachegetUint8Memory.buffer !== wasm.memory.buffer) {
+        cachegetUint8Memory = new Uint8Array(wasm.memory.buffer);
+    }
+    return cachegetUint8Memory;
+}
 
 function getStringFromWasm(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
@@ -121,14 +94,14 @@ function takeObject(idx) {
 * @param {any} input
 * @returns {string}
 */
-export function uint8array_to_hex(input) {
+module.exports.uint8array_to_hex = function(input) {
     const retptr = 8;
     const ret = wasm.uint8array_to_hex(retptr, addHeapObject(input));
     const memi32 = getInt32Memory();
     const v0 = getStringFromWasm(memi32[retptr / 4 + 0], memi32[retptr / 4 + 1]).slice();
     wasm.__wbindgen_free(memi32[retptr / 4 + 0], memi32[retptr / 4 + 1] * 1);
     return v0;
-}
+};
 
 /**
 * Allow to differentiate between address in
@@ -140,11 +113,11 @@ export function uint8array_to_hex(input) {
 * let address = Address::single_from_public_key(public_key, discriminant);
 * ```
 */
-export const AddressDiscrimination = Object.freeze({ Production:0,Test:1, });
+module.exports.AddressDiscrimination = Object.freeze({ Production:0,Test:1, });
 /**
 * This is either an single account or a multisig account depending on the witness type
 */
-export class Account {
+class Account {
 
     static __wrap(ptr) {
         const obj = Object.create(Account.prototype);
@@ -187,14 +160,52 @@ export class Account {
         const ret = wasm.account_from_public_key(ptr0);
         return Account.__wrap(ret);
     }
+    /**
+    * @returns {AccountIdentifier}
+    */
+    to_identifier() {
+        const ret = wasm.account_to_identifier(this.ptr);
+        return AccountIdentifier.__wrap(ret);
+    }
 }
+module.exports.Account = Account;
+/**
+*/
+class AccountIdentifier {
+
+    static __wrap(ptr) {
+        const obj = Object.create(AccountIdentifier.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
+
+    free() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+
+        wasm.__wbg_accountidentifier_free(ptr);
+    }
+    /**
+    * @returns {string}
+    */
+    to_hex() {
+        const retptr = 8;
+        const ret = wasm.accountidentifier_to_hex(retptr, this.ptr);
+        const memi32 = getInt32Memory();
+        const v0 = getStringFromWasm(memi32[retptr / 4 + 0], memi32[retptr / 4 + 1]).slice();
+        wasm.__wbindgen_free(memi32[retptr / 4 + 0], memi32[retptr / 4 + 1] * 1);
+        return v0;
+    }
+}
+module.exports.AccountIdentifier = AccountIdentifier;
 /**
 * An address of any type, this can be one of
 * * A utxo-based address without delegation (single)
 * * A utxo-based address with delegation (group)
 * * An address for an account
 */
-export class Address {
+class Address {
 
     static __wrap(ptr) {
         const obj = Object.create(Address.prototype);
@@ -294,10 +305,11 @@ export class Address {
         return Address.__wrap(ret);
     }
 }
+module.exports.Address = Address;
 /**
 * Type for representing a Transaction with Witnesses (signatures)
 */
-export class AuthenticatedTransaction {
+class AuthenticatedTransaction {
 
     static __wrap(ptr) {
         const obj = Object.create(AuthenticatedTransaction.prototype);
@@ -321,10 +333,11 @@ export class AuthenticatedTransaction {
         return Transaction.__wrap(ret);
     }
 }
+module.exports.AuthenticatedTransaction = AuthenticatedTransaction;
 /**
 * Amount of the balance in the transaction.
 */
-export class Balance {
+class Balance {
 
     static __wrap(ptr) {
         const obj = Object.create(Balance.prototype);
@@ -376,12 +389,13 @@ export class Balance {
         return Value.__wrap(ret);
     }
 }
+module.exports.Balance = Balance;
 /**
 * `Block` is an element of the blockchain it contains multiple
 * transaction and a reference to the parent block. Alongside
 * with the position of that block in the chain.
 */
-export class Block {
+class Block {
 
     static __wrap(ptr) {
         const obj = Object.create(Block.prototype);
@@ -420,38 +434,18 @@ export class Block {
         return BlockId.__wrap(ret);
     }
     /**
-    *This involves copying all the messages
+    *This involves copying all the fragments
     * @returns {Fragments}
     */
     fragments() {
         const ret = wasm.block_fragments(this.ptr);
         return Fragments.__wrap(ret);
     }
-    /**
-    * @returns {number}
-    */
-    epoch() {
-        const ret = wasm.block_epoch(this.ptr);
-        return ret >>> 0;
-    }
-    /**
-    * @returns {number}
-    */
-    slot() {
-        const ret = wasm.block_slot(this.ptr);
-        return ret >>> 0;
-    }
-    /**
-    * @returns {number}
-    */
-    chain_length() {
-        const ret = wasm.block_chain_length(this.ptr);
-        return ret >>> 0;
-    }
 }
+module.exports.Block = Block;
 /**
 */
-export class BlockId {
+class BlockId {
 
     static __wrap(ptr) {
         const obj = Object.create(BlockId.prototype);
@@ -478,9 +472,10 @@ export class BlockId {
         return v0;
     }
 }
+module.exports.BlockId = BlockId;
 /**
 */
-export class Certificate {
+class Certificate {
 
     static __wrap(ptr) {
         const obj = Object.create(Certificate.prototype);
@@ -529,11 +524,12 @@ export class Certificate {
         wasm.certificate_sign(this.ptr, ptr0);
     }
 }
+module.exports.Certificate = Certificate;
 /**
 * Algorithm used to compute transaction fees
 * Currently the only implementation if the Linear one
 */
-export class Fee {
+class Fee {
 
     static __wrap(ptr) {
         const obj = Object.create(Fee.prototype);
@@ -581,10 +577,11 @@ export class Fee {
         return ret === 0 ? undefined : Value.__wrap(ret);
     }
 }
+module.exports.Fee = Fee;
 /**
 * All possible messages recordable in the Block content
 */
-export class Fragment {
+class Fragment {
 
     static __wrap(ptr) {
         const obj = Object.create(Fragment.prototype);
@@ -714,9 +711,10 @@ export class Fragment {
         return FragmentId.__wrap(ret);
     }
 }
+module.exports.Fragment = Fragment;
 /**
 */
-export class FragmentId {
+class FragmentId {
 
     static __wrap(ptr) {
         const obj = Object.create(FragmentId.prototype);
@@ -751,9 +749,10 @@ export class FragmentId {
         return v0;
     }
 }
+module.exports.FragmentId = FragmentId;
 /**
 */
-export class Fragments {
+class Fragments {
 
     static __wrap(ptr) {
         const obj = Object.create(Fragments.prototype);
@@ -784,10 +783,11 @@ export class Fragments {
         return Fragment.__wrap(ret);
     }
 }
+module.exports.Fragments = Fragments;
 /**
 * Type for representing a generic Hash
 */
-export class Hash {
+class Hash {
 
     static __wrap(ptr) {
         const obj = Object.create(Hash.prototype);
@@ -830,9 +830,10 @@ export class Hash {
         return v0;
     }
 }
+module.exports.Hash = Hash;
 /**
 */
-export class Input {
+class Input {
 
     static __wrap(ptr) {
         const obj = Object.create(Input.prototype);
@@ -919,9 +920,10 @@ export class Input {
         return Account.__wrap(ret);
     }
 }
+module.exports.Input = Input;
 /**
 */
-export class Inputs {
+class Inputs {
 
     static __wrap(ptr) {
         const obj = Object.create(Inputs.prototype);
@@ -952,9 +954,10 @@ export class Inputs {
         return Input.__wrap(ret);
     }
 }
+module.exports.Inputs = Inputs;
 /**
 */
-export class KesPublicKey {
+class KesPublicKey {
 
     static __wrap(ptr) {
         const obj = Object.create(KesPublicKey.prototype);
@@ -978,10 +981,11 @@ export class KesPublicKey {
         return KesPublicKey.__wrap(ret);
     }
 }
+module.exports.KesPublicKey = KesPublicKey;
 /**
 * Type for representing a Transaction Output, composed of an Address and a Value
 */
-export class Output {
+class Output {
 
     static __wrap(ptr) {
         const obj = Object.create(Output.prototype);
@@ -1011,12 +1015,13 @@ export class Output {
         return Value.__wrap(ret);
     }
 }
+module.exports.Output = Output;
 /**
 * Helper to add change addresses when finalizing a transaction, there are currently two options
 * * forget: use all the excess money as fee
 * * one: send all the excess money to the given address
 */
-export class OutputPolicy {
+class OutputPolicy {
 
     static __wrap(ptr) {
         const obj = Object.create(OutputPolicy.prototype);
@@ -1052,9 +1057,10 @@ export class OutputPolicy {
         return OutputPolicy.__wrap(ret);
     }
 }
+module.exports.OutputPolicy = OutputPolicy;
 /**
 */
-export class Outputs {
+class Outputs {
 
     static __wrap(ptr) {
         const obj = Object.create(Outputs.prototype);
@@ -1085,9 +1091,10 @@ export class Outputs {
         return Output.__wrap(ret);
     }
 }
+module.exports.Outputs = Outputs;
 /**
 */
-export class PoolId {
+class PoolId {
 
     static __wrap(ptr) {
         const obj = Object.create(PoolId.prototype);
@@ -1122,9 +1129,10 @@ export class PoolId {
         return v0;
     }
 }
+module.exports.PoolId = PoolId;
 /**
 */
-export class PoolRegistration {
+class PoolRegistration {
 
     static __wrap(ptr) {
         const obj = Object.create(PoolRegistration.prototype);
@@ -1175,10 +1183,11 @@ export class PoolRegistration {
         return PoolId.__wrap(ret);
     }
 }
+module.exports.PoolRegistration = PoolRegistration;
 /**
 * ED25519 signing key, either normal or extended
 */
-export class PrivateKey {
+class PrivateKey {
 
     static __wrap(ptr) {
         const obj = Object.create(PrivateKey.prototype);
@@ -1242,10 +1251,11 @@ export class PrivateKey {
         return v0;
     }
 }
+module.exports.PrivateKey = PrivateKey;
 /**
 * ED25519 key used as public key
 */
-export class PublicKey {
+class PublicKey {
 
     static __wrap(ptr) {
         const obj = Object.create(PublicKey.prototype);
@@ -1285,9 +1295,10 @@ export class PublicKey {
         return v0;
     }
 }
+module.exports.PublicKey = PublicKey;
 /**
 */
-export class PublicKeys {
+class PublicKeys {
 
     static __wrap(ptr) {
         const obj = Object.create(PublicKeys.prototype);
@@ -1334,9 +1345,10 @@ export class PublicKeys {
         wasm.publickeys_add(this.ptr, ptr0);
     }
 }
+module.exports.PublicKeys = PublicKeys;
 /**
 */
-export class SpendingCounter {
+class SpendingCounter {
 
     static __wrap(ptr) {
         const obj = Object.create(SpendingCounter.prototype);
@@ -1367,9 +1379,10 @@ export class SpendingCounter {
         return SpendingCounter.__wrap(ret);
     }
 }
+module.exports.SpendingCounter = SpendingCounter;
 /**
 */
-export class StakeDelegation {
+class StakeDelegation {
 
     static __wrap(ptr) {
         const obj = Object.create(StakeDelegation.prototype);
@@ -1401,9 +1414,10 @@ export class StakeDelegation {
         return StakeDelegation.__wrap(ret);
     }
 }
+module.exports.StakeDelegation = StakeDelegation;
 /**
 */
-export class TimeOffsetSeconds {
+class TimeOffsetSeconds {
 
     static __wrap(ptr) {
         const obj = Object.create(TimeOffsetSeconds.prototype);
@@ -1428,10 +1442,11 @@ export class TimeOffsetSeconds {
         return TimeOffsetSeconds.__wrap(ret);
     }
 }
+module.exports.TimeOffsetSeconds = TimeOffsetSeconds;
 /**
 * Type representing a unsigned transaction
 */
-export class Transaction {
+class Transaction {
 
     static __wrap(ptr) {
         const obj = Object.create(Transaction.prototype);
@@ -1471,6 +1486,7 @@ export class Transaction {
         return Outputs.__wrap(ret);
     }
 }
+module.exports.Transaction = Transaction;
 /**
 * Builder pattern implementation for making a Transaction
 *
@@ -1506,7 +1522,7 @@ export class Transaction {
 * );
 * ```
 */
-export class TransactionBuilder {
+class TransactionBuilder {
 
     static __wrap(ptr) {
         const obj = Object.create(TransactionBuilder.prototype);
@@ -1657,6 +1673,7 @@ export class TransactionBuilder {
         return Transaction.__wrap(ret);
     }
 }
+module.exports.TransactionBuilder = TransactionBuilder;
 /**
 * Builder pattern implementation for signing a Transaction (adding witnesses)
 * Example (for an account as input)
@@ -1677,7 +1694,7 @@ export class TransactionBuilder {
 * const signedTx = finalizer.build();
 * ```
 */
-export class TransactionFinalizer {
+class TransactionFinalizer {
 
     static __wrap(ptr) {
         const obj = Object.create(TransactionFinalizer.prototype);
@@ -1749,10 +1766,11 @@ export class TransactionFinalizer {
         return AuthenticatedTransaction.__wrap(ret);
     }
 }
+module.exports.TransactionFinalizer = TransactionFinalizer;
 /**
 * Type for representing the hash of a Transaction, necessary for signing it
 */
-export class TransactionSignDataHash {
+class TransactionSignDataHash {
 
     static __wrap(ptr) {
         const obj = Object.create(TransactionSignDataHash.prototype);
@@ -1795,9 +1813,10 @@ export class TransactionSignDataHash {
         return v0;
     }
 }
+module.exports.TransactionSignDataHash = TransactionSignDataHash;
 /**
 */
-export class U128 {
+class U128 {
 
     static __wrap(ptr) {
         const obj = Object.create(U128.prototype);
@@ -1848,6 +1867,7 @@ export class U128 {
         return v0;
     }
 }
+module.exports.U128 = U128;
 /**
 * Unspent transaction pointer. This is composed of:
 * * the transaction identifier where the unspent output is (a FragmentId)
@@ -1855,7 +1875,7 @@ export class U128 {
 * * the value we expect to read from this output, this setting is added in order to protect undesired withdrawal
 * and to set the actual fee in the transaction.
 */
-export class UtxoPointer {
+class UtxoPointer {
 
     static __wrap(ptr) {
         const obj = Object.create(UtxoPointer.prototype);
@@ -1887,6 +1907,7 @@ export class UtxoPointer {
         return UtxoPointer.__wrap(ret);
     }
 }
+module.exports.UtxoPointer = UtxoPointer;
 /**
 * Type used for representing certain amount of lovelaces.
 * It wraps an unsigned 64 bits number.
@@ -1894,7 +1915,7 @@ export class UtxoPointer {
 * as the native javascript Number type can\'t hold the entire u64 range
 * and BigInt is not yet implemented in all the browsers
 */
-export class Value {
+class Value {
 
     static __wrap(ptr) {
         const obj = Object.create(Value.prototype);
@@ -1949,9 +1970,10 @@ export class Value {
         return Value.__wrap(ret);
     }
 }
+module.exports.Value = Value;
 /**
 */
-export class VrfPublicKey {
+class VrfPublicKey {
 
     static __wrap(ptr) {
         const obj = Object.create(VrfPublicKey.prototype);
@@ -1975,6 +1997,7 @@ export class VrfPublicKey {
         return VrfPublicKey.__wrap(ret);
     }
 }
+module.exports.VrfPublicKey = VrfPublicKey;
 /**
 * Structure that proofs that certain user agrees with
 * some data. This structure is used to sign `Transaction`
@@ -1983,7 +2006,7 @@ export class VrfPublicKey {
 * It\'s important that witness works with opaque structures
 * and may not know the contents of the internal transaction.
 */
-export class Witness {
+class Witness {
 
     static __wrap(ptr) {
         const obj = Object.create(Witness.prototype);
@@ -2056,17 +2079,18 @@ export class Witness {
         return v0;
     }
 }
+module.exports.Witness = Witness;
 
-export const __wbindgen_string_new = function(arg0, arg1) {
+module.exports.__wbindgen_string_new = function(arg0, arg1) {
     const ret = getStringFromWasm(arg0, arg1);
     return addHeapObject(ret);
 };
 
-export const __wbindgen_object_drop_ref = function(arg0) {
+module.exports.__wbindgen_object_drop_ref = function(arg0) {
     takeObject(arg0);
 };
 
-export const __wbindgen_json_serialize = function(arg0, arg1) {
+module.exports.__wbindgen_json_serialize = function(arg0, arg1) {
     const obj = getObject(arg1);
     const ret = JSON.stringify(obj === undefined ? null : obj);
     const ret0 = passStringToWasm(ret);
@@ -2075,83 +2099,84 @@ export const __wbindgen_json_serialize = function(arg0, arg1) {
     getInt32Memory()[arg0 / 4 + 1] = ret1;
 };
 
-export const __wbindgen_is_undefined = function(arg0) {
+module.exports.__wbindgen_is_undefined = function(arg0) {
     const ret = getObject(arg0) === undefined;
     return ret;
 };
 
-export const __wbg_buffer_cdcb54e9871fd20a = function(arg0) {
+module.exports.__wbg_buffer_cdcb54e9871fd20a = function(arg0) {
     const ret = getObject(arg0).buffer;
     return addHeapObject(ret);
 };
 
-export const __wbg_length_deb426bb35063224 = function(arg0) {
+module.exports.__wbg_length_deb426bb35063224 = function(arg0) {
     const ret = getObject(arg0).length;
     return ret;
 };
 
-export const __wbg_new_8f74bcd603e235c0 = function(arg0) {
+module.exports.__wbg_new_8f74bcd603e235c0 = function(arg0) {
     const ret = new Uint8Array(getObject(arg0));
     return addHeapObject(ret);
 };
 
-export const __wbg_set_662b22f1b4008ab7 = function(arg0, arg1, arg2) {
+module.exports.__wbg_set_662b22f1b4008ab7 = function(arg0, arg1, arg2) {
     getObject(arg0).set(getObject(arg1), arg2 >>> 0);
 };
 
-export const __wbg_new_3a746f2619705add = function(arg0, arg1) {
+module.exports.__wbg_new_3a746f2619705add = function(arg0, arg1) {
     const ret = new Function(getStringFromWasm(arg0, arg1));
     return addHeapObject(ret);
 };
 
-export const __wbg_call_f54d3a6dadb199ca = function(arg0, arg1) {
+module.exports.__wbg_call_f54d3a6dadb199ca = function(arg0, arg1) {
     const ret = getObject(arg0).call(getObject(arg1));
     return addHeapObject(ret);
 };
 
-export const __wbindgen_jsval_eq = function(arg0, arg1) {
+module.exports.__wbindgen_jsval_eq = function(arg0, arg1) {
     const ret = getObject(arg0) === getObject(arg1);
     return ret;
 };
 
-export const __wbg_self_ac379e780a0d8b94 = function(arg0) {
+module.exports.__wbg_self_ac379e780a0d8b94 = function(arg0) {
     const ret = getObject(arg0).self;
     return addHeapObject(ret);
 };
 
-export const __wbg_require_6461b1e9a0d7c34a = function(arg0, arg1) {
-    const ret = require(getStringFromWasm(arg0, arg1));
-    return addHeapObject(ret);
-};
-
-export const __wbg_crypto_1e4302b85d4f64a2 = function(arg0) {
+module.exports.__wbg_crypto_1e4302b85d4f64a2 = function(arg0) {
     const ret = getObject(arg0).crypto;
     return addHeapObject(ret);
 };
 
-export const __wbg_getRandomValues_1b4ba144162a5c9e = function(arg0) {
+module.exports.__wbg_getRandomValues_1b4ba144162a5c9e = function(arg0) {
     const ret = getObject(arg0).getRandomValues;
     return addHeapObject(ret);
 };
 
-export const __wbg_getRandomValues_1ef11e888e5228e9 = function(arg0, arg1, arg2) {
-    getObject(arg0).getRandomValues(getArrayU8FromWasm(arg1, arg2));
+module.exports.__wbg_require_6461b1e9a0d7c34a = function(arg0, arg1) {
+    const ret = require(getStringFromWasm(arg0, arg1));
+    return addHeapObject(ret);
 };
 
-export const __wbg_randomFillSync_1b52c8482374c55b = function(arg0, arg1, arg2) {
+module.exports.__wbg_randomFillSync_1b52c8482374c55b = function(arg0, arg1, arg2) {
     getObject(arg0).randomFillSync(getArrayU8FromWasm(arg1, arg2));
 };
 
-export const __wbindgen_throw = function(arg0, arg1) {
+module.exports.__wbg_getRandomValues_1ef11e888e5228e9 = function(arg0, arg1, arg2) {
+    getObject(arg0).getRandomValues(getArrayU8FromWasm(arg1, arg2));
+};
+
+module.exports.__wbindgen_throw = function(arg0, arg1) {
     throw new Error(getStringFromWasm(arg0, arg1));
 };
 
-export const __wbindgen_rethrow = function(arg0) {
+module.exports.__wbindgen_rethrow = function(arg0) {
     throw takeObject(arg0);
 };
 
-export const __wbindgen_memory = function() {
+module.exports.__wbindgen_memory = function() {
     const ret = wasm.memory;
     return addHeapObject(ret);
 };
+wasm = require('./js_chain_libs_bg');
 

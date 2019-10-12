@@ -1,8 +1,6 @@
 // @flow
 
 //import * as wasm from 'js-chain-libs'
-const wasm = import('js-chain-libs');
-
 // TODO: is this right?
 const SLOTS_IN_EPOCH = 21600
 
@@ -48,10 +46,15 @@ export default class Block {
   }
 
   static parseBlock(blob: Buffer, networkStartTime: number) {
+    const wasm = global.jschainlibs
+
     console.log('SHELLEY Block::parseBlock(' + blob.toString('hex') + ')')
     console.log('wasm = ' + JSON.stringify(wasm))
+
     const block = wasm.Block.from_bytes(blob)
-    const epochId = block.epoch()
+    console.log("block content =")
+    console.log(block)
+
     const slotId = block.slot()
     const chainLength = block.chain_length()
     // TODO: should these be hex strings or not?

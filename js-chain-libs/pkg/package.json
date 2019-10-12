@@ -13,12 +13,12 @@
   "files": [
     "js_chain_libs_bg.wasm",
     "js_chain_libs.js",
+    "js_chain_libs_bg.js",
     "js_chain_libs.d.ts",
     "LICENSE_APACHE",
     "LICENSE_MIT"
   ],
-  "module": "js_chain_libs.js",
+  "main": "js_chain_libs.js",
   "homepage": "https://github.com/input-output-hk/js-chain-libs#js-chain-libs",
-  "types": "js_chain_libs.d.ts",
-  "sideEffects": "false"
+  "types": "js_chain_libs.d.ts"
 }

@@ -28,6 +28,7 @@
     "@babel/node": "^7.2.2",
     "@babel/plugin-proposal-class-properties": "^7.3.4",
     "@babel/plugin-proposal-decorators": "^7.3.0",
+    "@babel/plugin-syntax-dynamic-import": "7.2.0",
     "@babel/preset-env": "^7.3.4",
     "@babel/preset-flow": "^7.0.0",
     "babel-eslint": "^10.0.1",
@@ -46,9 +47,11 @@
     "rimraf": "^2.6.3"
   },
   "dependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.6.0",
     "@babel/polyfill": "^7.2.5",
     "async": "^2.6.2",
     "axios": "^0.18.0",
+    "babel-plugin-dynamic-import-node": "2.3.0",
     "base64url": "^3.0.1",
     "bcrypto": "^3.1.5",
     "blakejs": "^1.1.0",
@@ -62,7 +65,7 @@
     "inversify-config-injection": "^0.0.2",
     "inversify-restify-utils": "^3.4.0",
     "inversify-vanillajs-helpers": "^2.0.0",
-    "js-chain-libs": "file:js-chain-libs/pkg/js-chain-libs-0.1.1.tgz",
+    "js-chain-libs": "file:js-chain-libs/pkg/",
     "js-sha3": "0.8.0",
     "lodash": "^4.17.11",
     "node-pg-migrate": "^3.16.1",
