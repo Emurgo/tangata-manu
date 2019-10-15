@@ -43,7 +43,7 @@ class TxData extends ElasticData {
 
   getOutputsData() {
     return this.tx.outputs.map((utxo, idx) => (new UtxoData({
-      receiver: utxo.receiver,
+      receiver: utxo.address,
       value: utxo.value,
       tx_index: idx,
       block_hash: this.tx.blockHash,
