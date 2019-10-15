@@ -36,6 +36,8 @@ const startServer = async () => {
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
 
+  await storageProcessor.onLaunch()
+
   const server = new InversifyRestifyServer(container)
   const app = server.build()
 

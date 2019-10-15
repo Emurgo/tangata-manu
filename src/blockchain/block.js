@@ -19,6 +19,8 @@ export default class Block {
 
   epoch: number
 
+  size: number
+
   height: number
 
   txs: Array<TxType>
@@ -31,10 +33,11 @@ export default class Block {
 
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
-    time, lead,
+    time, lead, size,
   }: {hash: string,
     slot: ?number,
     epoch: number,
+    size: number,
     height: number,
     txs: Array<TxType>,
     isEBB: boolean,
@@ -51,6 +54,7 @@ export default class Block {
     this.isEBB = isEBB
     this.time = time
     this.lead = lead
+    this.size = size
   }
 
   serialize() {
@@ -84,7 +88,7 @@ export default class Block {
     networkStartTime: number) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
-    const lead = null
+    const lead = consensus[1].toString('hex')
     const [chainDifficulty] = consensus[2]
     const txs = body[0]
     const [upd1, upd2] = body[3]
@@ -121,6 +125,7 @@ export default class Block {
     const hash = utils.headerToId(header, type)
     const common = {
       hash,
+      size: blob.length,
       magic: header[0],
       prevHash: header[1].toString('hex'),
     }

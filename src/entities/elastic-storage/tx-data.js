@@ -1,8 +1,9 @@
 // @flow
+import _ from 'lodash'
 
 import type { TxType } from '../../blockchain'
 
-import ElasticData from './elastic-data'
+import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
 
@@ -31,16 +32,21 @@ class TxData extends ElasticData {
       id: utxo.tx_hash,
       branch: 0,
       outputs: [
-        utxo,
+        {
+          address: utxo.receiver,
+          amount: utxo.value,
+          ...utxo,
+        },
       ],
     })
   }
 
   getOutputsData() {
     return this.tx.outputs.map((utxo, idx) => (new UtxoData({
-      address: utxo.address,
-      amount: utxo.value,
+      receiver: utxo.receiver,
+      value: utxo.value,
       tx_index: idx,
+      block_hash: this.tx.blockHash,
       tx_hash: this.tx.id,
     })).toPlainObject())
   }
@@ -53,12 +59,25 @@ class TxData extends ElasticData {
   }
 
   toPlainObject() {
+    const inputsData = this.getInputsData()
+    const outputsData = this.getOutputsData()
+    const addresses = [...inputsData, ...outputsData].map(io => ({ address: io.address }))
+
+    const inputsSum = _.sumBy(inputsData, inp => inp.value.full)
+    const outputsSum = _.sumBy(outputsData, out => out.value.full)
+
     return {
       ...TxData.getBaseFields(),
       is_genesis: this.tx.isGenesis || false,
       hash: this.tx.id,
-      outputs: this.getOutputsData(),
-      inputs: this.getInputsData(),
+      tx_ordinal: this.tx.txOrdinal,
+      block_hash: this.tx.blockHash,
+      addresses,
+      outputs: outputsData,
+      inputs: inputsData,
+      sum_outputs: coinFormat(outputsSum),
+      sum_inputs: coinFormat(inputsSum),
+      fees: coinFormat(inputsSum - outputsSum),
       time: this.tx.txTime.toISOString(),
     }
   }

@@ -38,6 +38,7 @@ class UtxoData extends ElasticData {
       id: this.getId(),
       type: this.type,
       tx_hash: this.utxo.tx_hash,
+      block_hash: this.utxo.block_hash,
       branch: 0,
       tx_ordinal: 0,
       io_ordinal: this.utxo.tx_index,

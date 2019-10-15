@@ -12,6 +12,8 @@ export type BlockInfoType = {
 export interface StorageProcessor {
   getBestBlockNum(): Promise<BlockInfoType>;
 
+  onLaunch(): Promise<void>;
+
   storeBlocksData(blocks: Array<Block>): Promise<void>;
 
   rollbackTo(height: number): Promise<void>
