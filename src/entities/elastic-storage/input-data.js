@@ -1,7 +1,6 @@
 // @flow
 
 import UtxoData from './utxo-data'
-import type { UtxoType } from './utxo-data'
 
 const INPUT_TYPE = 'input'
 

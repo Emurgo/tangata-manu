@@ -18,8 +18,9 @@
       "off",
       "ForOfStatement"
     ],
-
-
+    "no-underscore-dangle": [
+      2, { "allow": ["_source"] }
+    ],
     "semi": ["error", "never"]
   },
   "env": {
