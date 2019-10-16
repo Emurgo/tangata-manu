@@ -1,10 +1,10 @@
 // @flow
 
 import _ from 'lodash'
-
+import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import type { StorageProcessor, Logger, Database } from '../interfaces'
+import type { StorageProcessor, Database } from '../interfaces'
 import type { BlockInfoType } from '../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import type { Block, TxType } from '../blockchain'
@@ -88,7 +88,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.storeTx(tx)
   }
 
-  async getOutputsForTxHashes(txHashes: []) {
+  async getOutputsForTxHashes(txHashes: Array<string>) {
     return this.db.getOutputsForTxHashes(txHashes)
   }
 }
