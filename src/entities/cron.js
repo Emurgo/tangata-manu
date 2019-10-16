@@ -133,7 +133,7 @@ class CronScheduler implements Scheduler {
     const { packedEpochs, tip: nodeTip } = nodeStatus
     const tipStatus = nodeTip.local
     const remoteStatus = nodeTip.remote
-    if (!tipStatus) {
+    if (!tipStatus || !remoteStatus) {
       this.logger.info('cardano-http-brdige not yet synced')
       return
     }
