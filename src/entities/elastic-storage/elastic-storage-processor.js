@@ -69,8 +69,8 @@ const formatBulkUploadBody = (objs: any,
   options.getData(o),
 ])
 
-const getBlocksForSlotIdx = (blocks: Array<Block>, storedUTxOs: Array<UtxoType>) => {
-  const blocksData = blocks.map(block => (new BlockData(block, storedUTxOs)).toPlainObject())
+const getBlocksForSlotIdx = (blocks: Array<Block>, storedUTxOs: Array<UtxoType>, addressStates: { [string]: any }) => {
+  const blocksData = blocks.map(block => (new BlockData(block, storedUTxOs, addressStates)).toPlainObject())
   return blocksData
 }
 
@@ -304,8 +304,15 @@ class ElasticStorageProcessor implements StorageProcessor {
       })
       storedUTxOs.push(..._.map(txInputs.body.docs.filter(d => d.found), '_source'))
     }
-    const blocksData = getBlocksForSlotIdx(blocks,
-      [...storedUTxOs, ...utxosToStore])
+
+    // Inputs are resolved into UTxOs that are being spent
+    // Plus all the UTxOs produced in the processed blocks
+    let utxosForInputsAndOutputs = [...storedUTxOs, ...utxosToStore];
+
+    // Filter all the unique addresses being used in either inputs or outputs
+    const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address));
+    const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses);
+    const blocksData = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, addressStates)
 
     const blocksBody = formatBulkUploadBody(blocksData, {
       index: this.indexFor(INDEX_SLOT),
@@ -339,6 +346,64 @@ class ElasticStorageProcessor implements StorageProcessor {
     })
     await sleep(5000)
   }
+
+  async getAddressStates(uniqueBlockAddresses): { [string]: any } {
+    const res = await this.client.search({
+      index: this.indexFor(INDEX_TX),
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+      body: createAddressStateQuery(uniqueBlockAddresses)
+    });
+    const { buckets } = res['body']['aggregations']['tmp_nest']['tmp_filter']['tmp_group_by'];
+    const states = buckets.map(buck => {
+      const source = buck['tmp_select_latest']['hits']['hits']['_source']
+      return { ...source, balance_after_this_tx: Number(source['balance_after_this_tx']['full']) }
+    });
+    return _.keyBy(states, 'address');
+  }
+}
+
+function createAddressStateQuery(uniqueBlockAddresses) {
+  return {
+    size: 0,
+    aggs: {
+      tmp_nest: {
+        nested: {
+          path: "addresses"
+        },
+        aggs: {
+          tmp_filter: {
+            filter: {
+              terms: {
+                'addresses.address.keyword': uniqueBlockAddresses
+              }
+            },
+            aggs: {
+              tmp_group_by: {
+                terms: {
+                  field: "addresses.address.keyword"
+                },
+                aggs: {
+                  tmp_select_latest: {
+                    top_hits: {
+                      size: 1,
+                      sort: [
+                        {
+                          "addresses.tx_num_after_this_tx": {
+                            order: "desc"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
 }
 
 helpers.annotate(ElasticStorageProcessor,
