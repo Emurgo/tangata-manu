@@ -355,11 +355,16 @@ class ElasticStorageProcessor implements StorageProcessor {
       body: createAddressStateQuery(uniqueBlockAddresses)
     });
     const { buckets } = res['body']['aggregations']['tmp_nest']['tmp_filter']['tmp_group_by'];
-    const states = buckets.map(buck => {
-      const source = buck['tmp_select_latest']['hits']['hits']['_source']
-      return { ...source, balance_after_this_tx: Number(source['balance_after_this_tx']['full']) }
-    });
-    return _.keyBy(states, 'address');
+    try {
+      const states = buckets.map(buck => {
+        const source = buck['tmp_select_latest']['hits']['hits'][0]['_source']
+        return {...source, balance_after_this_tx: Number(source['balance_after_this_tx']['full'])}
+      });
+      return _.keyBy(states, 'address');
+    } catch (e) {
+      this.logger.error('Failed while processing this response:', JSON.stringify(res, null, 2))
+      throw e
+    }
   }
 }
 
