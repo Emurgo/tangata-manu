@@ -6,7 +6,7 @@ import type { UtxoType } from './utxo-data'
 const INPUT_TYPE = 'input'
 
 class InputData extends UtxoData {
-  constructor(input, index, inputUtxo, tx) {
+  constructor(input, index, inputUtxo: UtxoType, tx) {
     super({
       tx_hash: tx.id,
       tx_index: index,
