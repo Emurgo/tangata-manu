@@ -44,7 +44,7 @@ class TxData extends ElasticData {
   getOutputsData() {
     return this.tx.outputs.map((utxo, idx) => (new UtxoData({
       receiver: utxo.address,
-      amount: utxo.value,
+      amount: utxo.amount,
       tx_index: idx,
       block_hash: this.tx.blockHash,
       tx_hash: this.tx.id,
@@ -77,7 +77,7 @@ class TxData extends ElasticData {
       inputs: inputsData,
       sum_outputs: coinFormat(outputsSum),
       sum_inputs: coinFormat(inputsSum),
-      fees: coinFormat(inputsSum - outputsSum),
+      fees: coinFormat(Math.max(0, inputsSum - outputsSum)),
       time: this.tx.txTime.toISOString(),
     }
   }
