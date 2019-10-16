@@ -60,7 +60,7 @@ class BlockData extends ElasticData {
   getFees(): number {
     const sentAmount = this.getSentAmount()
     const receivedAmount = this.getReceivedAmount()
-    return sentAmount - receivedAmount
+    return Math.max(0, sentAmount - receivedAmount)
   }
 
   toPlainObject() {
