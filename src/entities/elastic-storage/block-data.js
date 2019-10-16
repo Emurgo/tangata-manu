@@ -37,19 +37,24 @@ class BlockData extends ElasticData {
   }
 
   getReceivedAmount(): number {
-    // TODO: reduce number of iterations
     const received = _.sumBy(this.inputsData, inp => inp.value.full)
     return received
   }
 
   getSentAmount(): number {
-    const sent = _.sumBy(this.inputsData, u => u.value.full)
+    const blockUtxos = Object.values(this.allUtxos)
+      .filter(utxo => utxo.block_hash === this.block.hash)
+    const sent = _.sumBy(blockUtxos, u => u.value.full)
     return sent
   }
 
   getTxsData() {
     const txs = this.block.getTxs()
-    return txs.map(tx => (new TxData(tx, this.allUtxos)).toPlainObject())
+    return txs.map(tx => ({
+      epoch: this.block.epoch,
+      slot: this.block.slot,
+      ...(new TxData(tx, this.allUtxos)).toPlainObject(),
+    }))
   }
 
   getFees(): number {
@@ -71,7 +76,9 @@ class BlockData extends ElasticData {
       epoch: this.block.epoch,
       slot: this.block.slot,
       hash: this.block.hash,
+      size: this.block.size,
       height: this.block.height,
+      lead: this.block.lead,
       time,
       branch: 0,
       tx_num: txs.length,

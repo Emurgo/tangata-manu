@@ -23,9 +23,7 @@ class PostgresStorageProcessor implements StorageProcessor {
   }
 
   async storeBlocksData(blocks: Array<Block>) {
-    const dbConn = this.db.getConn()
-    try {
-      await dbConn.query('BEGIN')
+    return this.doInTransaction(async () => {
       await this.db.storeBlocks(blocks)
       for (const block of blocks) {
         const blockHaveTxs = !_.isEmpty(block.txs)
@@ -34,21 +32,23 @@ class PostgresStorageProcessor implements StorageProcessor {
         }
       }
       await this.db.updateBestBlockNum(_.last(blocks).height)
-      await dbConn.query('COMMIT')
-    } catch (e) {
-      await dbConn.query('ROLLBACK')
-      throw e
-    }
+    })
   }
 
   async rollbackTo(height: number) {
-    const dbConn = this.db.getConn()
-    try {
-      await dbConn.query('BEGIN')
+    return this.doInTransaction(async () => {
       await this.db.rollBackTransactions(height)
       await this.db.rollBackUtxoBackup(height)
       await this.db.rollBackBlockHistory(height)
       await this.db.updateBestBlockNum(height)
+    })
+  }
+
+  async doInTransaction(callback) {
+    const dbConn = this.db.getConn()
+    try {
+      await dbConn.query('BEGIN')
+      await callback()
       await dbConn.query('COMMIT')
     } catch (e) {
       await dbConn.query('ROLLBACK')
@@ -62,6 +62,10 @@ class PostgresStorageProcessor implements StorageProcessor {
 
   async updateBestBlockNum(height: number) {
     return this.db.updateBestBlockNum(height)
+  }
+
+  async onLaunch() {
+    this.logger.debug('Launched PostgresStorageProcessor storage processor.')
   }
 
   async genesisLoaded() {

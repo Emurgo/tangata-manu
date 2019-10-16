@@ -69,6 +69,25 @@ const formatBulkUploadBody = (objs: any,
   options.getData(o),
 ])
 
+const getBlocksForSlotIdx = (blocks: Array<Block>, storedUTxOs: Array<UtxoType>) => {
+  const blocksData = blocks.map(block => (new BlockData(block, storedUTxOs)).toPlainObject())
+  return blocksData
+}
+
+const getBlockUtxos = (block: Block) => {
+  const blockUtxos = block.getTxs().flatMap(tx => tx.outputs.map(
+    (out, idx) => (new UtxoData({
+      tx_hash: tx.id,
+      tx_index: idx,
+      block_hash: block.hash,
+      receiver: out.address,
+      amount: out.value,
+    })).toPlainObject(),
+  ))
+  return blockUtxos
+}
+
+
 class ElasticStorageProcessor implements StorageProcessor {
   logger: Logger
 
@@ -99,7 +118,6 @@ class ElasticStorageProcessor implements StorageProcessor {
     const latestStableChunk = await this.getLatestStableChunk()
     return this.deleteChunksAfter(Math.min(latestStableChunk, height))
   }
-
 
   async esSearch(params: {}) {
     const resp = await this.client.search(params)
@@ -173,9 +191,13 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
-  async genesisLoaded() {
+  async onLaunch() {
     await this.ensureElasticTemplates()
     await this.removeUnsealed()
+    this.logger.debug('Launched ElasticStorageProcessor storage processor.')
+  }
+
+  async genesisLoaded() {
     const index = this.indexFor(INDEX_TX)
     const indexExists = (await this.client.indices.exists({
       index,
@@ -193,7 +215,6 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   async storeGenesisUtxos(utxos: Array<UtxoType>) {
     // TODO: check bulk upload response
-
     this.logger.debug('storeGenesisUtxos: store utxos to "txio" index and create fake txs in "tx" index')
     const chunk = 1
 
@@ -259,29 +280,6 @@ class ElasticStorageProcessor implements StorageProcessor {
     return resp
   }
 
-  getBlocksForSlotIdx(blocks: Array<Block>, storedUTxOs: Array<UtxoType>, options:{} = {}) {
-    return formatBulkUploadBody(blocks, {
-      index: this.indexFor(INDEX_SLOT),
-      getId: (o) => o.hash,
-      getData: (o) => ({
-        ...(new BlockData(o, storedUTxOs)).toPlainObject(),
-        ...options,
-      }),
-    })
-  }
-
-  getBlockUtxos(block: Block, options:{} = {}) {
-    const blockUtxos = block.getTxs().flatMap(tx => tx.outputs.map(
-      (out, idx) => (new UtxoData({
-        tx_hash: tx.id,
-        tx_index: idx,
-        receiver: out.address,
-        amount: out.value,
-      })).toPlainObject(),
-    ))
-    return blockUtxos
-  }
-
   async storeBlocksData(blocks: Array<Block>) {
     const storedUTxOs = []
     const utxosToStore = []
@@ -293,7 +291,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       if (txs.length > 0) {
         txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
         this.logger.debug('storeBlocksData', block)
-        utxosToStore.push(...this.getBlockUtxos(block, { _chunk: chunk }))
+        utxosToStore.push(...getBlockUtxos(block))
         blockTxs.push(...txs)
       }
     }
@@ -306,14 +304,31 @@ class ElasticStorageProcessor implements StorageProcessor {
       })
       storedUTxOs.push(..._.map(txInputs.body.docs.filter(d => d.found), '_source'))
     }
+    const blocksData = getBlocksForSlotIdx(blocks,
+      [...storedUTxOs, ...utxosToStore])
+
+    const blocksBody = formatBulkUploadBody(blocksData, {
+      index: this.indexFor(INDEX_SLOT),
+      getId: (o) => o.hash,
+      getData: o => ({
+        ...o,
+        _chunk: chunk,
+      }),
+    })
     const utxosBody = formatBulkUploadBody(utxosToStore, {
       index: this.indexFor(INDEX_TXIO),
       getId: (o) => o.id,
+      getData: (o) => ({
+        ...o,
+        _chunk: chunk,
+      }),
+    })
+    const txsBody = formatBulkUploadBody(blocksData.flatMap(b => b.tx), {
+      index: this.indexFor(INDEX_TX),
+      getId: (o) => o.hash,
       getData: (o) => o,
     })
-    const blocksBody = this.getBlocksForSlotIdx(blocks,
-      [...storedUTxOs, ...utxosToStore], { _chunk: chunk })
-    await this.bulkUpload([...utxosBody, ...blocksBody])
+    await this.bulkUpload([...utxosBody, ...blocksBody, ...txsBody])
 
     await sleep(5000)
     await this.storeChunk({
