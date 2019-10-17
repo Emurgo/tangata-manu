@@ -97,6 +97,8 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   elasticConfig: ElasticConfigType
 
+  lastChunk: number;
+
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -194,6 +196,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   async onLaunch() {
     await this.ensureElasticTemplates()
     await this.removeUnsealed()
+    this.lastChunk = await this.getLatestStableChunk()
     this.logger.debug('Launched ElasticStorageProcessor storage processor.')
   }
 
@@ -216,7 +219,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   async storeGenesisUtxos(utxos: Array<UtxoType>) {
     // TODO: check bulk upload response
     this.logger.debug('storeGenesisUtxos: store utxos to "txio" index and create fake txs in "tx" index')
-    const chunk = 1
+    const chunk = ++this.lastChunk;
 
     const utxosObjs = utxos.map((utxo) => new UtxoData(utxo))
     const txioBody = formatBulkUploadBody(utxosObjs, {
@@ -285,7 +288,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     const utxosToStore = []
     const txInputsIds = []
     const blockTxs = []
-    const chunk = (await this.getLatestStableChunk()) + 1
+    const chunk = ++this.lastChunk;
     for (const block of blocks) {
       const txs = block.getTxs()
       if (txs.length > 0) {
