@@ -18,7 +18,11 @@ class TxData extends ElasticData {
     this.tx = tx
 
     this.resolvedInputs = tx.inputs.map((inp, idx) => {
-      const inputUtxo = inputsUtxos[`${inp.txId}${inp.idx}`]
+      let id = `${inp.txId}${inp.idx}`;
+      const inputUtxo = inputsUtxos[id]
+      if (!inputUtxo) {
+        throw new Error(`UTxO '${id}' is not found for tx '${tx.id}'!`)
+      }
       return new InputData(inp, idx, inputUtxo, tx)
     })
 
