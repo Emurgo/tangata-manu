@@ -337,14 +337,17 @@ class ElasticStorageProcessor implements StorageProcessor {
     })
     await this.bulkUpload([...utxosBody, ...blocksBody, ...txsBody])
 
-    await sleep(5000)
-    await this.storeChunk({
-      chunk,
-      blocks: blocks.length,
-      txs: blockTxs.length,
-      txios: utxosToStore.length,
-    })
-    await sleep(5000)
+    // Commit every 10th chunk
+    if (chunk % 10 === 0) {
+      await sleep(5000)
+      await this.storeChunk({
+        chunk,
+        blocks: blocks.length,
+        txs: blockTxs.length,
+        txios: utxosToStore.length,
+      })
+      await sleep(5000)
+    }
   }
 
   async getAddressStates(uniqueBlockAddresses): { [string]: any } {
