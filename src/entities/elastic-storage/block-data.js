@@ -15,13 +15,15 @@ class BlockData extends ElasticData {
 
   storedUTxOs: Array<UtxoType>
 
-  allUtxos: {}
+  allUtxos: { [string]: UtxoType }
 
-  inputsData: []
+  inputsData: [] = []
 
-  constructor(block: Block, storedUTxOs: Array<UtxoType> = []) {
+  txsData: Array<mixed> = []
+
+  constructor(block: Block, storedUTxOs: Array<UtxoType> = [],
+    addressStates: { [string]: any } = {}) {
     super()
-    this.inputsData = []
     this.block = block
     this.storedUTxOs = storedUTxOs
     const txs = block.getTxs()
@@ -33,6 +35,12 @@ class BlockData extends ElasticData {
     if (!_.isEmpty(txs)) {
       this.inputsData = _.flatMap(txs, 'inputs')
         .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
+
+      this.txsData = txs.map(tx => ({
+        epoch: block.epoch,
+        slot: block.slot,
+        ...(new TxData(tx, this.allUtxos, addressStates)).toPlainObject(),
+      }))
     }
   }
 
@@ -49,12 +57,7 @@ class BlockData extends ElasticData {
   }
 
   getTxsData() {
-    const txs = this.block.getTxs()
-    return txs.map(tx => ({
-      epoch: this.block.epoch,
-      slot: this.block.slot,
-      ...(new TxData(tx, this.allUtxos)).toPlainObject(),
-    }))
+    return this.txsData
   }
 
   getFees(): number {

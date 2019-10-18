@@ -113,14 +113,20 @@ class CronScheduler implements Scheduler {
     }
     this.blocksToStore.push(block)
     if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
-      await this.storageProcessor.storeBlocksData(this.blocksToStore)
-      this.blocksToStore = []
+      await this.pushCachedBlocksToStorage();
     }
 
     if (flushCache || block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
       this.logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${String(block.slot)} ${block.height}`)
     }
     return BLOCK_STATUS_PROCESSED
+  }
+
+  async pushCachedBlocksToStorage() {
+    if (this.blocksToStore.length > 0) {
+      await this.storageProcessor.storeBlocksData(this.blocksToStore)
+      this.blocksToStore = []
+    }
   }
 
   async checkTip() {
@@ -146,7 +152,7 @@ class CronScheduler implements Scheduler {
       const lastRemStableEpoch = remEpoch - (remSlot > 2160 ? 1 : 2)
       const thereAreMoreStableEpoch = epoch < lastRemStableEpoch
       const thereAreManyStableSlots = epoch === lastRemStableEpoch
-        && slot < EPOCH_DOWNLOAD_THRESHOLD
+        && (slot || 0) < EPOCH_DOWNLOAD_THRESHOLD
       // Check if there's any point to bother with whole epochs
       if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
         if (packedEpochs > epoch) {
@@ -155,6 +161,8 @@ class CronScheduler implements Scheduler {
             await this.processEpochId(epochId, height)
             this.logger.debug(`Epoch parsed: ${epochId}, ${height}`)
           }
+          this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
+          await this.pushCachedBlocksToStorage();
         } else {
           // Packed epoch is not available yet
           this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
