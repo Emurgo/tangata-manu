@@ -15,7 +15,7 @@ class BlockData extends ElasticData {
 
   storedUTxOs: Array<UtxoType>
 
-  allUtxos: {string: UtxoType}
+  allUtxos: { [string]: UtxoType }
 
   inputsData: [] = []
 
