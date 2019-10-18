@@ -146,7 +146,7 @@ class CronScheduler implements Scheduler {
       const lastRemStableEpoch = remEpoch - (remSlot > 2160 ? 1 : 2)
       const thereAreMoreStableEpoch = epoch < lastRemStableEpoch
       const thereAreManyStableSlots = epoch === lastRemStableEpoch
-        && slot < EPOCH_DOWNLOAD_THRESHOLD
+        && (slot || 0) < EPOCH_DOWNLOAD_THRESHOLD
       // Check if there's any point to bother with whole epochs
       if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
         if (packedEpochs > epoch) {

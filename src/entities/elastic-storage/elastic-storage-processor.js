@@ -69,8 +69,10 @@ const formatBulkUploadBody = (objs: any,
   options.getData(o),
 ])
 
-const getBlocksForSlotIdx = (blocks: Array<Block>, storedUTxOs: Array<UtxoType>, addressStates: { [string]: any }) => {
-  const blocksData = blocks.map(block => (new BlockData(block, storedUTxOs, addressStates)).toPlainObject())
+const getBlocksForSlotIdx = (blocks: Array<Block>,
+  storedUTxOs: Array<UtxoType>, addressStates: { [string]: any }) => {
+  const blocksData = blocks.map(
+    block => (new BlockData(block, storedUTxOs, addressStates)).toPlainObject())
   return blocksData
 }
 
@@ -86,6 +88,47 @@ const getBlockUtxos = (block: Block) => {
   ))
   return blockUtxos
 }
+
+const createAddressStateQuery = (uniqueBlockAddresses) => ({
+  size: 0,
+  aggs: {
+    tmp_nest: {
+      nested: {
+        path: 'addresses',
+      },
+      aggs: {
+        tmp_filter: {
+          filter: {
+            terms: {
+              'addresses.address.keyword': uniqueBlockAddresses,
+            },
+          },
+          aggs: {
+            tmp_group_by: {
+              terms: {
+                field: 'addresses.address.keyword',
+              },
+              aggs: {
+                tmp_select_latest: {
+                  top_hits: {
+                    size: 1,
+                    sort: [
+                      {
+                        'addresses.tx_num_after_this_tx': {
+                          order: 'desc',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+})
 
 
 class ElasticStorageProcessor implements StorageProcessor {
@@ -219,7 +262,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   async storeGenesisUtxos(utxos: Array<UtxoType>) {
     // TODO: check bulk upload response
     this.logger.debug('storeGenesisUtxos: store utxos to "txio" index and create fake txs in "tx" index')
-    const chunk = ++this.lastChunk;
+    const chunk = this.lastChunk + 1
 
     const utxosObjs = utxos.map((utxo) => new UtxoData(utxo))
     const txioBody = formatBulkUploadBody(utxosObjs, {
@@ -288,7 +331,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     const utxosToStore = []
     const txInputsIds = []
     const blockTxs = []
-    const chunk = ++this.lastChunk;
+    const chunk = this.lastChunk + 1
     for (const block of blocks) {
       const txs = block.getTxs()
       if (txs.length > 0) {
@@ -310,11 +353,11 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     // Inputs are resolved into UTxOs that are being spent
     // Plus all the UTxOs produced in the processed blocks
-    let utxosForInputsAndOutputs = [...storedUTxOs, ...utxosToStore];
+    const utxosForInputsAndOutputs = [...storedUTxOs, ...utxosToStore]
 
     // Filter all the unique addresses being used in either inputs or outputs
-    const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address));
-    const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses);
+    const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
+    const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
     const blocksData = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, addressStates)
 
     const blocksBody = formatBulkUploadBody(blocksData, {
@@ -353,68 +396,25 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
-  async getAddressStates(uniqueBlockAddresses): { [string]: any } {
+  async getAddressStates(uniqueBlockAddresses: Array<string>): { [string]: any } {
     const res = await this.client.search({
       index: this.indexFor(INDEX_TX),
       allowNoIndices: true,
       ignoreUnavailable: true,
-      body: createAddressStateQuery(uniqueBlockAddresses)
-    });
-    const { buckets } = res['body']['aggregations']['tmp_nest']['tmp_filter']['tmp_group_by'];
+      body: createAddressStateQuery(uniqueBlockAddresses),
+    })
+    const { buckets } = res.body.aggregations.tmp_nest.tmp_filter.tmp_group_by
     try {
       const states = buckets.map(buck => {
-        const source = buck['tmp_select_latest']['hits']['hits'][0]['_source']
-        return {...source, balance_after_this_tx: Number(source['balance_after_this_tx']['full'])}
-      });
-      return _.keyBy(states, 'address');
+        const source = buck.tmp_select_latest.hits.hits[0]._source
+        return { ...source, balance_after_this_tx: Number(source.balance_after_this_tx.full) }
+      })
+      return _.keyBy(states, 'address')
     } catch (e) {
       this.logger.error('Failed while processing this response:', JSON.stringify(res, null, 2))
       throw e
     }
   }
-}
-
-function createAddressStateQuery(uniqueBlockAddresses) {
-  return {
-    size: 0,
-    aggs: {
-      tmp_nest: {
-        nested: {
-          path: "addresses"
-        },
-        aggs: {
-          tmp_filter: {
-            filter: {
-              terms: {
-                'addresses.address.keyword': uniqueBlockAddresses
-              }
-            },
-            aggs: {
-              tmp_group_by: {
-                terms: {
-                  field: "addresses.address.keyword"
-                },
-                aggs: {
-                  tmp_select_latest: {
-                    top_hits: {
-                      size: 1,
-                      sort: [
-                        {
-                          "addresses.tx_num_after_this_tx": {
-                            order: "desc"
-                          }
-                        }
-                      ]
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  };
 }
 
 helpers.annotate(ElasticStorageProcessor,

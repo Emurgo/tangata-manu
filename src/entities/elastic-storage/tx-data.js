@@ -9,8 +9,11 @@ import InputData from './input-data'
 
 class TxData extends ElasticData {
   tx: TxType
+
   resolvedInputs: Array<InputData>
+
   resolvedOutputs: Array<UtxoData>
+
   addressStates: { [string]: any }
 
   constructor(tx: TxType, inputsUtxos: {} = {}, addressStates: { [string]: any } = {}) {
@@ -18,7 +21,7 @@ class TxData extends ElasticData {
     this.tx = tx
 
     this.resolvedInputs = tx.inputs.map((inp, idx) => {
-      let id = `${inp.txId}${inp.idx}`;
+      const id = `${inp.txId}${inp.idx}`
       const inputUtxo = inputsUtxos[id]
       if (!inputUtxo) {
         throw new Error(`UTxO '${id}' is not found for tx '${tx.id}'!`)
@@ -39,7 +42,7 @@ class TxData extends ElasticData {
     for (const { utxo, type } of [...this.resolvedInputs, ...this.resolvedOutputs]) {
       const { receiver, amount } = utxo
       const isInput = type === 'input'
-      const balanceDiff = isInput ? -amount : amount;
+      const balanceDiff = isInput ? -amount : amount
       const {
         addressBalanceDiff = 0,
         isAddressInput = false,
@@ -60,7 +63,7 @@ class TxData extends ElasticData {
         balance_after_this_tx = 0,
         tx_num_after_this_tx = 0,
         received_tx_num_after_this_tx = 0,
-        sent_tx_num_after_this_tx = 0
+        sent_tx_num_after_this_tx = 0,
       } = addressStates[address] || {}
       const newState = {
         address,
@@ -73,7 +76,7 @@ class TxData extends ElasticData {
       txAddressStates.push({ ...newState })
     }
 
-    this.addressStates = txAddressStates;
+    this.addressStates = txAddressStates
   }
 
   static fromGenesisUtxo(utxo: any, networkStartTime: number) {
@@ -121,7 +124,7 @@ class TxData extends ElasticData {
       block_hash: this.tx.blockHash,
       addresses: this.addressStates.map(s => ({
         ...s,
-        balance_after_this_tx: coinFormat(s.balance_after_this_tx)
+        balance_after_this_tx: coinFormat(s.balance_after_this_tx),
       })),
       outputs: outputsData,
       inputs: inputsData,
