@@ -14,9 +14,16 @@ class TxData extends ElasticData {
 
   resolvedOutputs: Array<UtxoData>
 
+  txTrackedState: { [string]: any }
+
   addressStates: { [string]: any }
 
-  constructor(tx: TxType, inputsUtxos: {} = {}, addressStates: { [string]: any } = {}) {
+  constructor(
+    tx: TxType,
+    inputsUtxos: {} = {},
+    txTrackedState: { [string]: any } = {},
+    addressStates: { [string]: any } = {},
+  ) {
     super()
     this.tx = tx
 
@@ -36,6 +43,16 @@ class TxData extends ElasticData {
       block_hash: tx.blockHash,
       tx_hash: tx.id,
     }))
+
+    if (this.resolvedInputs.length === 1 && this.resolvedOutputs.length === 1) {
+      let input: InputData = this.resolvedInputs[0];
+      let output: UtxoData = this.resolvedOutputs[0];
+      if (input.utxo.amount === output.utxo.amount) {
+        // This is a redemption tx that increases the total supply of coin
+        txTrackedState.supply_after_this_tx = (txTrackedState.supply_after_this_tx || 0) + input.utxo.amount
+      }
+    }
+    this.txTrackedState = { ...txTrackedState }
 
     // Aggregate all inputs/outputs into a "diff" object
     const txAddressDiff: { [string]: any } = {}
@@ -132,6 +149,7 @@ class TxData extends ElasticData {
       sum_inputs: coinFormat(inputsSum),
       fees: coinFormat(Math.max(0, inputsSum - outputsSum)),
       time: this.tx.txTime.toISOString(),
+      supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
     }
   }
 }

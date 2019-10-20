@@ -69,10 +69,14 @@ const formatBulkUploadBody = (objs: any,
   options.getData(o),
 ])
 
-const getBlocksForSlotIdx = (blocks: Array<Block>,
-  storedUTxOs: Array<UtxoType>, addressStates: { [string]: any }) => {
+const getBlocksForSlotIdx = (
+  blocks: Array<Block>,
+  storedUTxOs: Array<UtxoType>,
+  txTrackedState: { [string]: any },
+  addressStates: { [string]: any },
+) => {
   const blocksData = blocks.map(
-    block => (new BlockData(block, storedUTxOs, addressStates)).toPlainObject())
+    block => (new BlockData(block, storedUTxOs, txTrackedState, addressStates)).toPlainObject())
   return blocksData
 }
 
@@ -322,7 +326,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       refresh: 'true',
       body,
     })
-    this.logger.debug('bulkUpload', resp)
+    this.logger.debug('bulkUpload', { ...resp, body: { ...resp.body, items: undefined } })
     return resp
   }
 
@@ -351,14 +355,18 @@ class ElasticStorageProcessor implements StorageProcessor {
       storedUTxOs.push(..._.map(txInputs.body.docs.filter(d => d.found), '_source'))
     }
 
+    this.logger.debug('storeBlocksData.gettingLatestTxTrackedState')
+    const txTrackedState = await this.getLatestTxTrackedState()
+
     // Inputs are resolved into UTxOs that are being spent
     // Plus all the UTxOs produced in the processed blocks
     const utxosForInputsAndOutputs = [...storedUTxOs, ...utxosToStore]
 
+    this.logger.debug('storeBlocksData.processingAddressStates')
     // Filter all the unique addresses being used in either inputs or outputs
     const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
-    const blocksData = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, addressStates)
+    const blocksData = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
 
     const blocksBody = formatBulkUploadBody(blocksData, {
       index: this.indexFor(INDEX_SLOT),
@@ -396,6 +404,26 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
+  async getLatestTxTrackedState(): { [string]: any } {
+    this.logger.debug('Querying latest tx-tracking state')
+    const res = await this.esSearch({
+      index: this.indexFor(INDEX_TX),
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+      body: {
+        size: 1,
+        query: { bool: { filter: { term: { is_genesis: false } } } },
+        _source: ['supply_after_this_tx'],
+        ...qSort(['epoch', 'desc'], ['slot', 'desc']),
+      },
+    })
+    const hit = res.hits[0]
+    this.logger.debug('Latest tx-tracking state hit: ', JSON.stringify(hit, null, 2))
+    return {
+      supply_after_this_tx: hit ? hit._source.supply_after_this_tx.full : 0,
+    }
+  }
+
   async getAddressStates(uniqueBlockAddresses: Array<string>): { [string]: any } {
     const res = await this.client.search({
       index: this.indexFor(INDEX_TX),
@@ -415,6 +443,52 @@ class ElasticStorageProcessor implements StorageProcessor {
       throw e
     }
   }
+}
+
+/*
+ * Pass array of queries, where each query is one of:
+ * 1. A string 'S' - then turned into `{ S: { order: 'asc' } }`
+ * 2. An array [S, O] - then turned into '{ S: { order: O } }'
+ * 3. An array [S, O, U] - then turned into '{ S: { order: O, unmapped_type: U } }'
+ * 4. An object - passed directly
+ *
+ * The returned result is an object like: `{ sort: [ *E ] }`
+ * Where `*E` are all entries transformed.
+ *
+ * Use it when constructing an Elastic query like:
+ * {
+ *   query: { ... },
+ *   ...qSort('field1', ['field2', 'desc'])
+ * }
+ *
+ * NOTE: `unmapped_type` is set to `long` for all entries except direct objects and arrays of length 3.
+ */
+function qSort(...entries) {
+  const mapped = entries.map(e => {
+    const res = {}
+    let key
+    let order = 'asc'
+    let unmapped_type = 'long'
+    if (Array.isArray(e)) {
+      if (e.length < 1 || e.length > 3) {
+        throw new Error("qSort array entry expect 1-3 elements!")
+      }
+      key = e[0]
+      if (e.length > 1) {
+        order = e[1]
+      }
+      if (e.length > 2) {
+        unmapped_type = e[2]
+      }
+    } else if (typeof e === 'object') {
+      return e
+    } else {
+      key = e
+    }
+    res[key] = { order, unmapped_type }
+    return res
+  })
+  return { sort: mapped }
 }
 
 helpers.annotate(ElasticStorageProcessor,

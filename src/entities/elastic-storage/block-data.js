@@ -21,8 +21,12 @@ class BlockData extends ElasticData {
 
   txsData: Array<mixed> = []
 
-  constructor(block: Block, storedUTxOs: Array<UtxoType> = [],
-    addressStates: { [string]: any } = {}) {
+  constructor(
+    block: Block,
+    storedUTxOs: Array<UtxoType> = [],
+    txTrackedState: { [string]: any } = {},
+    addressStates: { [string]: any } = {},
+  ) {
     super()
     this.block = block
     this.storedUTxOs = storedUTxOs
@@ -39,7 +43,7 @@ class BlockData extends ElasticData {
       this.txsData = txs.map(tx => ({
         epoch: block.epoch,
         slot: block.slot,
-        ...(new TxData(tx, this.allUtxos, addressStates)).toPlainObject(),
+        ...(new TxData(tx, this.allUtxos, txTrackedState, addressStates)).toPlainObject(),
       }))
     }
   }
