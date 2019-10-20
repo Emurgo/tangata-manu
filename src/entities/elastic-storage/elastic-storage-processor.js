@@ -414,7 +414,7 @@ class ElasticStorageProcessor implements StorageProcessor {
         size: 1,
         query: { bool: { filter: { term: { is_genesis: false } } } },
         _source: ['supply_after_this_tx'],
-        ...qSort(['epoch', 'desc'], ['slot', 'desc']),
+        ...qSort(['epoch', 'desc'], ['slot', 'desc'], ['tx_ordinal', 'desc']),
       },
     })
     const hit = res.hits[0]
