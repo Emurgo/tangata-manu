@@ -14,6 +14,12 @@ class TxData extends ElasticData {
 
   resolvedOutputs: Array<UtxoData>
 
+  sumInputs: number
+
+  sumOutputs: number
+
+  fee: number
+
   txTrackedState: { [string]: any }
 
   addressStates: { [string]: any }
@@ -44,12 +50,30 @@ class TxData extends ElasticData {
       tx_hash: tx.id,
     }))
 
-    if (this.resolvedInputs.length === 1 && this.resolvedOutputs.length === 1) {
-      let input: InputData = this.resolvedInputs[0];
-      let output: UtxoData = this.resolvedOutputs[0];
-      if (input.utxo.amount === output.utxo.amount) {
-        // This is a redemption tx that increases the total supply of coin
-        txTrackedState.supply_after_this_tx = (txTrackedState.supply_after_this_tx || 0) + input.utxo.amount
+    let prevSupply = txTrackedState.supply_after_this_tx || 0;
+
+    if (this.resolvedInputs.length === 1
+     && this.resolvedOutputs.length === 1
+     && this.resolvedInputs[0].utxo.amount === this.resolvedOutputs[0].utxo.amount) {
+
+      const value = this.resolvedInputs[0].utxo.amount
+
+      this.sumInputs = value
+      this.sumOutputs = value
+      this.fee = 0
+
+      // This is a redemption tx that increases the total supply of coin
+      txTrackedState.supply_after_this_tx = prevSupply + value
+
+    } else {
+
+      this.sumInputs = _.sumBy(this.resolvedInputs, x => x.utxo.amount)
+      this.sumOutputs = _.sumBy(this.resolvedOutputs, x => x.utxo.amount)
+      this.fee = Math.max(0, this.sumInputs - this.sumOutputs)
+
+      if (!tx.isGenesis) {
+        // This is a regular tx - fees are burned from the total supply
+        txTrackedState.supply_after_this_tx = prevSupply - this.fee
       }
     }
     this.txTrackedState = { ...txTrackedState }
@@ -127,12 +151,6 @@ class TxData extends ElasticData {
   }
 
   toPlainObject() {
-    const inputsData = this.getInputsData()
-    const outputsData = this.getOutputsData()
-
-    const inputsSum = _.sumBy(inputsData, inp => inp.value.full)
-    const outputsSum = _.sumBy(outputsData, out => out.value.full)
-
     return {
       ...TxData.getBaseFields(),
       is_genesis: this.tx.isGenesis || false,
@@ -143,13 +161,15 @@ class TxData extends ElasticData {
         ...s,
         balance_after_this_tx: coinFormat(s.balance_after_this_tx),
       })),
-      outputs: outputsData,
-      inputs: inputsData,
-      sum_outputs: coinFormat(outputsSum),
-      sum_inputs: coinFormat(inputsSum),
-      fees: coinFormat(Math.max(0, inputsSum - outputsSum)),
+      outputs: this.getOutputsData(),
+      inputs: this.getInputsData(),
+      sum_inputs: coinFormat(this.sumInputs),
+      sum_outputs: coinFormat(this.sumOutputs),
+      fees: coinFormat(this.fee),
       time: this.tx.txTime.toISOString(),
-      supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
+      ...(this.tx.isGenesis ? {} : {
+        supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx)
+      }),
     }
   }
 }
