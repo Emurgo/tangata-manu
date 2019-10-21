@@ -2,7 +2,7 @@
 
 import _ from 'lodash'
 
-import type { Block } from '../../blockchain'
+import { Block } from '../../blockchain'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type { UtxoType } from './utxo-data'
@@ -46,6 +46,25 @@ class BlockData extends ElasticData {
         ...(new TxData(tx, this.allUtxos, txTrackedState, addressStates)).toPlainObject(),
       }))
     }
+  }
+
+  static emptySlot(
+    epoch: number,
+    slot: number,
+    networkStartTime: number,
+  ) {
+    return new BlockData(new Block({
+      hash: null,
+      slot: slot,
+      epoch: epoch,
+      height: null,
+      txs: [],
+      isEBB: false,
+      prevHash: null,
+      time: Block.calcSlotTime(epoch, slot, networkStartTime),
+      lead: null,
+      size: 0
+    }))
   }
 
   getReceivedAmount(): number {
