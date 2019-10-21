@@ -10,6 +10,7 @@ const SERVICE_IDENTIFIER = {
   LOGGER: Symbol.for('Logger'),
   GENESIS: Symbol.for('Genesis'),
   STORAGE_PROCESSOR: Symbol.for('StorageProcessor'),
+  VALIDATOR: Symbol.for('Validator'),
 }
 
 export default SERVICE_IDENTIFIER

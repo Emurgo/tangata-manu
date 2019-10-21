@@ -1,5 +1,6 @@
 // @flow
 
+export { default as ByronValidator } from './byron-validator'
 export { CardanoBridgeApi, MockBridgeApi } from './raw-data-providers'
 export { CustomDataParser, MockDataParser } from './raw-data-parsers'
 export { default as CronScheduler } from './cron'
