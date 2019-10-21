@@ -6,6 +6,7 @@ import type { TxType } from '../../blockchain'
 import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
+import BigNumber from "bignumber.js"
 
 class TxData extends ElasticData {
   tx: TxType
@@ -50,7 +51,7 @@ class TxData extends ElasticData {
       tx_hash: tx.id,
     }))
 
-    let prevSupply = txTrackedState.supply_after_this_tx || 0;
+    let prevSupply: BigNumber = txTrackedState.supply_after_this_tx;
 
     if (this.resolvedInputs.length === 1
      && this.resolvedOutputs.length === 1
@@ -63,7 +64,7 @@ class TxData extends ElasticData {
       this.fee = 0
 
       // This is a redemption tx that increases the total supply of coin
-      txTrackedState.supply_after_this_tx = prevSupply + value
+      txTrackedState.supply_after_this_tx = prevSupply.plus(value)
 
     } else {
 
@@ -73,7 +74,7 @@ class TxData extends ElasticData {
 
       if (!tx.isGenesis) {
         // This is a regular tx - fees are burned from the total supply
-        txTrackedState.supply_after_this_tx = prevSupply - this.fee
+        txTrackedState.supply_after_this_tx = prevSupply.minus(this.fee)
       }
     }
     this.txTrackedState = { ...txTrackedState }

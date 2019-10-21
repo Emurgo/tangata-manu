@@ -49,14 +49,14 @@ class BlockData extends ElasticData {
   }
 
   getReceivedAmount(): number {
-    const received = _.sumBy(this.inputsData, inp => inp.value.full)
+    const received = _.sumBy(this.inputsData, inp => Number(inp.value.full))
     return received
   }
 
   getSentAmount(): number {
     const blockUtxos = Object.values(this.allUtxos)
       .filter(utxo => utxo.block_hash === this.block.hash)
-    const sent = _.sumBy(blockUtxos, u => u.value.full)
+    const sent = _.sumBy(blockUtxos, u => Number(u.value.full))
     return sent
   }
 

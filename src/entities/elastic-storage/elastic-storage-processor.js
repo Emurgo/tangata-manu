@@ -13,6 +13,7 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import type { UtxoType } from './utxo-data'
 
+import BigNumber from "bignumber.js"
 import BlockData from './block-data'
 import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import TxData from './tx-data'
@@ -420,7 +421,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     const hit = res.hits[0]
     this.logger.debug('Latest tx-tracking state hit: ', JSON.stringify(hit, null, 2))
     return {
-      supply_after_this_tx: hit ? hit._source.supply_after_this_tx.full : 0,
+      supply_after_this_tx: new BigNumber(hit ? hit._source.supply_after_this_tx.full : 0),
     }
   }
 
