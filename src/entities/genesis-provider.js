@@ -14,7 +14,7 @@ import {
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
-import utils from '../blockchain/utils'
+import utils from '../blockchain/common'
 import type { NetworkConfig } from '../interfaces'
 
 const generateUtxoHash = (address) => {

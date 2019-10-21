@@ -2,31 +2,28 @@
 
 import type { Logger } from 'bunyan'
 
-import cbor from 'cbor'
-import bs58 from 'bs58'
-import blake from 'blakejs'
 import _ from 'lodash'
-// eslint-disable-next-line camelcase
-import { sha3_256 } from 'js-sha3'
 
 import { Request, Response } from 'restify'
 import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'
-import { injectable, decorate, inject } from 'inversify'
+import { decorate } from 'inversify'
+import { helpers } from 'inversify-vanillajs-helpers'
 
 import {
-  RawDataProvider, StorageProcessor, NetworkConfig, Validator,
+  RawDataParser, RawDataProvider, StorageProcessor, Validator,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-import utils from '../blockchain/utils'
-import { TX_STATUS } from '../blockchain'
+import { TX_STATUS } from '../blockchain/common'
 
-import type { TxType } from '../blockchain'
+import type { TxType } from '../blockchain/common'
 
 class TxController implements IController {
   logger: Logger
 
   dataProvider: RawDataProvider
+
+  parser: RawDataParser
 
   storageProcessor: StorageProcessor
 
@@ -35,11 +32,13 @@ class TxController implements IController {
   constructor(
     logger: Logger,
     dataProvider: RawDataProvider,
+    parser: RawDataParser,
     storageProcessor: StorageProcessor,
     validator: Validator,
   ) {
     this.logger = logger
     this.dataProvider = dataProvider
+    this.parser = parser
     this.storageProcessor = storageProcessor
     this.validator = validator
   }
@@ -89,9 +88,9 @@ class TxController implements IController {
 
   parseRawTx(txPayload: string): TxType {
     this.logger.debug(`txs.parseRawTx ${txPayload}`)
+    const txRaw = Buffer.from(txPayload, 'base64')
     const now = new Date()
-    const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
-    const txObj = utils.rawTxToObj(tx, {
+    const txObj = this.parser.parseTx(txRaw, {
       txTime: now,
       txOrdinal: null,
       status: TX_STATUS.TX_PENDING_STATUS,
@@ -107,14 +106,15 @@ class TxController implements IController {
   }
 }
 
+helpers.annotate(TxController, [
+  SERVICE_IDENTIFIER.LOGGER,
+  SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
+  SERVICE_IDENTIFIER.RAW_DATA_PARSER,
+  SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
+  SERVICE_IDENTIFIER.VALIDATOR,
+])
 
-decorate(injectable(), TxController)
 decorate(Controller('/api/txs'), TxController)
 decorate(Post('/signed'), TxController.prototype, 'signed')
-
-decorate(inject(SERVICE_IDENTIFIER.LOGGER), TxController, 0)
-decorate(inject(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER), TxController, 1)
-decorate(inject(SERVICE_IDENTIFIER.STORAGE_PROCESSOR), TxController, 2)
-decorate(inject(SERVICE_IDENTIFIER.VALIDATOR), TxController, 3)
 
 export default TxController

@@ -2,8 +2,13 @@
 
 import type { Logger } from 'bunyan'
 import cbor from 'cbor'
+import bs58 from 'bs58'
+import blake from 'blakejs'
+// eslint-disable-next-line camelcase
+import { sha3_256 } from 'js-sha3'
 //import { injectable, decorate, inject } from 'inversify'
 import { helpers } from 'inversify-vanillajs-helpers'
+
 
 import {
   StorageProcessor, NetworkConfig, Validator,

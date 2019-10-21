@@ -2,15 +2,16 @@
 
 import cbor from 'cbor'
 
-import utils from './utils'
+import byronUtils from './utils'
 
-import type { TxType } from './tx'
+import { Block } from '../common'
+import type { TxType } from '../common/tx'
 
 const SLOTS_IN_EPOCH = 21600
 
 export type HeaderType = Array<any>
 
-export default class Block {
+export default class ByronBlock implements Block {
   hash: string
 
   prevHash: string
@@ -66,7 +67,27 @@ export default class Block {
     }
   }
 
-  getTxs() {
+  getHash(): string {
+    return this.hash
+  }
+
+  getPrevHash(): string {
+    return this.prevHash
+  }
+
+  getEpoch(): EpochId {
+    return this.epoch
+  }
+
+  getSlot(): SlotId {
+    return this.slot
+  }
+
+  getHeight(): number {
+    return this.height
+  }
+
+  getTxs(): Array<TxType> {
     return this.txs
   }
 
@@ -105,7 +126,7 @@ export default class Block {
       isEBB: false,
       upd: (upd1.length || upd2.length) ? [upd1, upd2] : null,
       height: chainDifficulty,
-      txs: txs.map((tx, index) => utils.rawTxToObj(tx, {
+      txs: txs.map((tx, index) => byronUtils.rawTxToObj(tx, {
         txTime: blockTime,
         txOrdinal: index,
         blockNum: chainDifficulty,
@@ -120,9 +141,9 @@ export default class Block {
   }
 
 
-  static parseBlock(blob: Buffer, handleRegularBlock: number): Block {
+  static parseBlock(blob: Buffer, handleRegularBlock: number): ByronBlock {
     const [type, [header, body]] = cbor.decode(blob)
-    const hash = utils.headerToId(header, type)
+    const hash = byronUtils.headerToId(header, type)
     const common = {
       hash,
       size: blob.length,
@@ -132,22 +153,22 @@ export default class Block {
     let blockData
     switch (type) {
       case 0:
-        blockData = { ...common, ...Block.handleEpochBoundaryBlock(header) }
+        blockData = { ...common, ...ByronBlock.handleEpochBoundaryBlock(header) }
         break
       case 1:
         blockData = {
           ...common,
-          ...Block.handleRegularBlock(header, body, hash, handleRegularBlock),
+          ...ByronBlock.handleRegularBlock(header, body, hash, handleRegularBlock),
         }
         break
       default:
         throw new Error(`Unexpected block type! ${type}`)
     }
-    return new Block(blockData)
+    return new ByronBlock(blockData)
   }
 
   static fromCBOR(data: Buffer, handleRegularBlock: number) {
-    const block = Block.parseBlock(data, handleRegularBlock)
+    const block = ByronBlock.parseBlock(data, handleRegularBlock)
     return block
   }
 }
