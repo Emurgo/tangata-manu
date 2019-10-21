@@ -8,7 +8,7 @@ export const coinFormat = (num: number|BigNumber) => {
   if (BigNumber.isBigNumber(num)) {
     return {
       integers: Math.floor(num.dividedBy(LOVELACE_IN_ADA).toNumber()),
-      decimals: num.modulo(LOVELACE_IN_ADA),
+      decimals: num.modulo(LOVELACE_IN_ADA).toNumber(),
       full: num.toString(),
     }
   }
