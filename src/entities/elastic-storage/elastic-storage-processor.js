@@ -76,9 +76,8 @@ const getBlocksForSlotIdx = (
   storedUTxOs: Array<UtxoType>,
   txTrackedState: { [string]: any },
   addressStates: { [string]: any },
-) => {
-  const blocksData = blocks.map(
-    block => (new BlockData(block, storedUTxOs, txTrackedState, addressStates)).toPlainObject())
+): Array<BlockData> => {
+  const blocksData = blocks.map(block => new BlockData(block, storedUTxOs, txTrackedState, addressStates))
   return blocksData
 }
 
@@ -368,7 +367,15 @@ class ElasticStorageProcessor implements StorageProcessor {
     // Filter all the unique addresses being used in either inputs or outputs
     const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
-    const blocksData = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+
+    const mappedBlocks: Array<BlockData> =
+      getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+
+    const tip: BlockInfoType = await this.getBestBlockNum()
+    const paddedBlocks: Array<BlockData> =
+      padEmptySlots(mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
+
+    const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
     const blocksBody = formatBulkUploadBody(blocksData, {
       index: this.indexFor(INDEX_SLOT),
@@ -445,6 +452,64 @@ class ElasticStorageProcessor implements StorageProcessor {
       throw e
     }
   }
+}
+
+/*
+ * Function iterates thru the passed array of blocks, assuming they are in consecutive order,
+ * and checks if there are any gaps in epoch/slot between blocks. If there is a gap detected
+ * it is assumed these "gap slots" are empty and a special "empty slot" object is created,
+ * to track it in Elastic.
+ *
+ * The tip epoch and slot arguments are used to detect if there's a gap before the first block
+ * in the passed array. The network start time argument is used to calculate the `time` field
+ * for empty slot objects.
+ *
+ * Returns a new array of block-objects with the same or larger size.
+ */
+function padEmptySlots(
+  blocks: Array<BlockData>,
+  tipEpoch: number,
+  tipSlot: ?number,
+  networkStartTime: number,
+): Array<BlockData> {
+  const nextSlot = (epoch: number, slot: ?number) => ({
+    epoch: slot >= 21599 ? epoch + 1 : epoch,
+    slot: (slot == null || slot >= 21599) ? 0 : slot + 1,
+  })
+  const result: Array<BlockData> = []
+  blocks.reduce(({ epoch, slot }, b: BlockData) => {
+    const [blockEpoch, blockSlot] = [b.block.epoch, b.block.slot]
+    if (blockEpoch < epoch || (blockSlot === epoch && blockSlot < slot)) {
+      throw new Error(`Got a block for storing younger than next expected slot.
+         Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`
+      )
+    }
+    if (blockEpoch > epoch) {
+      if (blockEpoch - epoch > 1) {
+        throw new Error(`Diff between expected slot and next block is more than 1 full epoch.
+          Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`)
+      }
+      // There are empty slots on the epoch boundary
+      for (let emptySlot = slot; emptySlot < 21600; emptySlot++) {
+        // Push for all missing slots in the last epoch
+        result.push(BlockData.emptySlot(epoch, emptySlot, networkStartTime))
+      }
+      for (let emptySlot = 0; emptySlot < blockSlot; emptySlot++) {
+        // Push for all empty slots in the new epoch
+        result.push(BlockData.emptySlot(blockEpoch, emptySlot, networkStartTime))
+      }
+    } else {
+      // Empty slots withing an epoch
+      for (let emptySlot = slot; emptySlot < blockSlot; emptySlot++) {
+        result.push(BlockData.emptySlot(blockEpoch, emptySlot, networkStartTime))
+      }
+    }
+    // Push the block itself
+    result.push(b)
+    // Calculate next expected slot from the current block
+    return nextSlot(blockEpoch, blockSlot)
+  }, nextSlot(tipEpoch, tipSlot))
+  return result
 }
 
 /*
