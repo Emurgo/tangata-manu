@@ -21,8 +21,12 @@ class BlockData extends ElasticData {
 
   txsData: Array<mixed> = []
 
-  constructor(block: Block, storedUTxOs: Array<UtxoType> = [],
-    addressStates: { [string]: any } = {}) {
+  constructor(
+    block: Block,
+    storedUTxOs: Array<UtxoType> = [],
+    txTrackedState: { [string]: any } = {},
+    addressStates: { [string]: any } = {},
+  ) {
     super()
     this.block = block
     this.storedUTxOs = storedUTxOs
@@ -39,20 +43,20 @@ class BlockData extends ElasticData {
       this.txsData = txs.map(tx => ({
         epoch: block.epoch,
         slot: block.slot,
-        ...(new TxData(tx, this.allUtxos, addressStates)).toPlainObject(),
+        ...(new TxData(tx, this.allUtxos, txTrackedState, addressStates)).toPlainObject(),
       }))
     }
   }
 
   getReceivedAmount(): number {
-    const received = _.sumBy(this.inputsData, inp => inp.value.full)
+    const received = _.sumBy(this.inputsData, inp => Number(inp.value.full))
     return received
   }
 
   getSentAmount(): number {
     const blockUtxos = Object.values(this.allUtxos)
       .filter(utxo => utxo.block_hash === this.block.hash)
-    const sent = _.sumBy(blockUtxos, u => u.value.full)
+    const sent = _.sumBy(blockUtxos, u => Number(u.value.full))
     return sent
   }
 

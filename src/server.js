@@ -50,11 +50,13 @@ const startServer = async () => {
 
   // start scheduler to check for updates from cardano-http-bridge
   const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
-  scheduler.startAsync().then(res => {
+  scheduler.startAsync().then(async res => {
     logger.error(`Scheduler.startAsync exited successfully. This is unexpected to happen by itself! (result=${res})`)
+    await new Promise(resolve => setTimeout(resolve, 5000))
     process.exit(1)
-  }, err => {
+  }, async err => {
     logger.error('Scheduler.startAsync exited with an error:', err)
+    await new Promise(resolve => setTimeout(resolve, 5000))
     process.exit(1)
   })
 
