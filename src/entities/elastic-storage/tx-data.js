@@ -21,6 +21,8 @@ class TxData extends ElasticData {
 
   fee: number
 
+  newAddresses: number
+
   txTrackedState: { [string]: any }
 
   addressStates: { [string]: any }
@@ -99,6 +101,7 @@ class TxData extends ElasticData {
 
     // Apply the aggregated diff to the address state
     const txAddressStates = []
+    let newAddresses = 0
     for (const address of Object.keys(txAddressDiff)) {
       const { addressBalanceDiff, isAddressInput, isAddressOutput } = txAddressDiff[address]
       const {
@@ -106,7 +109,13 @@ class TxData extends ElasticData {
         tx_num_after_this_tx = 0,
         received_tx_num_after_this_tx = 0,
         sent_tx_num_after_this_tx = 0,
-      } = addressStates[address] || {}
+        isNewAddress = false,
+      } = addressStates[address] || {
+        isNewAddress: true,
+      }
+      if (isNewAddress) {
+        newAddresses += 1
+      }
       const newState = {
         address,
         balance_after_this_tx: balance_after_this_tx + addressBalanceDiff,
@@ -115,10 +124,14 @@ class TxData extends ElasticData {
         received_tx_num_after_this_tx: received_tx_num_after_this_tx + (isAddressOutput ? 1 : 0),
       }
       addressStates[address] = newState
-      txAddressStates.push({ ...newState })
+      txAddressStates.push({
+        ...newState,
+        ...(isNewAddress ? { new_address: true } : {})
+      })
     }
 
     this.addressStates = txAddressStates
+    this.newAddresses = newAddresses
   }
 
   static fromGenesisUtxo(utxo: any, networkStartTime: number) {
@@ -167,6 +180,7 @@ class TxData extends ElasticData {
       sum_inputs: coinFormat(this.sumInputs),
       sum_outputs: coinFormat(this.sumOutputs),
       fees: coinFormat(this.fee),
+      new_addresses: this.newAddresses,
       time: this.tx.txTime.toISOString(),
       ...(this.tx.isGenesis ? {} : {
         supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx)

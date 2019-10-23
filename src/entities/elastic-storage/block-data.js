@@ -84,14 +84,20 @@ class BlockData extends ElasticData {
     return this.txsData.reduce((sum, { fees }) => sum.plus(fees.full), new BigNumber(0))
   }
 
+  getNewAddresses(): number {
+    return this.txsData.reduce((sum, { new_addresses }) => sum + new_addresses, 0)
+  }
+
   toPlainObject() {
     const time = this.block.getTime().toISOString()
     let sent = 0
     let fees = 0
+    let newAddresses = 0
     const txs = this.block.getTxs()
     if (txs.length > 0) {
       sent = this.getSentAmount()
       fees = this.getFees()
+      newAddresses = this.getNewAddresses()
     }
     return {
       epoch: this.block.epoch,
@@ -106,6 +112,7 @@ class BlockData extends ElasticData {
       tx: this.getTxsData(),
       sent: coinFormat(sent),
       fees: coinFormat(fees),
+      new_addresses: newAddresses,
     }
   }
 }
