@@ -44,7 +44,7 @@ class GenesisProvider implements Genesis {
     this.#logger.debug('nonAvvmBalances to utxos')
     return _.map(nonAvvmBalances, (amount, receiver) => {
       const utxoHash = generateUtxoHash(receiver)
-      return utils.structUtxo(receiver, amount, utxoHash)
+      return utils.structUtxo(receiver, Number(amount), utxoHash)
     })
   }
 
@@ -58,7 +58,7 @@ class GenesisProvider implements Genesis {
         base64url.decode(publicRedeemKey, 'hex'))
       const receiver = prk.address(settings).to_base58()
       const utxoHash = generateUtxoHash(receiver)
-      return utils.structUtxo(receiver, amount, utxoHash)
+      return utils.structUtxo(receiver, Number(amount), utxoHash)
     })
   }
 }
