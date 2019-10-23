@@ -5,7 +5,7 @@ import borc from 'borc'
 import bs58 from 'bs58'
 import blake from 'blakejs'
 
-import type { TxInputType, TxType } from './tx'
+import type { TxInputType, TxType } from '../common'
 
 type TxIdHexType = string
 type TxBodyHexType = string

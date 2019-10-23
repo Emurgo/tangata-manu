@@ -10,7 +10,8 @@ export interface Block {
   getHash(): string;
   getPrevHash(): string;
   getEpoch(): EpochId;
-  getSlot(): SlotId;
+  // slot, or null if not applicable (ie Byron EBB)
+  getSlot(): ?SlotId;
   getHeight(): number;
   // TODO: Tx should be TxObj or other?
   getTxs(): Array<any>;

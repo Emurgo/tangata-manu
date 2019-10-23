@@ -3,9 +3,9 @@
 import cbor from 'cbor'
 
 import byronUtils from './utils'
-
+import type { EpochId, SlotId } from '../common'
 import { Block } from '../common'
-import type { TxType } from '../common/tx'
+import type { TxType } from '../common'
 
 const SLOTS_IN_EPOCH = 21600
 
@@ -79,7 +79,7 @@ export default class ByronBlock implements Block {
     return this.epoch
   }
 
-  getSlot(): SlotId {
+  getSlot(): ?SlotId {
     return this.slot
   }
 

@@ -7,7 +7,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
-import type { Block } from '../../blockchain'
+import type { Block } from '../../blockchain/common'
 import type { BlockInfoType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
@@ -79,7 +79,7 @@ const getBlockUtxos = (block: Block) => {
     (out, idx) => (new UtxoData({
       tx_hash: tx.id,
       tx_index: idx,
-      block_hash: block.hash,
+      block_hash: block.getHash(),
       receiver: out.address,
       amount: out.value,
     })).toPlainObject(),

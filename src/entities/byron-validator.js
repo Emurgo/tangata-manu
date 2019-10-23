@@ -1,6 +1,7 @@
 // @flow
 
 import type { Logger } from 'bunyan'
+import _ from 'lodash'
 import cbor from 'cbor'
 import bs58 from 'bs58'
 import blake from 'blakejs'
@@ -10,12 +11,19 @@ import { sha3_256 } from 'js-sha3'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 
+import type { TxType } from '../blockchain/common'
 import {
   StorageProcessor, NetworkConfig, Validator,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from "../constants/identifiers";
 
 class ByronValidator implements Validator {
+
+  logger: Logger
+
+  storageProcessor: StorageProcessor
+
+  expectedNetworkMagic: number
 
   constructor(
     logger: Logger,
@@ -63,7 +71,7 @@ class ByronValidator implements Validator {
       }
       const { address: inputAddress, amount: inputAmount } = txOutputs[inputIdx]
       this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
-      const { addressRoot, addrAttr, addressType } = TxController.deconstructAddress(inputAddress)
+      const { addressRoot, addrAttr, addressType } = ByronValidator.deconstructAddress(inputAddress)
       if (addressType !== 0) {
         this.logger.debug(`Unsupported address type: ${addressType}. Skipping witness validation for this input.`)
         return
@@ -83,7 +91,7 @@ class ByronValidator implements Validator {
     this.logger.debug(`Validating output network (outputs: ${outputs.length})`)
     outputs.forEach(({ address }, i) => {
       this.logger.debug(`Validating network for ${address}`)
-      const { addrAttr } = TxController.deconstructAddress(address)
+      const { addrAttr } = ByronValidator.deconstructAddress(address)
       const networkAttr: Buffer = addrAttr && addrAttr.get && addrAttr.get(2)
       const networkMagic = networkAttr && networkAttr.readInt32BE(1)
       if (networkMagic !== this.expectedNetworkMagic) {

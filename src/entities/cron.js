@@ -87,7 +87,7 @@ class CronScheduler implements Scheduler {
     const omitEbb = true
     const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
     for (const block of blocks) {
-      if (block.height > height) {
+      if (block.getHeight() > height) {
         await this.processBlock(block)
       }
     }
@@ -117,8 +117,8 @@ class CronScheduler implements Scheduler {
       this.blocksToStore = []
     }
 
-    if (flushCache || block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
-      this.logger.debug(`Block parsed: ${block.getHash()} ${block.getEpoch()} ${String(block.getSlot())} ${block.height}`)
+    if (flushCache || block.getHeight() % LOG_BLOCK_PARSED_THRESHOLD === 0) {
+      this.logger.debug(`Block parsed: ${block.getHash()} ${block.getEpoch()} ${String(block.getSlot())} ${block.getHeight()}`)
     }
     return BLOCK_STATUS_PROCESSED
   }

@@ -1,6 +1,6 @@
 // @flow
 
-import type { TxInputType, TxType } from './tx'
+import type { TxInputType, TxType } from '../common/tx'
 
 const getUtxoId = (input: TxInputType) => `${input.txId}${input.idx}`
 

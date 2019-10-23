@@ -293,7 +293,7 @@ class DB implements Database {
     const epoch = block.getEpoch()
     const slot = block.getSlot()
     const txs = block.getTxs()
-    this.#logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.height})`)
+    this.#logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.getHeight()})`)
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
     const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
@@ -334,7 +334,7 @@ class DB implements Database {
       await this.storeTx(tx, utxos)
     }
     await this.storeUtxos(Object.values(newUtxos))
-    await this.backupAndRemoveUtxos(requiredUtxoIds, block.height)
+    await this.backupAndRemoveUtxos(requiredUtxoIds, block.getHeight())
   }
 }
 

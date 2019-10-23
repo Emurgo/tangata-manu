@@ -6,7 +6,8 @@ import cbor from 'cbor'
 
 import { RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
-//import { Block, Epoch } from '../../blockchain/common'
+import type { TxType } from '../../blockchain/common'
+import { Block } from '../../blockchain/common'
 import { ByronBlock, ByronEpoch, byronUtils } from '../../blockchain/byron'
 import type { NetworkConfig } from '../../interfaces'
 
