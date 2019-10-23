@@ -16,6 +16,7 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 import utils from '../blockchain/utils'
 import type { NetworkConfig } from '../interfaces'
+import type { GenesisLeaderType } from "../interfaces/storage-processor";
 
 const generateUtxoHash = (address) => {
   const data = bs58.decode(address)
@@ -38,6 +39,22 @@ class GenesisProvider implements Genesis {
     this.genesisHash = networkConfig.genesisHash()
     this.#dataProvider = dataProvider
     this.#logger = logger
+  }
+
+  getGenesisLeaders(heavyDelegation: { [string]: {} }): Array<GenesisLeaderType> {
+    this.#logger.debug('getGenesisLeaders')
+    const res: Array<GenesisLeaderType> = Object.entries(heavyDelegation).map(([heavyDelegationId, { issuerPk }], idx) => {
+      const ordinal = idx + 1
+      const lead: GenesisLeaderType = {
+        slotLeaderPk: Buffer.from(issuerPk, 'base64').toString('hex'),
+        leadId: heavyDelegationId,
+        name: `Bootstrap era pool #${ordinal}`,
+        description: `Pool ${ordinal} used before decentralization`,
+        ordinal
+      }
+      return lead
+    })
+    return res
   }
 
   nonAvvmBalancesToUtxos(nonAvvmBalances: []) {

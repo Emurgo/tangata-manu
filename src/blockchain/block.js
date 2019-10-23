@@ -31,9 +31,11 @@ export default class Block {
 
   lead: ?string
 
+  slotLeaderPk: ?string
+
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
-    time, lead, size,
+    time, lead, slotLeaderPk, size,
   }: {hash: string,
     slot: ?number,
     epoch: number,
@@ -44,6 +46,7 @@ export default class Block {
     prevHash: string,
     time: Date,
     lead: ?string,
+    slotLeaderPk: ?string
   }) {
     this.hash = hash
     this.prevHash = prevHash
@@ -54,6 +57,7 @@ export default class Block {
     this.isEBB = isEBB
     this.time = time
     this.lead = lead
+    this.slotLeaderPk = slotLeaderPk
     this.size = size
   }
 
@@ -72,11 +76,11 @@ export default class Block {
 
   static handleEpochBoundaryBlock(header: HeaderType) {
     const [epoch, [chainDifficulty]] = header[3]
-    const lead = null
     return {
       epoch,
       time: new Date(),
-      lead,
+      lead: null,
+      slotLeaderPk: null,
       height: chainDifficulty,
       isEBB: true,
       slot: null,
@@ -92,7 +96,7 @@ export default class Block {
   ) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
-    const lead = consensus[1].toString('hex')
+    const slotLeaderPk = consensus[1].toString('hex')
     const [chainDifficulty] = consensus[2]
     const txs = body[0]
     const [upd1, upd2] = body[3]
@@ -101,7 +105,7 @@ export default class Block {
     const res = {
       slot,
       epoch,
-      lead,
+      slotLeaderPk,
       time: blockTime,
       isEBB: false,
       upd: (upd1.length || upd2.length) ? [upd1, upd2] : null,
