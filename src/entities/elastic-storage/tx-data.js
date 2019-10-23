@@ -1,7 +1,7 @@
 // @flow
 import _ from 'lodash'
 
-import type { TxType } from '../../blockchain'
+import type { TxType } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'

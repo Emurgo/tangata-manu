@@ -2,7 +2,7 @@
 
 import _ from 'lodash'
 
-import type { Block } from '../../blockchain'
+import { Block } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type { UtxoType } from './utxo-data'
@@ -43,7 +43,7 @@ class BlockData extends ElasticData {
 
   getSentAmount(): number {
     const blockUtxos = Object.values(this.allUtxos)
-      .filter(utxo => utxo.block_hash === this.block.hash)
+      .filter(utxo => utxo.block_hash === this.block.getHash())
     const sent = _.sumBy(blockUtxos, u => u.value.full)
     return sent
   }
@@ -51,8 +51,8 @@ class BlockData extends ElasticData {
   getTxsData() {
     const txs = this.block.getTxs()
     return txs.map(tx => ({
-      epoch: this.block.epoch,
-      slot: this.block.slot,
+      epoch: this.block.getEpoch(),
+      slot: this.block.getSlot(),
       ...(new TxData(tx, this.allUtxos)).toPlainObject(),
     }))
   }
@@ -73,12 +73,12 @@ class BlockData extends ElasticData {
       fees = this.getFees()
     }
     return {
-      epoch: this.block.epoch,
-      slot: this.block.slot,
-      hash: this.block.hash,
-      size: this.block.size,
-      height: this.block.height,
-      lead: this.block.lead,
+      epoch: this.block.getEpoch(),
+      slot: this.block.getSlot(),
+      hash: this.block.getHash(),
+      size: this.block.getSize(),
+      height: this.block.getHeight(),
+      lead: this.block.getLeaderKey(),
       time,
       branch: 0,
       tx_num: txs.length,

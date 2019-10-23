@@ -91,6 +91,18 @@ export default class ByronBlock implements Block {
     return this.txs
   }
 
+  getTime(): Date {
+    return this.time
+  }
+
+  getSize(): number {
+    return this.size
+  }
+
+  getLeaderKey(): ?string {
+    return this.lead
+  }
+
   static handleEpochBoundaryBlock(header: HeaderType) {
     const [epoch, [chainDifficulty]] = header[3]
     const lead = null
@@ -135,11 +147,6 @@ export default class ByronBlock implements Block {
     }
     return res
   }
-
-  getTime(): Date {
-    return this.time
-  }
-
 
   static parseBlock(blob: Buffer, handleRegularBlock: number): ByronBlock {
     const [type, [header, body]] = cbor.decode(blob)

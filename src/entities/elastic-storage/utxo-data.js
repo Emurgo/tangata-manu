@@ -1,7 +1,7 @@
 // @flow
 
 import ElasticData, { coinFormat } from './elastic-data'
-import type { TxInputType } from '../../blockchain/tx'
+import type { TxInputType } from '../../blockchain/common'
 
 const UTXO_OUTPUT_TYPE = 'output'
 
