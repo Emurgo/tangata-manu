@@ -29,6 +29,7 @@ class PostgresStorageProcessor implements StorageProcessor {
         const blockHaveTxs = !_.isEmpty(block.txs)
         if (blockHaveTxs) {
           await this.db.storeBlockTxs(block)
+          await this.db.storeNewSnapshot(block)
         }
       }
       await this.db.updateBestBlockNum(_.last(blocks).height)
@@ -54,6 +55,14 @@ class PostgresStorageProcessor implements StorageProcessor {
       await dbConn.query('ROLLBACK')
       throw e
     }
+  }
+
+  async utxosForInputsExists(inputs) {
+    return this.db.utxosForInputsExists(inputs)
+  }
+
+  async txsForInputsExists(inputs) {
+    return this.db.txsForInputsExists(inputs)
   }
 
   async getBestBlockNum(): Promise<BlockInfoType> {

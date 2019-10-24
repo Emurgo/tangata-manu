@@ -9,7 +9,10 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
 import { Block, TX_STATUS } from '../blockchain'
 import type { TxType } from '../blockchain'
+import type { TxInputType } from '../blockchain/tx'
 import Q from '../db-queries'
+
+const SNAPSHOTS_TABLE = 'transient_snapshots'
 
 
 class DB implements Database {
@@ -51,6 +54,33 @@ class DB implements Database {
     }
     return { height: 0, epoch: 0 }
   }
+
+  async utxosForInputsExists(inputs: Array<TxInputType>) {
+    const utxoIds = inputs.map(utils.getUtxoId)
+    const conn = this.getConn()
+    const sql = Q.sql.select()
+      .from('utxos')
+      .field('COUNT(*)', 'utxoscount')
+      .where('utxo_id IN ?', utxoIds)
+      .toString()
+    this.#logger.debug(`utxosForInputsExists: ${sql}`)
+    const dbRes = await conn.query(sql)
+    return inputs.length === Number(dbRes.rows[0].utxoscount)
+  }
+
+  async txsForInputsExists(inputs: Array<TxInputType>) {
+    const conn = this.getConn()
+    const sql = Q.sql.select()
+      .from('txs')
+      .field('COUNT(*)', 'txscount')
+      .where('hash IN ?', _.map(inputs, 'txId'))
+      .where('tx_state = ?', TX_STATUS.TX_SUCCESS_STATUS)
+      .toString()
+    this.#logger.debug(`txsForInputsExists: ${sql}`)
+    const dbRes = await conn.query(sql)
+    return inputs.length === Number(dbRes.rows[0].txscount)
+  }
+
 
   async updateBestBlockNum(bestBlockNum: number) {
     const conn = this.getConn()
@@ -287,6 +317,77 @@ class DB implements Database {
       [...new Set([...inputAddresses, ...outputAddresses])],
     )
   }
+
+  async queryPendingSet() {
+    const query = Q.sql.select().from(SNAPSHOTS_TABLE)
+      .field('tx_hash')
+      .where('block_height = ?', Q.sql.select().from(SNAPSHOTS_TABLE)
+        .field('MAX(block_height)'))
+      .union(Q.sql.select().from('txs')
+        .field('hash')
+        .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
+        .where('NOT EXISTS ?', Q.sql.select().from(SNAPSHOTS_TABLE)
+          .field('1')
+          .where('tx_hash = hash')))
+      .toString()
+    const dbRes = await this.getConn().query(query)
+    this.#logger.debug('queryPendingSet:', query, dbRes)
+    return _.map(dbRes.rows, 'tx_hash')
+  }
+
+  async storeNewPendingSnapshot(block: Block) {
+    const pendingSet = await this.queryPendingSet()
+    const txHashes = _.map(block.txs, 'id')
+    const nextSnapshot = pendingSet.filter(hash => !txHashes.includes(hash))
+    if (_.isEmpty(nextSnapshot)) {
+      this.#logger.debug('storeNewPendingSnapshot: No pending txs to snapshot..')
+      return
+    }
+    const dbFields = nextSnapshot.map(txHash => ({
+      tx_hash: txHash,
+      block_hash: block.hash,
+      block_height: block.height,
+      status: TX_STATUS.TX_PENDING_STATUS,
+    }))
+    this.#logger.debug('storeNewPendingSnapshot: ', nextSnapshot)
+    const query = Q.sql.insert().into(SNAPSHOTS_TABLE).setFieldsRows(dbFields).toString()
+    this.getConn().query(query)
+  }
+
+  async queryFailedSet() {
+    const sql = Q.sql.select().from('txs')
+      .where('tx_state = ?', TX_STATUS.TX_FAILED_STATUS)
+      .where('NOT EXISTS ?', Q.sql.select().from(SNAPSHOTS_TABLE)
+        .where('status = ?', TX_STATUS.TX_FAILED_STATUS)
+        .where('hash = tx_hash'))
+      .toString()
+    const dbRes = await this.getConn().query(sql)
+    this.#logger.debug('queryFailedSet:', sql, dbRes)
+    return _.map(dbRes.rows, 'tx_hash')
+  }
+
+  async storeNewFailedSnapshot(block: Block) {
+    const failedSet = await this.queryFailedSet()
+    if (_.isEmpty(failedSet)) {
+      this.#logger.debug('storeNewFailedSnapshot: No failed txs added to snapshot..')
+      return
+    }
+    const dbFields = failedSet.map(txHash => ({
+      tx_hash: txHash,
+      block_hash: block.hash,
+      block_height: block.height,
+      status: TX_STATUS.TX_FAILED_STATUS,
+    }))
+    this.#logger.debug('storeNewFailedSnapshot: ', failedSet)
+    const query = Q.sql.insert().into(SNAPSHOTS_TABLE).setFieldsRows(dbFields).toString()
+    this.getConn().query(query)
+  }
+
+  async storeNewSnapshot(block: Block) {
+    await this.storeNewPendingSnapshot(block)
+    await this.storeNewFailedSnapshot(block)
+  }
+
 
   async storeBlockTxs(block: Block) {
     const {

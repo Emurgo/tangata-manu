@@ -14,6 +14,7 @@ import {
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
 import initIoC from './ioc_config'
+import { YOROI_POSTGRES } from './ioc_config/storage-processor'
 
 const serverConfig = config.get('server')
 
@@ -38,9 +39,6 @@ const startServer = async () => {
 
   await storageProcessor.onLaunch()
 
-  const server = new InversifyRestifyServer(container)
-  const app = server.build()
-
   const genesisLoaded = await storageProcessor.genesisLoaded()
   if (!genesisLoaded) {
     logger.info('Start to upload genesis.')
@@ -58,10 +56,15 @@ const startServer = async () => {
     process.exit(1)
   })
 
-  app.use(restify.plugins.bodyParser())
-  app.listen(serverConfig.port, () => {
-    logger.info('%s listening at %s', app.name, app.url)
-  })
+  const storageName = container.getNamed('storageProcessor')
+  if (storageName === YOROI_POSTGRES) {
+    const server = new InversifyRestifyServer(container)
+    const app = server.build()
+    app.use(restify.plugins.bodyParser())
+    app.listen(serverConfig.port, () => {
+      logger.info('%s listening at %s', app.name, app.url)
+    })
+  }
 }
 
 export default startServer
