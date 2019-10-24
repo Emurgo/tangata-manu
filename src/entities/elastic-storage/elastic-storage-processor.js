@@ -8,7 +8,7 @@ import { Client } from '@elastic/elasticsearch'
 
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
 import type { Block } from '../../blockchain'
-import type { BlockInfoType } from '../../interfaces/storage-processor'
+import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import type { UtxoType } from './utxo-data'
@@ -19,6 +19,7 @@ import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
 
+const INDEX_LEADERS = 'leader'
 const INDEX_SLOT = 'slot'
 const INDEX_TX = 'tx'
 const INDEX_TXIO = 'txio'
@@ -147,6 +148,8 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   lastChunk: number;
 
+  genesisLeaders: Array<GenesisLeaderType>
+
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -241,10 +244,16 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
+  setGenesisLeaders(leaders: Array<GenesisLeaderType>) {
+    this.genesisLeaders = _.keyBy(leaders, 'slotLeaderPk')
+    this.logger.debug('Genesis leaders: ', this.genesisLeaders)
+  }
+
   async onLaunch() {
     await this.ensureElasticTemplates()
     await this.removeUnsealed()
     this.lastChunk = await this.getLatestStableChunk()
+    this.setGenesisLeaders(await this.getGenesisLeaders())
     this.logger.debug('Launched ElasticStorageProcessor storage processor.')
   }
 
@@ -262,6 +271,34 @@ class ElasticStorageProcessor implements StorageProcessor {
     })
     this.logger.debug('Check elastic whether genesis loaded...', esResponse)
     return Number(esResponse.body[0].count) > 0
+  }
+
+  async storeGenesisLeaders(leaders: Array<GenesisLeaderType>) {
+    this.logger.debug('storeGenesisLeaders')
+    this.setGenesisLeaders(leaders)
+    const leadersBody = formatBulkUploadBody(leaders, {
+      index: this.indexFor(INDEX_LEADERS),
+      getId: (o: GenesisLeaderType) => o.leadId,
+      getData: (o) => o,
+    })
+    const resp = await this.bulkUpload(leadersBody)
+    this.logger.debug('storeGenesisLeaders: upload response ', resp)
+  }
+
+  async getGenesisLeaders(): Array<GenesisLeaderType> {
+    const index = this.indexFor(INDEX_LEADERS)
+    const indexExists = (await this.client.indices.exists({
+      index,
+    })).body
+    if (!indexExists) {
+      return []
+    }
+    const { hits } = this.esSearch({
+      index,
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+    })
+    return hits
   }
 
   async storeGenesisUtxos(utxos: Array<UtxoType>) {
@@ -338,6 +375,17 @@ class ElasticStorageProcessor implements StorageProcessor {
     const blockTxs = []
     const chunk = ++this.lastChunk
     for (const block of blocks) {
+
+      if (!block.lead && block.slotLeaderPk) {
+        const lead: GenesisLeaderType = this.genesisLeaders[block.slotLeaderPk]
+        if (!lead) {
+          throw new Error(
+            `Failed to find lead by PK: '${block.slotLeaderPk}', 
+            leaders: ${JSON.stringify(this.setGenesisLeaders(), null, 2)}`)
+        }
+        block.lead = lead.leadId
+      }
+
       const txs = block.getTxs()
       if (txs.length > 0) {
         txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))

@@ -14,15 +14,19 @@ import {
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
 import initIoC from './ioc_config'
+import type { GenesisLeaderType } from "./interfaces/storage-processor";
 
 const serverConfig = config.get('server')
 
-const genesisLoadUtxos = async (container) => {
+const loadGenesis = async (container) => {
   const dataProvider = container.get<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
   const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)
   const genesisFile = await dataProvider.getGenesis(genesis.genesisHash)
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
   const { protocolMagic } = genesisFile.protocolConsts
+
+  const genesisLeaders: Array<GenesisLeaderType> = genesis.getGenesisLeaders(genesisFile.heavyDelegation || {})
+  await storageProcessor.storeGenesisLeaders(genesisLeaders)
 
   const genesisUtxos = [
     ...genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances || []),
@@ -44,7 +48,7 @@ const startServer = async () => {
   const genesisLoaded = await storageProcessor.genesisLoaded()
   if (!genesisLoaded) {
     logger.info('Start to upload genesis.')
-    await genesisLoadUtxos(container)
+    await loadGenesis(container)
     logger.info('Genesis data loaded.')
   }
 

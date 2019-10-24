@@ -64,6 +64,7 @@ class BlockData extends ElasticData {
       prevHash: null,
       time: Block.calcSlotTime(epoch, slot, networkStartTime),
       lead: null,
+      slotLeaderPk: null,
       size: 0
     }))
   }
@@ -106,6 +107,7 @@ class BlockData extends ElasticData {
       size: this.block.size,
       height: this.block.height,
       lead: this.block.lead,
+      slotLeaderPk: this.block.slotLeaderPk,
       time,
       branch: 0,
       tx_num: txs.length,
