@@ -207,6 +207,8 @@ class ElasticStorageProcessor implements StorageProcessor {
       },
     })
     const deletedDocs = resp.body.total
+    // Sleeping to ensure delete is flushed
+    await sleep(5000)
     this.logger.info(`deleteChunksAfter(${chunk}), total deleted:${deletedDocs}`, resp)
   }
 
@@ -293,12 +295,12 @@ class ElasticStorageProcessor implements StorageProcessor {
     if (!indexExists) {
       return []
     }
-    const { hits } = this.esSearch({
+    const { hits } = await this.esSearch({
       index,
       allowNoIndices: true,
       ignoreUnavailable: true,
     })
-    return hits
+    return _.map(hits, '_source')
   }
 
   async storeGenesisUtxos(utxos: Array<UtxoType>) {
@@ -370,7 +372,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   async storeBlocksData(blocks: Array<Block>) {
     const storedUTxOs = []
-    const utxosToStore = []
+    const blockOutputsToStore = []
     const txInputsIds = []
     const blockTxs = []
     const chunk = ++this.lastChunk
@@ -393,7 +395,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       if (txs.length > 0) {
         txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
         this.logger.debug('storeBlocksData', block)
-        utxosToStore.push(...getBlockUtxos(block))
+        blockOutputsToStore.push(...getBlockUtxos(block))
         blockTxs.push(...txs)
       }
     }
@@ -412,7 +414,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     // Inputs are resolved into UTxOs that are being spent
     // Plus all the UTxOs produced in the processed blocks
-    const utxosForInputsAndOutputs = [...storedUTxOs, ...utxosToStore]
+    const utxosForInputsAndOutputs = [...storedUTxOs, ...blockOutputsToStore]
 
     this.logger.debug('storeBlocksData.processingAddressStates')
     // Filter all the unique addresses being used in either inputs or outputs
@@ -421,6 +423,10 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     const mappedBlocks: Array<BlockData> =
       getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+
+    const blockInputsToStore = mappedBlocks
+      .flatMap((b: BlockData) => b.getResolvedTxs())
+      .flatMap((tx: TxData) => tx.getInputsData())
 
     const tip: BlockInfoType = await this.getBestBlockNum()
     const paddedBlocks: Array<BlockData> =
@@ -436,7 +442,9 @@ class ElasticStorageProcessor implements StorageProcessor {
         _chunk: chunk,
       }),
     })
-    const utxosBody = formatBulkUploadBody(utxosToStore, {
+
+    const blockTxioToStore = [...blockInputsToStore, ...blockOutputsToStore]
+    const txiosBody = formatBulkUploadBody(blockTxioToStore, {
       index: this.indexFor(INDEX_TXIO),
       getId: (o) => o.id,
       getData: (o) => ({
@@ -449,7 +457,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       getId: (o) => o.hash,
       getData: (o) => o,
     })
-    await this.bulkUpload([...utxosBody, ...blocksBody, ...txsBody])
+    await this.bulkUpload([...txiosBody, ...blocksBody, ...txsBody])
 
     // Commit every 10th chunk
     if (chunk % 10 === 0) {
@@ -458,7 +466,7 @@ class ElasticStorageProcessor implements StorageProcessor {
         chunk,
         blocks: blocks.length,
         txs: blockTxs.length,
-        txios: utxosToStore.length,
+        txios: blockTxioToStore.length,
       })
       await sleep(5000)
     }

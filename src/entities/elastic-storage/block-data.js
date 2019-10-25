@@ -21,6 +21,8 @@ class BlockData extends ElasticData {
 
   inputsData: [] = []
 
+  resolvedTxs: Array<TxData> = []
+
   txsData: Array<mixed> = []
 
   constructor(
@@ -42,10 +44,12 @@ class BlockData extends ElasticData {
       this.inputsData = _.flatMap(txs, 'inputs')
         .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
 
-      this.txsData = txs.map(tx => ({
+      this.resolvedTxs = txs.map(tx => new TxData(tx, this.allUtxos, txTrackedState, addressStates))
+
+      this.txsData = this.resolvedTxs.map(tx => ({
         epoch: block.getEpoch(),
         slot: block.getSlot(),
-        ...(new TxData(tx, this.allUtxos, txTrackedState, addressStates)).toPlainObject(),
+        ...tx.toPlainObject(),
       }))
     }
   }
@@ -69,6 +73,10 @@ class BlockData extends ElasticData {
       slotLeaderPk: null,
       size: 0
     }))
+  }
+
+  getResolvedTxs(): Array<TxData> {
+    return this.resolvedTxs
   }
 
   getReceivedAmount(): BigNumber {
@@ -109,6 +117,7 @@ class BlockData extends ElasticData {
       size: this.block.getSize(),
       height: this.block.getHeight(),
       lead: this.block.getSlotLeaderId(),
+      // this is byron-specific logic to store this PK since it doesn't exist in shelley blocks, need to figure this out
       // $FlowFixMe
       slotLeaderPk: this.block.slotLeaderPk,
       time,
