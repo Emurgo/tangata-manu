@@ -92,6 +92,7 @@ class DB implements Database {
   async rollBackTransactions(blockHeight: number) {
     this.#logger.info(`rollBackTransactions to block ${blockHeight}`)
     const conn = this.getConn()
+    // all txs after the `blockHeight` are marked as “Pending”
     const sql = Q.sql.update()
       .table('txs')
       .set('tx_state', TX_STATUS.TX_PENDING_STATUS)
@@ -103,6 +104,15 @@ class DB implements Database {
       .toString()
     const dbRes = await conn.query(sql)
     return dbRes
+  }
+
+  async rollbackTransientSnapshots(blockHeight: number) {
+    // Delete all pending and failed snapshots after `blockHeight`
+    this.#logger.info(`rollbackTransientSnapshots to block ${blockHeight}`)
+    const conn = this.getConn()
+    const sql = Q.sql.delete().from(SNAPSHOTS_TABLE)
+      .where('block_height > ?', blockHeight)
+    return conn.query(sql)
   }
 
   async deleteInvalidUtxos(blockHeight: number) {

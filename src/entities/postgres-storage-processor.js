@@ -39,6 +39,7 @@ class PostgresStorageProcessor implements StorageProcessor {
   async rollbackTo(height: number) {
     return this.doInTransaction(async () => {
       await this.db.rollBackTransactions(height)
+      await this.db.rollbackTransientSnapshots(height)
       await this.db.rollBackUtxoBackup(height)
       await this.db.rollBackBlockHistory(height)
       await this.db.updateBestBlockNum(height)
