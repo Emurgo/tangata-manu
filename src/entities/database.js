@@ -101,6 +101,7 @@ class DB implements Database {
       .set('time', null)
       .set('last_update', 'NOW()', { dontQuote: true })
       .where('block_num > ?', blockHeight)
+      .where('tx_state != ?', TX_STATUS.TX_FAILED_STATUS)
       .toString()
     const dbRes = await conn.query(sql)
     return dbRes
