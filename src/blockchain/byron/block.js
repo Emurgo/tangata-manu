@@ -30,11 +30,14 @@ export default class ByronBlock implements Block {
 
   time: Date
 
+  // slot leader ID (needs resolving with genesis file, looked up using slotLeaderPk)
   lead: ?string
+
+  slotLeaderPk: ?string
 
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
-    time, lead, size,
+    time, lead, slotLeaderPk, size,
   }: {hash: string,
     slot: ?number,
     epoch: number,
@@ -45,6 +48,7 @@ export default class ByronBlock implements Block {
     prevHash: string,
     time: Date,
     lead: ?string,
+    slotLeaderPk: ?string
   }) {
     this.hash = hash
     this.prevHash = prevHash
@@ -55,6 +59,7 @@ export default class ByronBlock implements Block {
     this.isEBB = isEBB
     this.time = time
     this.lead = lead
+    this.slotLeaderPk = slotLeaderPk
     this.size = size
   }
 
@@ -99,17 +104,17 @@ export default class ByronBlock implements Block {
     return this.size
   }
 
-  getLeaderKey(): ?string {
+  getSlotLeaderId(): ?string {
     return this.lead
   }
 
   static handleEpochBoundaryBlock(header: HeaderType) {
     const [epoch, [chainDifficulty]] = header[3]
-    const lead = null
     return {
       epoch,
       time: new Date(),
-      lead,
+      lead: null,
+      slotLeaderPk: null,
       height: chainDifficulty,
       isEBB: true,
       slot: null,
@@ -117,23 +122,24 @@ export default class ByronBlock implements Block {
     }
   }
 
-  static handleRegularBlock(header: HeaderType, body: {}, blockHash: string,
-    networkStartTime: number) {
+  static handleRegularBlock(
+    header: HeaderType,
+    body: {},
+    blockHash: string,
+    networkStartTime: number
+  ) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
-    const lead = consensus[1].toString('hex')
+    const slotLeaderPk = consensus[1].toString('hex')
     const [chainDifficulty] = consensus[2]
     const txs = body[0]
     const [upd1, upd2] = body[3]
-    const blockTime = new Date(
-      (networkStartTime
-      + (epoch * SLOTS_IN_EPOCH + slot) * 20)
-      * 1000)
+    const blockTime = this.calcSlotTime(epoch, slot, networkStartTime)
 
     const res = {
       slot,
       epoch,
-      lead,
+      slotLeaderPk,
       time: blockTime,
       isEBB: false,
       upd: (upd1.length || upd2.length) ? [upd1, upd2] : null,
@@ -148,7 +154,7 @@ export default class ByronBlock implements Block {
     return res
   }
 
-  static parseBlock(blob: Buffer, handleRegularBlock: number): ByronBlock {
+  static parseBlock(blob: Buffer, networkStartTime: number): ByronBlock {
     const [type, [header, body]] = cbor.decode(blob)
     const hash = byronUtils.headerToId(header, type)
     const common = {
@@ -165,7 +171,7 @@ export default class ByronBlock implements Block {
       case 1:
         blockData = {
           ...common,
-          ...ByronBlock.handleRegularBlock(header, body, hash, handleRegularBlock),
+          ...ByronBlock.handleRegularBlock(header, body, hash, networkStartTime),
         }
         break
       default:
@@ -174,8 +180,15 @@ export default class ByronBlock implements Block {
     return new ByronBlock(blockData)
   }
 
-  static fromCBOR(data: Buffer, handleRegularBlock: number) {
-    const block = ByronBlock.parseBlock(data, handleRegularBlock)
+  static fromCBOR(data: Buffer, networkStartTime: number) {
+    const block = ByronBlock.parseBlock(data, networkStartTime)
     return block
+  }
+
+  static calcSlotTime(epoch: number, slot: number, networkStartTime: number): Date {
+    const globalSlot = epoch * SLOTS_IN_EPOCH + slot
+    const secondsFromStart = globalSlot * 20
+    const slotUnitSeconds = networkStartTime + secondsFromStart
+    return new Date(slotUnitSeconds * 1000)
   }
 }

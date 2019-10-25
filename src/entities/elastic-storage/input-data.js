@@ -9,7 +9,7 @@ class InputData extends UtxoData {
     super({
       tx_hash: tx.id,
       tx_index: index,
-      amount: inputUtxo.value.full,
+      amount: Number(inputUtxo.value.full),
       receiver: inputUtxo.address,
     })
     this.type = INPUT_TYPE
