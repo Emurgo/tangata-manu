@@ -65,7 +65,7 @@ class TxController implements IController {
         await this.storeTxAsFailed(txObj)
       }
     } catch (err) {
-      this.logger.error('Failed to store tx as pending!', err)
+      this.logger.error('Failed to store tx', err)
       throw new Error('Internal DB fail in the importer!')
     }
     let statusText
@@ -105,7 +105,7 @@ class TxController implements IController {
 
   async storeTxAsPending(tx: TxType) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-    await this.db.storeTx(tx)
+    return this.db.storeTx(tx)
   }
 
   async storeTxAsFailed(tx: TxType) {
@@ -114,11 +114,19 @@ class TxController implements IController {
       status: TX_STATUS.TX_FAILED_STATUS,
     }
     this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
-    await this.db.storeTx(failedTx)
+    return this.db.storeTx(failedTx, [], false)
+  }
+
+  async validateDuplicates(tx: TxType) {
+    const txExists = this.db.isTxExists(tx.id)
+    if (txExists) {
+      throw new Error(`Tx ${tx.id} already exists.`)
+    }
   }
 
   async validateTx(txObj: TxType) {
     try {
+      await this.validateDuplicates(txObj)
       await this.validateInputs(txObj)
       await this.validateTxWitnesses(txObj)
       this.validateDestinationNetwork(txObj)

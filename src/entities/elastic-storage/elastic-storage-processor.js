@@ -8,15 +8,18 @@ import { Client } from '@elastic/elasticsearch'
 
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
 import type { Block } from '../../blockchain'
-import type { BlockInfoType } from '../../interfaces/storage-processor'
+import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import type { UtxoType } from './utxo-data'
 
+import BigNumber from "bignumber.js"
 import BlockData from './block-data'
 import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import TxData from './tx-data'
+import { parseCoinToBigInteger } from './elastic-data'
 
+const INDEX_LEADERS = 'leader'
 const INDEX_SLOT = 'slot'
 const INDEX_TX = 'tx'
 const INDEX_TXIO = 'txio'
@@ -69,10 +72,13 @@ const formatBulkUploadBody = (objs: any,
   options.getData(o),
 ])
 
-const getBlocksForSlotIdx = (blocks: Array<Block>,
-  storedUTxOs: Array<UtxoType>, addressStates: { [string]: any }) => {
-  const blocksData = blocks.map(
-    block => (new BlockData(block, storedUTxOs, addressStates)).toPlainObject())
+const getBlocksForSlotIdx = (
+  blocks: Array<Block>,
+  storedUTxOs: Array<UtxoType>,
+  txTrackedState: { [string]: any },
+  addressStates: { [string]: any },
+): Array<BlockData> => {
+  const blocksData = blocks.map(block => new BlockData(block, storedUTxOs, txTrackedState, addressStates))
   return blocksData
 }
 
@@ -141,6 +147,8 @@ class ElasticStorageProcessor implements StorageProcessor {
   elasticConfig: ElasticConfigType
 
   lastChunk: number;
+
+  genesisLeaders: Array<GenesisLeaderType>
 
   constructor(
     logger: Logger,
@@ -236,10 +244,16 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
+  setGenesisLeaders(leaders: Array<GenesisLeaderType>) {
+    this.genesisLeaders = _.keyBy(leaders, 'slotLeaderPk')
+    this.logger.debug('Genesis leaders: ', this.genesisLeaders)
+  }
+
   async onLaunch() {
     await this.ensureElasticTemplates()
     await this.removeUnsealed()
     this.lastChunk = await this.getLatestStableChunk()
+    this.setGenesisLeaders(await this.getGenesisLeaders())
     this.logger.debug('Launched ElasticStorageProcessor storage processor.')
   }
 
@@ -257,6 +271,34 @@ class ElasticStorageProcessor implements StorageProcessor {
     })
     this.logger.debug('Check elastic whether genesis loaded...', esResponse)
     return Number(esResponse.body[0].count) > 0
+  }
+
+  async storeGenesisLeaders(leaders: Array<GenesisLeaderType>) {
+    this.logger.debug('storeGenesisLeaders')
+    this.setGenesisLeaders(leaders)
+    const leadersBody = formatBulkUploadBody(leaders, {
+      index: this.indexFor(INDEX_LEADERS),
+      getId: (o: GenesisLeaderType) => o.leadId,
+      getData: (o) => o,
+    })
+    const resp = await this.bulkUpload(leadersBody)
+    this.logger.debug('storeGenesisLeaders: upload response ', resp)
+  }
+
+  async getGenesisLeaders(): Array<GenesisLeaderType> {
+    const index = this.indexFor(INDEX_LEADERS)
+    const indexExists = (await this.client.indices.exists({
+      index,
+    })).body
+    if (!indexExists) {
+      return []
+    }
+    const { hits } = this.esSearch({
+      index,
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+    })
+    return hits
   }
 
   async storeGenesisUtxos(utxos: Array<UtxoType>) {
@@ -322,7 +364,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       refresh: 'true',
       body,
     })
-    this.logger.debug('bulkUpload', resp)
+    this.logger.debug('bulkUpload', { ...resp, body: { ...resp.body, items: undefined } })
     return resp
   }
 
@@ -333,6 +375,17 @@ class ElasticStorageProcessor implements StorageProcessor {
     const blockTxs = []
     const chunk = ++this.lastChunk
     for (const block of blocks) {
+
+      if (!block.lead && block.slotLeaderPk) {
+        const lead: GenesisLeaderType = this.genesisLeaders[block.slotLeaderPk]
+        if (!lead) {
+          throw new Error(
+            `Failed to find lead by PK: '${block.slotLeaderPk}', 
+            leaders: ${JSON.stringify(this.setGenesisLeaders(), null, 2)}`)
+        }
+        block.lead = lead.leadId
+      }
+
       const txs = block.getTxs()
       if (txs.length > 0) {
         txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
@@ -351,14 +404,26 @@ class ElasticStorageProcessor implements StorageProcessor {
       storedUTxOs.push(..._.map(txInputs.body.docs.filter(d => d.found), '_source'))
     }
 
+    this.logger.debug('storeBlocksData.gettingLatestTxTrackedState')
+    const txTrackedState = await this.getLatestTxTrackedState()
+
     // Inputs are resolved into UTxOs that are being spent
     // Plus all the UTxOs produced in the processed blocks
     const utxosForInputsAndOutputs = [...storedUTxOs, ...utxosToStore]
 
+    this.logger.debug('storeBlocksData.processingAddressStates')
     // Filter all the unique addresses being used in either inputs or outputs
     const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
-    const blocksData = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, addressStates)
+
+    const mappedBlocks: Array<BlockData> =
+      getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+
+    const tip: BlockInfoType = await this.getBestBlockNum()
+    const paddedBlocks: Array<BlockData> =
+      padEmptySlots(mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
+
+    const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
     const blocksBody = formatBulkUploadBody(blocksData, {
       index: this.indexFor(INDEX_SLOT),
@@ -396,6 +461,26 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
+  async getLatestTxTrackedState(): { [string]: any } {
+    this.logger.debug('Querying latest tx-tracking state')
+    const res = await this.esSearch({
+      index: this.indexFor(INDEX_TX),
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+      body: {
+        size: 1,
+        query: { bool: { filter: { term: { is_genesis: false } } } },
+        _source: ['supply_after_this_tx'],
+        ...qSort(['epoch', 'desc'], ['slot', 'desc'], ['tx_ordinal', 'desc']),
+      },
+    })
+    const hit = res.hits[0]
+    this.logger.debug('Latest tx-tracking state hit: ', JSON.stringify(hit, null, 2))
+    return {
+      supply_after_this_tx: hit ? parseCoinToBigInteger(hit._source.supply_after_this_tx) : new BigNumber(0),
+    }
+  }
+
   async getAddressStates(uniqueBlockAddresses: Array<string>): { [string]: any } {
     const res = await this.client.search({
       index: this.indexFor(INDEX_TX),
@@ -415,6 +500,110 @@ class ElasticStorageProcessor implements StorageProcessor {
       throw e
     }
   }
+}
+
+/*
+ * Function iterates thru the passed array of blocks, assuming they are in consecutive order,
+ * and checks if there are any gaps in epoch/slot between blocks. If there is a gap detected
+ * it is assumed these "gap slots" are empty and a special "empty slot" object is created,
+ * to track it in Elastic.
+ *
+ * The tip epoch and slot arguments are used to detect if there's a gap before the first block
+ * in the passed array. The network start time argument is used to calculate the `time` field
+ * for empty slot objects.
+ *
+ * Returns a new array of block-objects with the same or larger size.
+ */
+function padEmptySlots(
+  blocks: Array<BlockData>,
+  tipEpoch: number,
+  tipSlot: ?number,
+  networkStartTime: number,
+): Array<BlockData> {
+  const nextSlot = (epoch: number, slot: ?number) => ({
+    epoch: slot >= 21599 ? epoch + 1 : epoch,
+    slot: (slot == null || slot >= 21599) ? 0 : slot + 1,
+  })
+  const result: Array<BlockData> = []
+  blocks.reduce(({ epoch, slot }, b: BlockData) => {
+    const [blockEpoch, blockSlot] = [b.block.epoch, b.block.slot]
+    if (blockEpoch < epoch || (blockSlot === epoch && blockSlot < slot)) {
+      throw new Error(`Got a block for storing younger than next expected slot.
+         Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`
+      )
+    }
+    if (blockEpoch > epoch) {
+      if (blockEpoch - epoch > 1) {
+        throw new Error(`Diff between expected slot and next block is more than 1 full epoch.
+          Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`)
+      }
+      // There are empty slots on the epoch boundary
+      for (let emptySlot = slot; emptySlot < 21600; emptySlot++) {
+        // Push for all missing slots in the last epoch
+        result.push(BlockData.emptySlot(epoch, emptySlot, networkStartTime))
+      }
+      for (let emptySlot = 0; emptySlot < blockSlot; emptySlot++) {
+        // Push for all empty slots in the new epoch
+        result.push(BlockData.emptySlot(blockEpoch, emptySlot, networkStartTime))
+      }
+    } else {
+      // Empty slots withing an epoch
+      for (let emptySlot = slot; emptySlot < blockSlot; emptySlot++) {
+        result.push(BlockData.emptySlot(blockEpoch, emptySlot, networkStartTime))
+      }
+    }
+    // Push the block itself
+    result.push(b)
+    // Calculate next expected slot from the current block
+    return nextSlot(blockEpoch, blockSlot)
+  }, nextSlot(tipEpoch, tipSlot))
+  return result
+}
+
+/*
+ * Pass array of queries, where each query is one of:
+ * 1. A string 'S' - then turned into `{ S: { order: 'asc' } }`
+ * 2. An array [S, O] - then turned into '{ S: { order: O } }'
+ * 3. An array [S, O, U] - then turned into '{ S: { order: O, unmapped_type: U } }'
+ * 4. An object - passed directly
+ *
+ * The returned result is an object like: `{ sort: [ *E ] }`
+ * Where `*E` are all entries transformed.
+ *
+ * Use it when constructing an Elastic query like:
+ * {
+ *   query: { ... },
+ *   ...qSort('field1', ['field2', 'desc'])
+ * }
+ *
+ * NOTE: `unmapped_type` is set to `long` for all entries except direct objects and arrays of length 3.
+ */
+function qSort(...entries) {
+  const mapped = entries.map(e => {
+    const res = {}
+    let key
+    let order = 'asc'
+    let unmapped_type = 'long'
+    if (Array.isArray(e)) {
+      if (e.length < 1 || e.length > 3) {
+        throw new Error("qSort array entry expect 1-3 elements!")
+      }
+      key = e[0]
+      if (e.length > 1) {
+        order = e[1]
+      }
+      if (e.length > 2) {
+        unmapped_type = e[2]
+      }
+    } else if (typeof e === 'object') {
+      return e
+    } else {
+      key = e
+    }
+    res[key] = { order, unmapped_type }
+    return res
+  })
+  return { sort: mapped }
 }
 
 helpers.annotate(ElasticStorageProcessor,

@@ -16,6 +16,7 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 import utils from '../blockchain/utils'
 import type { NetworkConfig } from '../interfaces'
+import type { GenesisLeaderType } from "../interfaces/storage-processor";
 
 const generateUtxoHash = (address) => {
   const data = bs58.decode(address)
@@ -40,11 +41,27 @@ class GenesisProvider implements Genesis {
     this.#logger = logger
   }
 
+  getGenesisLeaders(heavyDelegation: { [string]: {} }): Array<GenesisLeaderType> {
+    this.#logger.debug('getGenesisLeaders')
+    const res: Array<GenesisLeaderType> = Object.entries(heavyDelegation).map(([heavyDelegationId, { issuerPk }], idx) => {
+      const ordinal = idx + 1
+      const lead: GenesisLeaderType = {
+        slotLeaderPk: Buffer.from(issuerPk, 'base64').toString('hex'),
+        leadId: heavyDelegationId,
+        name: `Bootstrap era pool #${ordinal}`,
+        description: `Pool ${ordinal} used before decentralization`,
+        ordinal
+      }
+      return lead
+    })
+    return res
+  }
+
   nonAvvmBalancesToUtxos(nonAvvmBalances: []) {
     this.#logger.debug('nonAvvmBalances to utxos')
     return _.map(nonAvvmBalances, (amount, receiver) => {
       const utxoHash = generateUtxoHash(receiver)
-      return utils.structUtxo(receiver, amount, utxoHash)
+      return utils.structUtxo(receiver, Number(amount), utxoHash)
     })
   }
 
@@ -58,7 +75,7 @@ class GenesisProvider implements Genesis {
         base64url.decode(publicRedeemKey, 'hex'))
       const receiver = prk.address(settings).to_base58()
       const utxoHash = generateUtxoHash(receiver)
-      return utils.structUtxo(receiver, amount, utxoHash)
+      return utils.structUtxo(receiver, Number(amount), utxoHash)
     })
   }
 }

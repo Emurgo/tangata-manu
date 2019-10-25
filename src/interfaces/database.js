@@ -8,6 +8,7 @@ export interface Database {
   updateBestBlockNum(height: number): Promise<void>;
   getConn(): any;
   getOutputsForTxHashes(hashes: Array<string>): Promise<Array<{}>>;
+  isTxExists(txId: string): Promise<boolean>;
 }
 
 export interface DBConnection {

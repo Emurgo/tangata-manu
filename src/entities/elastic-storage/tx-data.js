@@ -6,6 +6,7 @@ import type { TxType } from '../../blockchain'
 import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
+import BigNumber from "bignumber.js"
 
 class TxData extends ElasticData {
   tx: TxType
@@ -14,9 +15,24 @@ class TxData extends ElasticData {
 
   resolvedOutputs: Array<UtxoData>
 
+  sumInputs: number
+
+  sumOutputs: number
+
+  fee: number
+
+  newAddresses: number
+
+  txTrackedState: { [string]: any }
+
   addressStates: { [string]: any }
 
-  constructor(tx: TxType, inputsUtxos: {} = {}, addressStates: { [string]: any } = {}) {
+  constructor(
+    tx: TxType,
+    inputsUtxos: {} = {},
+    txTrackedState: { [string]: any } = {},
+    addressStates: { [string]: any } = {},
+  ) {
     super()
     this.tx = tx
 
@@ -36,6 +52,34 @@ class TxData extends ElasticData {
       block_hash: tx.blockHash,
       tx_hash: tx.id,
     }))
+
+    let prevSupply: BigNumber = txTrackedState.supply_after_this_tx;
+
+    if (this.resolvedInputs.length === 1
+     && this.resolvedOutputs.length === 1
+     && this.resolvedInputs[0].utxo.amount === this.resolvedOutputs[0].utxo.amount) {
+
+      const value = this.resolvedInputs[0].utxo.amount
+
+      this.sumInputs = value
+      this.sumOutputs = value
+      this.fee = 0
+
+      // This is a redemption tx that increases the total supply of coin
+      txTrackedState.supply_after_this_tx = prevSupply.plus(value)
+
+    } else {
+
+      this.sumInputs = _.sumBy(this.resolvedInputs, x => x.utxo.amount)
+      this.sumOutputs = _.sumBy(this.resolvedOutputs, x => x.utxo.amount)
+      this.fee = Math.max(0, this.sumInputs - this.sumOutputs)
+
+      if (!tx.isGenesis) {
+        // This is a regular tx - fees are burned from the total supply
+        txTrackedState.supply_after_this_tx = prevSupply.minus(this.fee)
+      }
+    }
+    this.txTrackedState = { ...txTrackedState }
 
     // Aggregate all inputs/outputs into a "diff" object
     const txAddressDiff: { [string]: any } = {}
@@ -57,6 +101,7 @@ class TxData extends ElasticData {
 
     // Apply the aggregated diff to the address state
     const txAddressStates = []
+    let newAddresses = 0
     for (const address of Object.keys(txAddressDiff)) {
       const { addressBalanceDiff, isAddressInput, isAddressOutput } = txAddressDiff[address]
       const {
@@ -64,7 +109,13 @@ class TxData extends ElasticData {
         tx_num_after_this_tx = 0,
         received_tx_num_after_this_tx = 0,
         sent_tx_num_after_this_tx = 0,
-      } = addressStates[address] || {}
+        isNewAddress = false,
+      } = addressStates[address] || {
+        isNewAddress: true,
+      }
+      if (isNewAddress) {
+        newAddresses += 1
+      }
       const newState = {
         address,
         balance_after_this_tx: balance_after_this_tx + addressBalanceDiff,
@@ -73,10 +124,14 @@ class TxData extends ElasticData {
         received_tx_num_after_this_tx: received_tx_num_after_this_tx + (isAddressOutput ? 1 : 0),
       }
       addressStates[address] = newState
-      txAddressStates.push({ ...newState })
+      txAddressStates.push({
+        ...newState,
+        ...(isNewAddress ? { new_address: true } : {})
+      })
     }
 
     this.addressStates = txAddressStates
+    this.newAddresses = newAddresses
   }
 
   static fromGenesisUtxo(utxo: any, networkStartTime: number) {
@@ -110,12 +165,6 @@ class TxData extends ElasticData {
   }
 
   toPlainObject() {
-    const inputsData = this.getInputsData()
-    const outputsData = this.getOutputsData()
-
-    const inputsSum = _.sumBy(inputsData, inp => inp.value.full)
-    const outputsSum = _.sumBy(outputsData, out => out.value.full)
-
     return {
       ...TxData.getBaseFields(),
       is_genesis: this.tx.isGenesis || false,
@@ -126,12 +175,16 @@ class TxData extends ElasticData {
         ...s,
         balance_after_this_tx: coinFormat(s.balance_after_this_tx),
       })),
-      outputs: outputsData,
-      inputs: inputsData,
-      sum_outputs: coinFormat(outputsSum),
-      sum_inputs: coinFormat(inputsSum),
-      fees: coinFormat(Math.max(0, inputsSum - outputsSum)),
+      outputs: this.getOutputsData(),
+      inputs: this.getInputsData(),
+      sum_inputs: coinFormat(this.sumInputs),
+      sum_outputs: coinFormat(this.sumOutputs),
+      fees: coinFormat(this.fee),
+      new_addresses: this.newAddresses,
       time: this.tx.txTime.toISOString(),
+      ...(this.tx.isGenesis ? {} : {
+        supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx)
+      }),
     }
   }
 }

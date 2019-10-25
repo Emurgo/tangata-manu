@@ -261,7 +261,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(tx: TxType, txUtxos:Array<mixed> = []) {
+  async storeTx(tx: TxType, txUtxos:Array<mixed> = [], upsert:boolean = true) {
     const conn = this.getConn()
     const {
       inputs,
@@ -286,9 +286,6 @@ class DB implements Database {
     const txUTCTime = tx.txTime.toUTCString()
     const txDbFields = {
       hash: id,
-      inputs: JSON.stringify(inputUtxos),
-      inputs_address: inputAddresses,
-      inputs_amount: inputAmmounts,
       outputs_address: outputAddresses,
       outputs_amount: outputAmmounts,
       block_num: blockNum,
@@ -298,10 +295,19 @@ class DB implements Database {
       tx_ordinal: tx.txOrdinal,
       time: txUTCTime,
       last_update: txUTCTime,
+      ...(!_.isEmpty(inputUtxos)
+        ? {
+          inputs: JSON.stringify(inputUtxos),
+          inputs_address: inputAddresses,
+          inputs_amount: inputAmmounts,
+        }
+        : {}),
     }
     const now = new Date().toUTCString()
-    const query = Q.TX_INSERT.setFields(txDbFields)
-      .onConflict('hash', {
+
+    const onConflictArgs = []
+    if (upsert) {
+      onConflictArgs.push('hash', {
         block_num: blockNum,
         block_hash: blockHash,
         time: txUTCTime,
@@ -309,13 +315,27 @@ class DB implements Database {
         last_update: now,
         tx_ordinal: tx.txOrdinal,
       })
+    }
+
+    const sql = Q.TX_INSERT.setFields(txDbFields)
+      .onConflict(...onConflictArgs)
       .toString()
-    this.#logger.debug('Insert TX:', query, inputAddresses, inputAmmounts)
-    await conn.query(query)
+    this.#logger.debug('Insert TX:', sql, inputAddresses, inputAmmounts)
+    await conn.query(sql)
     await this.storeTxAddresses(
       id,
       [...new Set([...inputAddresses, ...outputAddresses])],
     )
+  }
+
+  async isTxExists(txId: string) {
+    const sql = Q.sql.select().from('txs')
+      .field('1')
+      .where('hash = ?', txId)
+      .limit(1)
+      .toString()
+    const dbRes = await this.getConn().query(sql)
+    return dbRes.rows.length === 1
   }
 
   async queryPendingSet() {
