@@ -2,6 +2,7 @@
 
 import _ from 'lodash'
 
+import { ByronBlock } from '../../blockchain/byron'
 import { Block } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
@@ -42,19 +43,20 @@ class BlockData extends ElasticData {
         .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
 
       this.txsData = txs.map(tx => ({
-        epoch: block.epoch,
-        slot: block.slot,
+        epoch: block.getEpoch(),
+        slot: block.getSlot(),
         ...(new TxData(tx, this.allUtxos, txTrackedState, addressStates)).toPlainObject(),
       }))
     }
   }
 
+  // TODO: figure out if we need this for shelley too and handle that there
   static emptySlot(
     epoch: number,
     slot: number,
     networkStartTime: number,
   ) {
-    return new BlockData(new Block({
+    return new BlockData(new ByronBlock({
       hash: null,
       slot: slot,
       epoch: epoch,
@@ -62,7 +64,7 @@ class BlockData extends ElasticData {
       txs: [],
       isEBB: false,
       prevHash: null,
-      time: Block.calcSlotTime(epoch, slot, networkStartTime),
+      time: ByronBlock.calcSlotTime(epoch, slot, networkStartTime),
       lead: null,
       slotLeaderPk: null,
       size: 0
@@ -107,7 +109,8 @@ class BlockData extends ElasticData {
       size: this.block.getSize(),
       height: this.block.getHeight(),
       lead: this.block.getSlotLeaderId(),
-      slotLeaderPk: this.block.getSlotLeaderPk(),
+      // $FlowFixMe
+      slotLeaderPk: this.block.slotLeaderPk,
       time,
       branch: 0,
       tx_num: txs.length,

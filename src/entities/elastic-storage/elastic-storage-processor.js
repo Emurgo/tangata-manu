@@ -383,7 +383,7 @@ class ElasticStorageProcessor implements StorageProcessor {
         if (!lead) {
           throw new Error(
             `Failed to find lead by PK: '${block.slotLeaderPk}', 
-            leaders: ${JSON.stringify(this.setGenesisLeaders(), null, 2)}`)
+            leaders: ${JSON.stringify(this.getGenesisLeaders(), null, 2)}`)
         }
         // $FlowFixMe
         block.lead = lead.leadId
@@ -529,7 +529,7 @@ function padEmptySlots(
   })
   const result: Array<BlockData> = []
   blocks.reduce(({ epoch, slot }, b: BlockData) => {
-    const [blockEpoch, blockSlot] = [b.block.epoch, b.block.slot]
+    const [blockEpoch, blockSlot] = [b.block.getEpoch(), b.block.getSlot()]
     if (blockEpoch < epoch || (blockSlot === epoch && blockSlot < slot)) {
       throw new Error(`Got a block for storing younger than next expected slot.
          Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`

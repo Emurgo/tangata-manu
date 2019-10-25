@@ -139,6 +139,8 @@ export default class ByronBlock implements Block {
     const res = {
       slot,
       epoch,
+      // we need to resolve lead later on via slotLeaderPk
+      lead: null,
       slotLeaderPk,
       time: blockTime,
       isEBB: false,
