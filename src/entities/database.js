@@ -101,7 +101,6 @@ class DB implements Database {
       .set('time', null)
       .set('last_update', 'NOW()', { dontQuote: true })
       .where('block_num > ?', blockHeight)
-      .where('tx_state != ?', TX_STATUS.TX_FAILED_STATUS)
       .toString()
     const dbRes = await conn.query(sql)
     return dbRes
@@ -349,6 +348,14 @@ class DB implements Database {
     return dbRes.rows.length === 1
   }
 
+  async isTxValid(txHash: string) {
+    const sql = Q.sql.select().from('txs')
+      .where('hash = ?', txHash)
+      .toString()
+    const tx = await this.getConn().query(sql).rows[0]
+    return this.utxosForInputsExists(tx.inputs)
+  }
+
   async queryPendingSet() {
     const query = Q.sql.select().from(SNAPSHOTS_TABLE)
       .field('tx_hash')
@@ -366,13 +373,30 @@ class DB implements Database {
     return _.map(dbRes.rows, 'tx_hash')
   }
 
+  async filterInvalidTxs(txs: Array<string>) {
+    const validTxs = []
+    const invalidTxs = []
+    for (const tx of txs) {
+      const isValid = await this.isTxValid(tx)
+      if (isValid) {
+        validTxs.push(tx)
+      } else {
+        this.#logger.info(`tx ${tx} inputs already spent`)
+        invalidTxs.push(tx)
+      }
+    }
+    return [validTxs, invalidTxs]
+  }
+
+
   async storeNewPendingSnapshot(block: Block) {
     const pendingSet = await this.queryPendingSet()
     const txHashes = _.map(block.txs, 'id')
-    const nextSnapshot = pendingSet.filter(hash => !txHashes.includes(hash))
+    const pendingTxs = pendingSet.filter(hash => !txHashes.includes(hash))
+    const [nextSnapshot, invalidTxs] = (await this.filterInvalidTxs(pendingTxs))
     if (_.isEmpty(nextSnapshot)) {
       this.#logger.debug('storeNewPendingSnapshot: No pending txs to snapshot..')
-      return
+      return invalidTxs
     }
     const dbFields = nextSnapshot.map(txHash => ({
       tx_hash: txHash,
@@ -382,7 +406,8 @@ class DB implements Database {
     }))
     this.#logger.debug('storeNewPendingSnapshot: ', nextSnapshot)
     const query = Q.sql.insert().into(SNAPSHOTS_TABLE).setFieldsRows(dbFields).toString()
-    this.getConn().query(query)
+    await this.getConn().query(query)
+    return invalidTxs
   }
 
   async queryFailedSet() {
@@ -397,8 +422,11 @@ class DB implements Database {
     return _.map(dbRes.rows, 'tx_hash')
   }
 
-  async storeNewFailedSnapshot(block: Block) {
-    const failedSet = await this.queryFailedSet()
+  async storeNewFailedSnapshot(block: Block, invalidTxs: Array<string>) {
+    const failedSet = [
+      ...(await this.queryFailedSet()),
+      ...invalidTxs,
+    ]
     if (_.isEmpty(failedSet)) {
       this.#logger.debug('storeNewFailedSnapshot: No failed txs added to snapshot..')
       return
@@ -411,12 +439,23 @@ class DB implements Database {
     }))
     this.#logger.debug('storeNewFailedSnapshot: ', failedSet)
     const query = Q.sql.insert().into(SNAPSHOTS_TABLE).setFieldsRows(dbFields).toString()
-    this.getConn().query(query)
+    await this.getConn().query(query)
+  }
+
+  async updateTxsStatus(txs: Array<string>, status: string) {
+    const sql = Q.sql.update().table(txs)
+      .set('tx_state', status)
+      .where('hash IN ?', txs)
+      .toString()
+    return this.getConn().query(sql)
   }
 
   async storeNewSnapshot(block: Block) {
-    await this.storeNewPendingSnapshot(block)
-    await this.storeNewFailedSnapshot(block)
+    const invalidTxs = await this.storeNewPendingSnapshot(block)
+    if (invalidTxs) {
+      await this.updateTxsStatus(invalidTxs, TX_STATUS.TX_FAILED_STATUS)
+    }
+    await this.storeNewFailedSnapshot(block, invalidTxs)
   }
 
 
