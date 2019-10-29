@@ -363,6 +363,7 @@ class DB implements Database {
       .field('tx_hash')
       .where('block_height = ?', Q.sql.select().from(SNAPSHOTS_TABLE)
         .field('MAX(block_height)'))
+      .where('status = ?', TX_STATUS.TX_PENDING_STATUS)
       .union(Q.sql.select().from('txs')
         .field('hash')
         .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
@@ -417,10 +418,11 @@ class DB implements Database {
 
   async queryFailedSet() {
     const sql = Q.sql.select().from('txs')
+      .field('hash')
       .where('tx_state = ?', TX_STATUS.TX_FAILED_STATUS)
       .where('NOT EXISTS ?', Q.sql.select().from(SNAPSHOTS_TABLE)
         .where('status = ?', TX_STATUS.TX_FAILED_STATUS)
-        .where('hash = tx_hash'))
+        .where('tx_hash = hash'))
       .toString()
     const dbRes = await this.getConn().query(sql)
     this.#logger.debug('queryFailedSet:', sql, dbRes)
