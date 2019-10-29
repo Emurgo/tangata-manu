@@ -348,13 +348,14 @@ class DB implements Database {
     return dbRes.rows.length === 1
   }
 
-  async isTxValid(txHash: string) {
+  async isTxValid(txHash: string): Promise<boolean> {
     const sql = Q.sql.select().from('txs')
       .where('hash = ?', txHash)
+      .where('tx_state = ?', TX_STATUS.TX_SUCCESS_STATUS)
       .toString()
     const dbRes = await this.getConn().query(sql)
     const [tx] = dbRes.rows
-    return this.utxosForInputsExists(tx.inputs)
+    return Boolean(tx) && this.utxosForInputsExists(tx.inputs)
   }
 
   async queryPendingSet() {
@@ -423,7 +424,7 @@ class DB implements Database {
       .toString()
     const dbRes = await this.getConn().query(sql)
     this.#logger.debug('queryFailedSet:', sql, dbRes)
-    return _.map(dbRes.rows, 'tx_hash')
+    return _.map(dbRes.rows, 'hash')
   }
 
   async storeNewFailedSnapshot(block: Block, invalidTxs: Array<string>) {
@@ -441,9 +442,10 @@ class DB implements Database {
       block_height: block.height,
       status: TX_STATUS.TX_FAILED_STATUS,
     }))
-    this.#logger.debug('storeNewFailedSnapshot: ', failedSet)
-    const query = Q.sql.insert().into(SNAPSHOTS_TABLE).setFieldsRows(dbFields).toString()
-    await this.getConn().query(query)
+    const sql = Q.sql.insert().into(SNAPSHOTS_TABLE)
+      .setFieldsRows(dbFields).toString()
+    this.#logger.debug('storeNewFailedSnapshot: ', sql)
+    await this.getConn().query(sql)
   }
 
   async updateTxsStatus(txs: Array<string>, status: string) {
