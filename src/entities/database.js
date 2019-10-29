@@ -399,7 +399,7 @@ class DB implements Database {
 
   async storeNewPendingSnapshot(block: Block, snapshot: Array<string>) {
     if (_.isEmpty(snapshot)) {
-      this.#logger.debug('storeNewPendingSnapshot: No pending txs to snapshot..')
+      this.#logger.debug('storeNewPendingSnapshot: No pending txs added to snapshot..')
       return
     }
     const dbFields = snapshot.map(txHash => ({
