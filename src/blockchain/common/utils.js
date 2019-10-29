@@ -2,7 +2,15 @@
 
 import type { TxInputType, TxType } from '../common/tx'
 
-const getUtxoId = (input: TxInputType) => `${input.txId}${input.idx}`
+const getUtxoId = (input: TxInputType) => {
+  switch (input.type) {
+    case 'utxo':
+      return `${input.txId}${input.idx}`
+    // TODO: implement for accounts
+    default:
+      throw Error('getUtxoId(): unsupported TxInputType ' + input.type)
+  }
+}
 
 const structUtxo = (
   receiver: string,

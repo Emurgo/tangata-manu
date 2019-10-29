@@ -94,12 +94,20 @@ const rawTxToObj = (tx: Array<any>, extraData: {
     inputs: inputs.map(inp => {
       const [type, tagged] = inp
       const [inputTxId, idx] = cbor.decode(tagged.value)
-      return { type, txId: inputTxId.toString('hex'), idx }
+      // While not stored in the DB, we keep the input type (0 = utxo, 1 = script, 2 = redeem)
+      // available here if needed. It is used in tx validation for the tx send endpoint
+      return {
+        byronInputType: type,
+        type: 'utxo',
+        txId: inputTxId.toString('hex'),
+        idx: idx,
+      }
     }),
     outputs: outputs.map(out => {
       const [address, value] = out
       return { address: bs58.encode(cbor.encode(address)), value }
     }),
+    // witnesses are also not stored in the DB, but we keep them here for similar reasons as input types
     witnesses: witnesses.map(w => {
       const [type, tagged] = w
       return { type, sign: cbor.decode(tagged.value) }

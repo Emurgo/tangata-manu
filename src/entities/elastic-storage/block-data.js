@@ -3,7 +3,7 @@
 import _ from 'lodash'
 
 import { ByronBlock } from '../../blockchain/byron'
-import { Block } from '../../blockchain/common'
+import { Block, utils } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type { UtxoType } from './utxo-data'
@@ -42,7 +42,7 @@ class BlockData extends ElasticData {
 
     if (!_.isEmpty(txs)) {
       this.inputsData = _.flatMap(txs, 'inputs')
-        .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
+        .flatMap(inp => this.allUtxos[utils.getUtxoId(inp)])
 
       this.resolvedTxs = txs.map(tx => new TxData(tx, this.allUtxos, txTrackedState, addressStates))
 

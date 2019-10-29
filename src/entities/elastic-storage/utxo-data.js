@@ -12,7 +12,15 @@ export type UtxoType = {
   amount: number,
 }
 
-export const getTxInputUtxoId = (input: TxInputType) => `${UTXO_OUTPUT_TYPE}:${input.txId}:${input.idx}`
+export const getTxInputUtxoId = (input: TxInputType) => {
+  switch (input.type) {
+    case 'utxo':
+      return `${UTXO_OUTPUT_TYPE}:${input.txId}:${input.idx}`
+    // TODO: implement for accounts
+    default:
+      throw Error('getTxInputUtxoId(): unsupported TxInputType ' + input.type)
+  }
+}
 
 class UtxoData extends ElasticData {
   utxo: UtxoType

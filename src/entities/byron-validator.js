@@ -11,7 +11,7 @@ import { sha3_256 } from 'js-sha3'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 
-import type { TxType } from '../blockchain/common'
+import type { TxType, UtxoInput } from '../blockchain/common'
 import {
   StorageProcessor, NetworkConfig, Validator,
 } from '../interfaces'
@@ -53,12 +53,20 @@ class ByronValidator implements Validator {
     if (inpLen !== witLen) {
       throw new Error(`Number of inputs (${inpLen}) != the number of witnesses (${witLen})`)
     }
+    const utxoInputs: Array<UtxoInput> = inputs.map(inp => {
+      switch (inp.type) {
+        case 'utxo':
+          return inp
+        default:
+          throw new Error('non-UTXO input found: ' + JSON.stringify(inp))
+      }
+    })
 
-    const txHashes = _.uniq(inputs.map(({ txId }) => txId))
+    const txHashes = _.uniq(utxoInputs.map(({ txId }) => txId))
     const fullOutputs = await this.storageProcessor.getOutputsForTxHashes(txHashes)
 
-    _.zip(inputs, witnesses).forEach(([input, witness]) => {
-      const { type: inputType, txId: inputTxId, idx: inputIdx } = input
+    _.zip(utxoInputs, witnesses).forEach(([input, witness]) => {
+      const { byronInputType: inputType, txId: inputTxId, idx: inputIdx } = input
       const { type: witnessType, sign } = witness
       if (inputType !== 0 || witnessType !== 0) {
         this.logger.debug(`Ignoring non-regular input/witness types: ${

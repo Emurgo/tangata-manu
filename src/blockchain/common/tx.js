@@ -7,10 +7,19 @@
   * features are added this will have to change.
 */
 
-export type TxInputType = {
-    txId: string,
-    idx: number
+export type UtxoInput = {
+  type: 'utxo',
+  txId: string,
+  idx: number,
 }
+
+export type AccountInput = {
+  type: 'account',
+  account_id: string,
+  value: number,
+}
+
+export type TxInputType = UtxoInput | AccountInput
 
 export type TxOutputType = {
   address: string,

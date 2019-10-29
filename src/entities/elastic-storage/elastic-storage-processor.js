@@ -393,6 +393,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
       const txs = block.getTxs()
       if (txs.length > 0) {
+        // TODO: imeplement for accounts
         txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
         this.logger.debug('storeBlocksData', block)
         blockOutputsToStore.push(...getBlockUtxos(block))

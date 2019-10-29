@@ -2,6 +2,7 @@
 import _ from 'lodash'
 
 import type { TxType } from '../../blockchain/common'
+import { utils } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
@@ -37,7 +38,7 @@ class TxData extends ElasticData {
     this.tx = tx
 
     this.resolvedInputs = tx.inputs.map((inp, idx) => {
-      const id = `${inp.txId}${inp.idx}`
+      const id = utils.getUtxoId(inp)
       const inputUtxo = inputsUtxos[id]
       if (!inputUtxo) {
         throw new Error(`UTxO '${id}' is not found for tx '${tx.id}'!`)

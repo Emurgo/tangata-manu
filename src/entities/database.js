@@ -296,6 +296,7 @@ class DB implements Database {
     this.#logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.getHeight()})`)
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
+    // TODO: implement for accounts
     const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
       const utxoId = utils.getUtxoId(inp)
       const localUtxo = newUtxos[utxoId]
