@@ -338,7 +338,7 @@ class DB implements Database {
     )
   }
 
-  async isTxExists(txId: string) {
+  async isTxExists(txId: string): boolean {
     const sql = Q.sql.select().from('txs')
       .field('1')
       .where('hash = ?', txId)
