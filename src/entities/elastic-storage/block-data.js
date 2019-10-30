@@ -2,7 +2,8 @@
 
 import _ from 'lodash'
 
-import { Block } from '../../blockchain'
+import { ByronBlock } from '../../blockchain/byron'
+import { Block, utils } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type { UtxoType } from './utxo-data'
@@ -41,24 +42,25 @@ class BlockData extends ElasticData {
 
     if (!_.isEmpty(txs)) {
       this.inputsData = _.flatMap(txs, 'inputs')
-        .flatMap(inp => this.allUtxos[`${inp.txId}${inp.idx}`])
+        .flatMap(inp => this.allUtxos[utils.getUtxoId(inp)])
 
       this.resolvedTxs = txs.map(tx => new TxData(tx, this.allUtxos, txTrackedState, addressStates))
 
       this.txsData = this.resolvedTxs.map(tx => ({
-        epoch: block.epoch,
-        slot: block.slot,
+        epoch: block.getEpoch(),
+        slot: block.getSlot(),
         ...tx.toPlainObject(),
       }))
     }
   }
 
+  // TODO: figure out if we need this for shelley too and handle that there
   static emptySlot(
     epoch: number,
     slot: number,
     networkStartTime: number,
   ) {
-    return new BlockData(new Block({
+    return new BlockData(new ByronBlock({
       hash: null,
       slot: slot,
       epoch: epoch,
@@ -66,7 +68,7 @@ class BlockData extends ElasticData {
       txs: [],
       isEBB: false,
       prevHash: null,
-      time: Block.calcSlotTime(epoch, slot, networkStartTime),
+      time: ByronBlock.calcSlotTime(epoch, slot, networkStartTime),
       lead: null,
       slotLeaderPk: null,
       size: 0
@@ -109,12 +111,14 @@ class BlockData extends ElasticData {
       newAddresses = this.getNewAddresses()
     }
     return {
-      epoch: this.block.epoch,
-      slot: this.block.slot,
-      hash: this.block.hash,
-      size: this.block.size,
-      height: this.block.height,
-      lead: this.block.lead,
+      epoch: this.block.getEpoch(),
+      slot: this.block.getSlot(),
+      hash: this.block.getHash(),
+      size: this.block.getSize(),
+      height: this.block.getHeight(),
+      lead: this.block.getSlotLeaderId(),
+      // this is byron-specific logic to store this PK since it doesn't exist in shelley blocks, need to figure this out
+      // $FlowFixMe
       slotLeaderPk: this.block.slotLeaderPk,
       time,
       branch: 0,

@@ -1,8 +1,8 @@
 // @flow
 
-import Block from './block'
+import ByronBlock from './block'
 
-export default class Epoch {
+export default class ByronEpoch {
   data: any
 
   networkStartTime: number
@@ -15,7 +15,7 @@ export default class Epoch {
   }
 
   static fromCBOR(data: Buffer, networkStartTime: number) {
-    return new Epoch(data, networkStartTime)
+    return new ByronEpoch(data, networkStartTime)
   }
 
   static getBlockDataByOffset(blocksList: any, offset: number) {
@@ -26,8 +26,8 @@ export default class Epoch {
 
 
   getNextBlock(blocksList: ArrayBuffer, offset: number) {
-    const [blockSize, blob] = Epoch.getBlockDataByOffset(blocksList, offset)
-    const block = Block.fromCBOR(Buffer.from(blob), this.networkStartTime)
+    const [blockSize, blob] = ByronEpoch.getBlockDataByOffset(blocksList, offset)
+    const block = ByronBlock.fromCBOR(Buffer.from(blob), this.networkStartTime)
     const bytesToAllign = blockSize % 4
     const nextBlockOffset = blockSize
       + 4 // block size field
@@ -36,7 +36,7 @@ export default class Epoch {
   }
 
 
-  * getBlocksIterator(options: {omitEbb?: boolean} = {}): Generator<Block, void, void> {
+  * getBlocksIterator(options: {omitEbb?: boolean} = {}): Generator<ByronBlock, void, void> {
     const blocksList = this.data.slice(16) // header
     const nextBlock = (offset: number) => this.getNextBlock(blocksList, offset)
     let block

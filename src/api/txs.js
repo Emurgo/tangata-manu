@@ -2,51 +2,50 @@
 
 import type { Logger } from 'bunyan'
 
-import cbor from 'cbor'
-import bs58 from 'bs58'
-import blake from 'blakejs'
 import _ from 'lodash'
-// eslint-disable-next-line camelcase
-import { sha3_256 } from 'js-sha3'
 
 import { Request, Response } from 'restify'
 import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'
-import { injectable, decorate, inject } from 'inversify'
+import { decorate } from 'inversify'
+import { helpers } from 'inversify-vanillajs-helpers'
 
 import {
-  RawDataProvider, Database, NetworkConfig,
+  RawDataParser, RawDataProvider, Database, Validator,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-import utils from '../blockchain/utils'
-import { TX_STATUS } from '../blockchain'
+import { TX_STATUS } from '../blockchain/common'
 
-import type { TxType } from '../blockchain'
+import type { TxType } from '../blockchain/common'
 
 class TxController implements IController {
   logger: Logger
 
   dataProvider: RawDataProvider
 
+  parser: RawDataParser
+
   db: Database
 
-  expectedNetworkMagic: number
+  validator: Validator
 
   constructor(
     logger: Logger,
     dataProvider: RawDataProvider,
+    parser: RawDataParser,
     db: Database,
-    networkConfig: NetworkConfig,
+    validator: Validator,
   ) {
     this.logger = logger
     this.dataProvider = dataProvider
+    this.parser = parser
     this.db = db
-    this.expectedNetworkMagic = networkConfig.networkMagic()
+    this.validator = validator
   }
 
   async signed(req: Request, resp: Response, next: Function) {
     const txObj = this.parseRawTx(req.body.signedTx)
-    const localValidationError = await this.validateTx(txObj)
+    const localValidationError = await this.validator.validateTx(txObj)
     if (localValidationError) {
       this.logger.error(`Local tx validation failed: ${localValidationError}`)
       this.logger.info('Proceeding to send tx to network for double-check')
@@ -91,9 +90,9 @@ class TxController implements IController {
 
   parseRawTx(txPayload: string): TxType {
     this.logger.debug(`txs.parseRawTx ${txPayload}`)
+    const txRaw = Buffer.from(txPayload, 'base64')
     const now = new Date()
-    const tx = cbor.decode(Buffer.from(txPayload, 'base64'))
-    const txObj = utils.rawTxToObj(tx, {
+    const txObj = this.parser.parseTx(txRaw, {
       txTime: now,
       txOrdinal: null,
       status: TX_STATUS.TX_PENDING_STATUS,
@@ -117,105 +116,17 @@ class TxController implements IController {
     return this.db.storeTx(failedTx, [], false)
   }
 
-  async validateDuplicates(tx: TxType) {
-    const txExists = this.db.isTxExists(tx.id)
-    if (txExists) {
-      throw new Error(`Tx ${tx.id} already exists.`)
-    }
-  }
-
-  async validateTx(txObj: TxType) {
-    try {
-      await this.validateDuplicates(txObj)
-      await this.validateInputs(txObj)
-      await this.validateTxWitnesses(txObj)
-      this.validateDestinationNetwork(txObj)
-      return null
-    } catch (e) {
-      return e
-    }
-  }
-
-  async validateInputs({ id, inputs }: TxType) {
-    const allUtxosForInputsExists = await this.db.utxosForInputsExists(inputs)
-    if (!allUtxosForInputsExists) {
-      const txsForInputsExists = await this.db.txsForInputsExists(inputs)
-      if (txsForInputsExists) {
-        throw new Error(`UTxOs for tx ${id} already spent`)
-      }
-    }
-  }
-
-  async validateTxWitnesses({ id, inputs, witnesses }: TxType) {
-    const inpLen = inputs.length
-    const witLen = witnesses.length
-    this.logger.debug(`Validating witnesses for tx: ${id} (inputs: ${inpLen})`)
-    if (inpLen !== witLen) {
-      throw new Error(`Number of inputs (${inpLen}) != the number of witnesses (${witLen})`)
-    }
-
-    const txHashes = _.uniq(inputs.map(({ txId }) => txId))
-    const fullOutputs = await this.db.getOutputsForTxHashes(txHashes)
-
-    _.zip(inputs, witnesses).forEach(([input, witness]) => {
-      const { type: inputType, txId: inputTxId, idx: inputIdx } = input
-      const { type: witnessType, sign } = witness
-      if (inputType !== 0 || witnessType !== 0) {
-        this.logger.debug(`Ignoring non-regular input/witness types: ${
-          JSON.stringify({ inputType, witnessType })
-        }`)
-      }
-      const txOutputs = fullOutputs[inputTxId]
-      if (!txOutputs) {
-        throw new Error(`No UTxO is found for tx ${inputTxId}! Maybe the blockchain is still syncing? If not - something is wrong.`)
-      }
-      const { address: inputAddress, amount: inputAmount } = txOutputs[inputIdx]
-      this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
-      const { addressRoot, addrAttr, addressType } = TxController.deconstructAddress(inputAddress)
-      if (addressType !== 0) {
-        this.logger.debug(`Unsupported address type: ${addressType}. Skipping witness validation for this input.`)
-        return
-      }
-      const addressRootHex = addressRoot.toString('hex')
-      const expectedStruct = [0, [0, sign[0]], addrAttr]
-      const encodedStruct = Buffer.from(sha3_256.update(
-        cbor.encodeCanonical(expectedStruct)).digest())
-      const expectedRootHex = blake.blake2bHex(encodedStruct, undefined, 28)
-      if (addressRootHex !== expectedRootHex) {
-        throw new Error(`Witness does not match! ${JSON.stringify({ addressRootHex, expectedRoot: expectedRootHex })}`)
-      }
-    })
-  }
-
-  validateDestinationNetwork({ outputs }: TxType) {
-    this.logger.debug(`Validating output network (outputs: ${outputs.length})`)
-    outputs.forEach(({ address }, i) => {
-      this.logger.debug(`Validating network for ${address}`)
-      const { addrAttr } = TxController.deconstructAddress(address)
-      const networkAttr: Buffer = addrAttr && addrAttr.get && addrAttr.get(2)
-      const networkMagic = networkAttr && networkAttr.readInt32BE(1)
-      if (networkMagic !== this.expectedNetworkMagic) {
-        throw new Error(`Output #${i} network magic is ${networkMagic}, expected ${this.expectedNetworkMagic}`)
-      }
-    })
-  }
-
-  static deconstructAddress(address: string) {
-    const [addressRoot, addrAttr, addressType] = cbor.decode(
-      cbor.decode(bs58.decode(address))[0].value,
-    )
-    return { addressRoot, addrAttr, addressType }
-  }
 }
 
+helpers.annotate(TxController, [
+  SERVICE_IDENTIFIER.LOGGER,
+  SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
+  SERVICE_IDENTIFIER.RAW_DATA_PARSER,
+  SERVICE_IDENTIFIER.DATABASE,
+  SERVICE_IDENTIFIER.VALIDATOR,
+])
 
-decorate(injectable(), TxController)
 decorate(Controller('/api/txs'), TxController)
 decorate(Post('/signed'), TxController.prototype, 'signed')
-
-decorate(inject(SERVICE_IDENTIFIER.LOGGER), TxController, 0)
-decorate(inject(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER), TxController, 1)
-decorate(inject(SERVICE_IDENTIFIER.DATABASE), TxController, 2)
-decorate(inject(SERVICE_IDENTIFIER.NETWORK_CONFIG), TxController, 3)
 
 export default TxController

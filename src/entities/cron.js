@@ -10,7 +10,7 @@ import type {
   StorageProcessor,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-import type { Block } from '../blockchain'
+import type { Block } from '../blockchain/common'
 
 const EPOCH_DOWNLOAD_THRESHOLD = 14400
 const MAX_BLOCKS_PER_LOOP = 9000
@@ -87,7 +87,7 @@ class CronScheduler implements Scheduler {
     const omitEbb = true
     const blocks = await this.#dataProvider.getParsedEpochById(id, omitEbb)
     for (const block of blocks) {
-      if (block.height > height) {
+      if (block.getHeight() > height) {
         await this.processBlock(block)
       }
     }
@@ -101,23 +101,23 @@ class CronScheduler implements Scheduler {
 
   async processBlock(block: Block, flushCache: boolean = false): Promise<Symbol> {
     if (this.lastBlock
-      && block.epoch === this.lastBlock.epoch
-      && block.prevHash !== this.lastBlock.hash) {
+      && block.getEpoch() === this.lastBlock.epoch
+      && block.getPrevHash() !== this.lastBlock.hash) {
       const lastBlockHash = this.lastBlock ? this.lastBlock.hash : ''
-      this.logger.info(`(${block.epoch}/${String(block.slot)}) block.prevHash (${block.prevHash}) !== lastBlock.hash (${lastBlockHash}). Performing rollback...`)
+      this.logger.info(`(${block.getEpoch()}/${String(block.getSlot())}) block.getPrevHash() (${block.getPrevHash()}) !== lastBlock.hash (${lastBlockHash}). Performing rollback...`)
       return STATUS_ROLLBACK_REQUIRED
     }
     this.lastBlock = {
-      epoch: block.epoch,
-      hash: block.hash,
+      epoch: block.getEpoch(),
+      hash: block.getHash(),
     }
     this.blocksToStore.push(block)
     if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
       await this.pushCachedBlocksToStorage();
     }
 
-    if (flushCache || block.height % LOG_BLOCK_PARSED_THRESHOLD === 0) {
-      this.logger.debug(`Block parsed: ${block.hash} ${block.epoch} ${String(block.slot)} ${block.height}`)
+    if (flushCache || block.getHeight() % LOG_BLOCK_PARSED_THRESHOLD === 0) {
+      this.logger.debug(`Block parsed: ${block.getHash()} ${block.getEpoch()} ${String(block.getSlot())} ${block.getHeight()}`)
     }
     return BLOCK_STATUS_PROCESSED
   }

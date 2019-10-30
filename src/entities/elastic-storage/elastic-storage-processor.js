@@ -7,7 +7,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
-import type { Block } from '../../blockchain'
+import type { Block } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
@@ -87,7 +87,7 @@ const getBlockUtxos = (block: Block) => {
     (out, idx) => (new UtxoData({
       tx_hash: tx.id,
       tx_index: idx,
-      block_hash: block.hash,
+      block_hash: block.getHash(),
       receiver: out.address,
       amount: out.value,
     })).toPlainObject(),
@@ -377,19 +377,23 @@ class ElasticStorageProcessor implements StorageProcessor {
     const blockTxs = []
     const chunk = ++this.lastChunk
     for (const block of blocks) {
-
-      if (!block.lead && block.slotLeaderPk) {
+      // Resolves the slot leader PKs into a usable ID here for Byron blocks.
+      // TODO: is this a very good way to handle this moving forward to shelley?
+      // $FlowFixMe
+      if (!block.getSlotLeaderId() && block.slotLeaderPk) {
         const lead: GenesisLeaderType = this.genesisLeaders[block.slotLeaderPk]
         if (!lead) {
           throw new Error(
             `Failed to find lead by PK: '${block.slotLeaderPk}', 
-            leaders: ${JSON.stringify(this.setGenesisLeaders(), null, 2)}`)
+            leaders: ${JSON.stringify(this.getGenesisLeaders(), null, 2)}`)
         }
+        // $FlowFixMe
         block.lead = lead.leadId
       }
 
       const txs = block.getTxs()
       if (txs.length > 0) {
+        // TODO: imeplement for accounts
         txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
         this.logger.debug('storeBlocksData', block)
         blockOutputsToStore.push(...getBlockUtxos(block))
@@ -534,7 +538,7 @@ function padEmptySlots(
   })
   const result: Array<BlockData> = []
   blocks.reduce(({ epoch, slot }, b: BlockData) => {
-    const [blockEpoch, blockSlot] = [b.block.epoch, b.block.slot]
+    const [blockEpoch, blockSlot] = [b.block.getEpoch(), b.block.getSlot()]
     if (blockEpoch < epoch || (blockSlot === epoch && blockSlot < slot)) {
       throw new Error(`Got a block for storing younger than next expected slot.
          Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`
