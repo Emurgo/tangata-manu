@@ -105,7 +105,7 @@ class TxController implements IController {
 
   async storeTxAsPending(tx: TxType) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-    return this.db.storeTx(tx)
+    await this.db.storeTx(tx)
   }
 
   async storeTxAsFailed(tx: TxType) {
@@ -114,7 +114,7 @@ class TxController implements IController {
       status: TX_STATUS.TX_FAILED_STATUS,
     }
     this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
-    return this.db.storeTx(failedTx, [], false)
+    await this.db.storeTx(failedTx, [], false)
   }
 
   async validateDuplicates(tx: TxType) {
