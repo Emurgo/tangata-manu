@@ -3,12 +3,12 @@
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
 
-import type { Database, DBConnection, Logger } from '../interfaces'
-import type { BlockInfoType } from '../interfaces/storage-processor'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
-import { Block, TX_STATUS, utils } from '../blockchain/common'
-import type { TxType, TxInputType } from '../blockchain/common'
-import Q from '../db-queries'
+import type { Database, DBConnection, Logger } from '../../interfaces'
+import type { BlockInfoType } from '../../interfaces/storage-processor'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import { Block, TX_STATUS, utils } from '../../blockchain/common'
+import type { TxType, TxInputType } from '../../blockchain/common'
+import Q from './db-queries'
 
 const SNAPSHOTS_TABLE = 'transient_snapshots'
 
@@ -100,8 +100,7 @@ class DB implements Database {
       .set('last_update', 'NOW()', { dontQuote: true })
       .where('block_num > ?', blockHeight)
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
+    await conn.query(sql)
   }
 
   async rollbackTransientSnapshots(blockHeight: number) {
@@ -156,8 +155,7 @@ class DB implements Database {
       .from('blocks')
       .where('block_height > ?', blockHeight)
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
+    await conn.query(sql)
   }
 
   async storeBlock(block: Block) {

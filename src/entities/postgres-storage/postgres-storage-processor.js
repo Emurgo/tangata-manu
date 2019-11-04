@@ -4,10 +4,10 @@ import _ from 'lodash'
 import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import type { StorageProcessor, Database } from '../interfaces'
-import type { BlockInfoType } from '../interfaces/storage-processor'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
-import type { Block, TxType } from '../blockchain/common'
+import type { StorageProcessor, Database } from '../../interfaces'
+import type { BlockInfoType } from '../../interfaces/storage-processor'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import type { Block, TxType } from '../../blockchain/common'
 
 class PostgresStorageProcessor implements StorageProcessor {
   logger: Logger

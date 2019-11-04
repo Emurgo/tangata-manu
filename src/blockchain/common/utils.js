@@ -1,6 +1,6 @@
 // @flow
 
-import type { TxInputType, TxType } from '../common/tx'
+import type { TxInputType, TxType } from './tx'
 
 const getUtxoId = (input: TxInputType) => {
   switch (input.type) {
@@ -8,7 +8,7 @@ const getUtxoId = (input: TxInputType) => {
       return `${input.txId}${input.idx}`
     // TODO: implement for accounts
     default:
-      throw Error('getUtxoId(): unsupported TxInputType ' + input.type)
+      throw Error(`getUtxoId(): unsupported TxInputType ${input.type}`)
   }
 }
 

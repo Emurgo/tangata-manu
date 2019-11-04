@@ -113,7 +113,7 @@ class CronScheduler implements Scheduler {
     }
     this.blocksToStore.push(block)
     if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
-      await this.pushCachedBlocksToStorage();
+      await this.pushCachedBlocksToStorage()
     }
 
     if (flushCache || block.getHeight() % LOG_BLOCK_PARSED_THRESHOLD === 0) {

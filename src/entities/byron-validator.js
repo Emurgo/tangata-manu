@@ -75,7 +75,7 @@ class ByronValidator implements Validator {
         case 'utxo':
           return inp
         default:
-          throw new Error('non-UTXO input found: ' + JSON.stringify(inp))
+          throw new Error(`non-UTXO input found: ${JSON.stringify(inp)}`)
       }
     })
 

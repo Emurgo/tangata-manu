@@ -115,7 +115,6 @@ class TxController implements IController {
     this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
     return this.db.storeTx(failedTx, [], false)
   }
-
 }
 
 helpers.annotate(TxController, [
