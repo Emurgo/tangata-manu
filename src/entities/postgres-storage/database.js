@@ -334,7 +334,7 @@ class DB implements Database {
     )
   }
 
-  async isTxExists(txId: string): boolean {
+  async isTxExists(txId: string): Promise<boolean> {
     const sql = Q.sql.select().from('txs')
       .field('1')
       .where('hash = ?', txId)
@@ -347,7 +347,7 @@ class DB implements Database {
   async isTxValid(txHash: string): Promise<boolean> {
     const sql = Q.sql.select().from('txs')
       .where('hash = ?', txHash)
-      .where('tx_state = ?', TX_STATUS.TX_SUCCESS_STATUS)
+      .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
       .toString()
     const dbRes = await this.getConn().query(sql)
     const [tx] = dbRes.rows
@@ -389,7 +389,7 @@ class DB implements Database {
 
   async groupPendingTxsForSnapshot(txHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
     const pendingSet = await this.queryPendingSet()
-    const txsInPendingState = pendingSet.filter(hash => !txHashes.includes(hash))
+    const txsInPendingState = _.difference(pendingSet, txHashes)
     const [pendingTxs, invalidTxs] = await this.groupPendingTxs(txsInPendingState)
     return [pendingTxs, invalidTxs]
   }
