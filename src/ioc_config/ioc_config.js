@@ -6,6 +6,7 @@ import { Container } from 'inversify'
 import { EagerBinder } from 'inversify-config-injection'
 
 import {
+  ByronValidator,
   CardanoBridgeApi,
   CustomDataParser,
   CronScheduler,
@@ -19,6 +20,7 @@ import {
   Scheduler,
   Genesis,
   Logger,
+  Validator,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import dbModule from './db'
@@ -53,6 +55,7 @@ const initIoC = async () => {
     .to(dataParserClass).inSingletonScope()
   container.bind<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER).to(CronScheduler).inSingletonScope()
   container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider).inSingletonScope()
+  container.bind<Validator>(SERVICE_IDENTIFIER.VALIDATOR).to(ByronValidator).inSingletonScope()
 
   initStorageProcessor(container)
   const storageName = container.getNamed('storageProcessor')

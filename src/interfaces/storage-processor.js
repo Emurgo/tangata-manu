@@ -1,6 +1,6 @@
 // @flow
 
-import type { Block } from '../blockchain'
+import type { Block } from '../blockchain/common'
 
 export type BlockInfoType = {
   height: number,

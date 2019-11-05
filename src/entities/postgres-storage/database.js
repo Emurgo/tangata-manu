@@ -3,14 +3,12 @@
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
 
-import type { Database, DBConnection, Logger } from '../interfaces'
-import type { BlockInfoType } from '../interfaces/storage-processor'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
-import utils from '../blockchain/utils'
-import { Block, TX_STATUS } from '../blockchain'
-import type { TxType } from '../blockchain'
-import type { TxInputType } from '../blockchain/tx'
-import Q from '../db-queries'
+import type { Database, DBConnection, Logger } from '../../interfaces'
+import type { BlockInfoType } from '../../interfaces/storage-processor'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import { Block, TX_STATUS, utils } from '../../blockchain/common'
+import type { TxType, TxInputType } from '../../blockchain/common'
+import Q from './db-queries'
 
 const SNAPSHOTS_TABLE = 'transient_snapshots'
 
@@ -102,8 +100,7 @@ class DB implements Database {
       .set('last_update', 'NOW()', { dontQuote: true })
       .where('block_num > ?', blockHeight)
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
+    await conn.query(sql)
   }
 
   async rollbackTransientSnapshots(blockHeight: number) {
@@ -158,8 +155,7 @@ class DB implements Database {
       .from('blocks')
       .where('block_height > ?', blockHeight)
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
+    await conn.query(sql)
   }
 
   async storeBlock(block: Block) {
@@ -476,12 +472,15 @@ class DB implements Database {
 
 
   async storeBlockTxs(block: Block) {
-    const {
-      hash, epoch, slot, txs,
-    } = block
-    this.#logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.height})`)
+    // TODO: Do we need to serialize more in shelley?
+    const hash = block.getHash()
+    const epoch = block.getEpoch()
+    const slot = block.getSlot()
+    const txs = block.getTxs()
+    this.#logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.getHeight()})`)
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
+    // TODO: implement for accounts
     const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
       const utxoId = utils.getUtxoId(inp)
       const localUtxo = newUtxos[utxoId]
@@ -520,7 +519,7 @@ class DB implements Database {
       await this.storeTx(tx, utxos)
     }
     await this.storeUtxos(Object.values(newUtxos))
-    await this.backupAndRemoveUtxos(requiredUtxoIds, block.height)
+    await this.backupAndRemoveUtxos(requiredUtxoIds, block.getHeight())
   }
 }
 

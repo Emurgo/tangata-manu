@@ -4,10 +4,10 @@ import _ from 'lodash'
 import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import type { StorageProcessor, Database } from '../interfaces'
-import type { BlockInfoType } from '../interfaces/storage-processor'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
-import type { Block, TxType } from '../blockchain'
+import type { StorageProcessor, Database } from '../../interfaces'
+import type { BlockInfoType } from '../../interfaces/storage-processor'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import type { Block, TxType } from '../../blockchain/common'
 
 class PostgresStorageProcessor implements StorageProcessor {
   logger: Logger
@@ -26,13 +26,13 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.doInTransaction(async () => {
       await this.db.storeBlocks(blocks)
       for (const block of blocks) {
-        const blockHaveTxs = !_.isEmpty(block.txs)
+        const blockHaveTxs = !_.isEmpty(block.getTxs())
         if (blockHaveTxs) {
           await this.db.storeBlockTxs(block)
           await this.db.storeNewSnapshot(block)
         }
       }
-      await this.db.updateBestBlockNum(_.last(blocks).height)
+      await this.db.updateBestBlockNum(_.last(blocks).getHeight())
     })
   }
 

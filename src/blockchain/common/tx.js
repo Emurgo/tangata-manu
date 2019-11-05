@@ -1,9 +1,25 @@
 // @flow
 
-export type TxInputType = {
-    txId: string,
-    idx: number
+/**
+  * These types are kept in the common folder for now until we figure out how we will handle the
+  * differences in Byron vs Shelley. For Block/Epoch it was an easy refactor, but TxType was
+  * extensively referenced and deserves more thought. Once certificates and other Shelley-specific
+  * features are added this will have to change.
+*/
+
+export type UtxoInput = {
+  type: 'utxo',
+  txId: string,
+  idx: number,
 }
+
+export type AccountInput = {
+  type: 'account',
+  account_id: string,
+  value: number,
+}
+
+export type TxInputType = UtxoInput | AccountInput
 
 export type TxOutputType = {
   address: string,

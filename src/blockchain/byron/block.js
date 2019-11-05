@@ -2,15 +2,16 @@
 
 import cbor from 'cbor'
 
-import utils from './utils'
+import byronUtils from './utils'
+import type { EpochId, SlotId, TxType } from '../common'
+import { Block } from '../common'
 
-import type { TxType } from './tx'
 
 const SLOTS_IN_EPOCH = 21600
 
 export type HeaderType = Array<any>
 
-export default class Block {
+export default class ByronBlock implements Block {
   hash: string
 
   prevHash: string
@@ -29,6 +30,7 @@ export default class Block {
 
   time: Date
 
+  // slot leader ID (needs resolving with genesis file, looked up using slotLeaderPk)
   lead: ?string
 
   slotLeaderPk: ?string
@@ -70,8 +72,40 @@ export default class Block {
     }
   }
 
-  getTxs() {
+  getHash(): string {
+    return this.hash
+  }
+
+  getPrevHash(): string {
+    return this.prevHash
+  }
+
+  getEpoch(): EpochId {
+    return this.epoch
+  }
+
+  getSlot(): ?SlotId {
+    return this.slot
+  }
+
+  getHeight(): number {
+    return this.height
+  }
+
+  getTxs(): Array<TxType> {
     return this.txs
+  }
+
+  getTime(): Date {
+    return this.time
+  }
+
+  getSize(): number {
+    return this.size
+  }
+
+  getSlotLeaderId(): ?string {
+    return this.lead
   }
 
   static handleEpochBoundaryBlock(header: HeaderType) {
@@ -92,7 +126,7 @@ export default class Block {
     header: HeaderType,
     body: {},
     blockHash: string,
-    networkStartTime: number
+    networkStartTime: number,
   ) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
@@ -105,12 +139,14 @@ export default class Block {
     const res = {
       slot,
       epoch,
+      // we need to resolve lead later on via slotLeaderPk
+      lead: null,
       slotLeaderPk,
       time: blockTime,
       isEBB: false,
       upd: (upd1.length || upd2.length) ? [upd1, upd2] : null,
       height: chainDifficulty,
-      txs: txs.map((tx, index) => utils.rawTxToObj(tx, {
+      txs: txs.map((tx, index) => byronUtils.rawTxToObj(tx, {
         txTime: blockTime,
         txOrdinal: index,
         blockNum: chainDifficulty,
@@ -120,14 +156,9 @@ export default class Block {
     return res
   }
 
-  getTime(): Date {
-    return this.time
-  }
-
-
-  static parseBlock(blob: Buffer, networkStartTime: number): Block {
+  static parseBlock(blob: Buffer, networkStartTime: number): ByronBlock {
     const [type, [header, body]] = cbor.decode(blob)
-    const hash = utils.headerToId(header, type)
+    const hash = byronUtils.headerToId(header, type)
     const common = {
       hash,
       size: blob.length,
@@ -137,22 +168,22 @@ export default class Block {
     let blockData
     switch (type) {
       case 0:
-        blockData = { ...common, ...Block.handleEpochBoundaryBlock(header) }
+        blockData = { ...common, ...ByronBlock.handleEpochBoundaryBlock(header) }
         break
       case 1:
         blockData = {
           ...common,
-          ...Block.handleRegularBlock(header, body, hash, networkStartTime),
+          ...ByronBlock.handleRegularBlock(header, body, hash, networkStartTime),
         }
         break
       default:
         throw new Error(`Unexpected block type! ${type}`)
     }
-    return new Block(blockData)
+    return new ByronBlock(blockData)
   }
 
   static fromCBOR(data: Buffer, networkStartTime: number) {
-    const block = Block.parseBlock(data, networkStartTime)
+    const block = ByronBlock.parseBlock(data, networkStartTime)
     return block
   }
 

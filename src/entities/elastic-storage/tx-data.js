@@ -1,12 +1,13 @@
 // @flow
 import _ from 'lodash'
 
-import type { TxType } from '../../blockchain'
+import BigNumber from 'bignumber.js'
+import type { TxType } from '../../blockchain/common'
+import { utils } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
-import BigNumber from "bignumber.js"
 
 class TxData extends ElasticData {
   tx: TxType
@@ -37,7 +38,7 @@ class TxData extends ElasticData {
     this.tx = tx
 
     this.resolvedInputs = tx.inputs.map((inp, idx) => {
-      const id = `${inp.txId}${inp.idx}`
+      const id = utils.getUtxoId(inp)
       const inputUtxo = inputsUtxos[id]
       if (!inputUtxo) {
         throw new Error(`UTxO '${id}' is not found for tx '${tx.id}'!`)
@@ -53,12 +54,11 @@ class TxData extends ElasticData {
       tx_hash: tx.id,
     }))
 
-    let prevSupply: BigNumber = txTrackedState.supply_after_this_tx;
+    const prevSupply: BigNumber = txTrackedState.supply_after_this_tx
 
     if (this.resolvedInputs.length === 1
      && this.resolvedOutputs.length === 1
      && this.resolvedInputs[0].utxo.amount === this.resolvedOutputs[0].utxo.amount) {
-
       const value = this.resolvedInputs[0].utxo.amount
 
       this.sumInputs = value
@@ -67,9 +67,7 @@ class TxData extends ElasticData {
 
       // This is a redemption tx that increases the total supply of coin
       txTrackedState.supply_after_this_tx = prevSupply.plus(value)
-
     } else {
-
       this.sumInputs = _.sumBy(this.resolvedInputs, x => x.utxo.amount)
       this.sumOutputs = _.sumBy(this.resolvedOutputs, x => x.utxo.amount)
       this.fee = Math.max(0, this.sumInputs - this.sumOutputs)
@@ -126,7 +124,7 @@ class TxData extends ElasticData {
       addressStates[address] = newState
       txAddressStates.push({
         ...newState,
-        ...(isNewAddress ? { new_address: true } : {})
+        ...(isNewAddress ? { new_address: true } : {}),
       })
     }
 
@@ -183,7 +181,7 @@ class TxData extends ElasticData {
       new_addresses: this.newAddresses,
       time: this.tx.txTime.toISOString(),
       ...(this.tx.isGenesis ? {} : {
-        supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx)
+        supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
       }),
     }
   }
