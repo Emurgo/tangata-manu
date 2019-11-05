@@ -82,7 +82,7 @@ class CardanoBridgeApi implements RawDataProvider {
     return data
   }
 
-  async getGenesis(hash: string): Promise<string> {
+  async getGenesis(hash: string): Promise<Object> {
     const resp = await this.getJson(`/genesis/${hash}`)
     const { data } = resp
     return data

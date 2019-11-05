@@ -19,20 +19,23 @@ import type { GenesisLeaderType } from "./interfaces/storage-processor";
 const serverConfig = config.get('server')
 
 const loadGenesis = async (container) => {
-  const dataProvider = container.get<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
-  const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)
-  const genesisFile = await dataProvider.getGenesis(genesis.genesisHash)
-  const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
-  const { protocolMagic } = genesisFile.protocolConsts
+  // TODO: fix this, temporary commented out to avoid loading genesis data for Jormungandr as it was causing a crash
+  // const dataProvider = container.get<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
+  // const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)
+  // const genesisFile = await dataProvider.getGenesis(genesis.genesisHash)
+  // const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
+  // const { protocolMagic } = genesisFile.protocolConsts
 
-  const genesisLeaders: Array<GenesisLeaderType> = genesis.getGenesisLeaders(genesisFile.heavyDelegation || {})
-  await storageProcessor.storeGenesisLeaders(genesisLeaders)
+  // const genesisLeaders: Array<GenesisLeaderType> = genesis.getGenesisLeaders(genesisFile.heavyDelegation || {})
+  // await storageProcessor.storeGenesisLeaders(genesisLeaders)
 
-  const genesisUtxos = [
-    ...genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances || []),
-    ...genesis.avvmDistrToUtxos(genesisFile.avvmDistr || [], protocolMagic),
-  ]
-  await storageProcessor.storeGenesisUtxos(genesisUtxos)
+  // const genesisUtxos = [
+  //   ...genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances || []),
+  //   ...genesis.avvmDistrToUtxos(genesisFile.avvmDistr || [], protocolMagic),
+  // ]
+  // const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
+  // logger.debug('does it reach here?')
+  // await storageProcessor.storeGenesisUtxos(genesisUtxos)
 }
 
 const startServer = async () => {

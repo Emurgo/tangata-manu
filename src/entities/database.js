@@ -197,6 +197,9 @@ class DB implements Database {
   }
 
   async getUtxos(utxoIds: Array<string>): Promise<Array<{}>> {
+    if (utxoIds.length == 0) {
+      return []
+    }
     const conn = this.getConn()
     const query = Q.sql.select().from('utxos').where('utxo_id in ?', utxoIds).toString()
     const dbRes = await conn.query(query)
@@ -240,6 +243,7 @@ class DB implements Database {
       blockHash,
     } = tx
     let inputUtxos
+    this.#logger.debug('storeTx tx: ' + JSON.stringify(tx))
     this.#logger.debug('storeTx:', txUtxos)
     const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     if (_.isEmpty(txUtxos)) {
@@ -256,10 +260,13 @@ class DB implements Database {
     const txDbFields = {
       hash: id,
       inputs: JSON.stringify(inputUtxos),
-      inputs_address: inputAddresses,
-      inputs_amount: inputAmmounts,
-      outputs_address: outputAddresses,
-      outputs_amount: outputAmmounts,
+      // TODO: these are here for if a tx has no utxo transactions, PSQL throws an error
+      // because the array would be untyped. There is probably a better way to handle this
+      // by typing it somehow.
+      inputs_address: inputAddresses.length == 0 ? null : inputAddresses,
+      inputs_amount: inputAmmounts.length == 0 ? null : inputAmmounts,
+      outputs_address: outputAddresses.length == 0 ? null : outputAddresses,
+      outputs_amount: outputAmmounts.length == 0 ? null : outputAmmounts,
       block_num: blockNum,
       block_hash: blockHash,
       tx_state: txStatus,
@@ -296,24 +303,38 @@ class DB implements Database {
     this.#logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.getHeight()})`)
     const newUtxos = utils.getTxsUtxos(txs)
     const blockUtxos = []
-    // TODO: implement for accounts
-    const requiredInputs = _.flatMap(txs, tx => tx.inputs).filter(inp => {
-      const utxoId = utils.getUtxoId(inp)
-      const localUtxo = newUtxos[utxoId]
-      if (localUtxo) {
-        blockUtxos.push({
-          id: localUtxo.utxo_id,
-          address: localUtxo.receiver,
-          amount: localUtxo.amount,
-          txHash: localUtxo.tx_hash,
-          index: localUtxo.tx_index,
-        })
-        // Delete new Utxo if it's already spent in the same block
-        delete newUtxos[utxoId]
-        // Remove this input from required
-        return false
+    // TODO: these are some changes I made quickly to see if I could protoype account spending
+    // and the code is not exactly of the best quality.
+    // indexed by tx index in block
+    let accountInputs: Map<number, Array<AccountType>> = new Map()
+    let withdrawls: Map<string, Number> = new Map()
+    const requiredInputs = _.flatMap(txs, (tx) => tx.inputs).filter((inp, txOrdinal) => {
+      switch (inp.type) {
+        case 'utxo':
+          const utxoId = utils.getUtxoId(inp)
+          const localUtxo = newUtxos[utxoId]
+          if (localUtxo) {
+            blockUtxos.push({
+              id: localUtxo.utxo_id,
+              address: localUtxo.receiver,
+              amount: localUtxo.amount,
+              txHash: localUtxo.tx_hash,
+              index: localUtxo.tx_index,
+            })
+            // Delete new Utxo if it's already spent in the same block
+            delete newUtxos[utxoId]
+            // Remove this input from required
+            return false
+          }
+          return true
+        case 'account':
+          if (typeof accountInputs.get(txOrdinal) == 'undefined') {
+            accountInputs.set(txOrdinal, [])
+          }
+          accountInputs.get(txOrdinal).push(inp)
+          withdrawls.set(inp.account_id, (withdrawls.get(inp.account_id) || 0) + inp.value)
+          return false
       }
-      return true
     })
     const requiredUtxoIds = requiredInputs.map(utils.getUtxoId)
     this.#logger.debug('storeBlockTxs.requiredUtxo', requiredUtxoIds)
@@ -323,8 +344,8 @@ class DB implements Database {
     for (let index = 0; index < txs.length; index++) {
       /* eslint-disable no-await-in-loop */
       const tx = txs[index]
-      const utxos = tx.inputs.map(input => allUtxoMap[utils.getUtxoId(input)]).filter(x => x)
-      if (utxos.length !== tx.inputs.length) {
+      const utxos = tx.inputs.filter(inp => inp.type == 'utxo').map(input => allUtxoMap[utils.getUtxoId(input)]).filter(x => x)
+      if (utxos.length + (accountInputs.get(index) ? accountInputs.get(index).length : 0) !== tx.inputs.length) {
         throw new Error(
           `Failed to query input utxos for tx ${
             tx.id} for inputs: ${JSON.stringify(tx.inputs)}
@@ -335,7 +356,13 @@ class DB implements Database {
       await this.storeTx(tx, utxos)
     }
     await this.storeUtxos(Object.values(newUtxos))
-    await this.backupAndRemoveUtxos(requiredUtxoIds, block.getHeight())
+    if (requiredUtxoIds.length > 0) {
+      await this.backupAndRemoveUtxos(requiredUtxoIds, block.getHeight())
+    }
+    // idea is to update the SQL account balance table here
+    if (withdrawls.size > 0) {
+      console.log(`\n\n\n\n\n\nACCOUNT WITHDRAWLS: ${JSON.stringify(withdrawls)}\n\n\n\n`)
+    }
   }
 }
 

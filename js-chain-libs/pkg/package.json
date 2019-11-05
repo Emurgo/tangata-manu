@@ -1,0 +1,24 @@
+{
+  "name": "js-chain-libs",
+  "collaborators": [
+    "Enzo Cioppettini <ecioppettini@atixlabs.com>"
+  ],
+  "description": "Jörmungandr library, wallet and stake pool management.\n",
+  "version": "0.1.2",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/input-output-hk/js-chain-libs"
+  },
+  "files": [
+    "js_chain_libs_bg.wasm",
+    "js_chain_libs.js",
+    "js_chain_libs_bg.js",
+    "js_chain_libs.d.ts",
+    "LICENSE_APACHE",
+    "LICENSE_MIT"
+  ],
+  "main": "js_chain_libs.js",
+  "homepage": "https://github.com/input-output-hk/js-chain-libs#js-chain-libs",
+  "types": "js_chain_libs.d.ts"
+}

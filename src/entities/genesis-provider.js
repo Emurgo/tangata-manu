@@ -67,6 +67,10 @@ class GenesisProvider implements Genesis {
 
   avvmDistrToUtxos(avvmDistr: [], protocolMagic: number) {
     this.#logger.debug('avvmDistrToUtxos called.')
+    if (avvmDistr.length == 0) {
+      this.#logger.debug('avvmDistr.length is empty')
+      return []
+    }
     const settings = Cardano.BlockchainSettings.from_json({
       protocol_magic: protocolMagic,
     })

@@ -1,7 +1,9 @@
 // @flow
 
 export interface RawDataProvider {
+  postSignedTx(payload: string): Promise<any>;
   getBlock(id: string): Promise<string>;
   getEpoch(id: number): Promise<string>;
-  postSignedTx(payload: string): Promise<any>;
+  getGenesis(hash: string): Promise<Object>;
+  getStatus(): Promise<any>;
 }

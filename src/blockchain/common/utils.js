@@ -5,10 +5,12 @@ import type { TxInputType, TxType } from '../common/tx'
 const getUtxoId = (input: TxInputType) => {
   switch (input.type) {
     case 'utxo':
-      return `${input.txId}${input.idx}`
+      return `utxo:${input.txId}${input.idx}`
     // TODO: implement for accounts
     default:
-      throw Error('getUtxoId(): unsupported TxInputType ' + input.type)
+      //throw Error('getUtxoId(): unsupported TxInputType ' + input.type)
+      // TODO: actually needs to use spending counter I think
+      return `account:${input.account_id}${input.value}`
   }
 }
 
