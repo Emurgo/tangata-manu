@@ -14,7 +14,8 @@ import {
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
 import initIoC from './ioc_config'
-import type { GenesisLeaderType } from "./interfaces/storage-processor";
+import { YOROI_POSTGRES } from './ioc_config/storage-processor'
+import type { GenesisLeaderType } from './interfaces/storage-processor'
 
 const serverConfig = config.get('server')
 
@@ -25,7 +26,8 @@ const loadGenesis = async (container) => {
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
   const { protocolMagic } = genesisFile.protocolConsts
 
-  const genesisLeaders: Array<GenesisLeaderType> = genesis.getGenesisLeaders(genesisFile.heavyDelegation || {})
+  const genesisLeaders: Array<GenesisLeaderType> = genesis.getGenesisLeaders(
+    genesisFile.heavyDelegation || {})
   await storageProcessor.storeGenesisLeaders(genesisLeaders)
 
   const genesisUtxos = [
@@ -41,9 +43,6 @@ const startServer = async () => {
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
 
   await storageProcessor.onLaunch()
-
-  const server = new InversifyRestifyServer(container)
-  const app = server.build()
 
   const genesisLoaded = await storageProcessor.genesisLoaded()
   if (!genesisLoaded) {
@@ -64,10 +63,15 @@ const startServer = async () => {
     process.exit(1)
   })
 
-  app.use(restify.plugins.bodyParser())
-  app.listen(serverConfig.port, () => {
-    logger.info('%s listening at %s', app.name, app.url)
-  })
+  const storageName = container.getNamed('storageProcessor')
+  if (storageName === YOROI_POSTGRES) {
+    const server = new InversifyRestifyServer(container)
+    const app = server.build()
+    app.use(restify.plugins.bodyParser())
+    app.listen(serverConfig.port, () => {
+      logger.info('%s listening at %s', app.name, app.url)
+    })
+  }
 }
 
 export default startServer

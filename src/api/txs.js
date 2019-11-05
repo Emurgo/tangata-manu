@@ -11,7 +11,7 @@ import { decorate } from 'inversify'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import {
-  RawDataParser, RawDataProvider, StorageProcessor, Validator,
+  RawDataParser, RawDataProvider, Database, Validator,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import { TX_STATUS } from '../blockchain/common'
@@ -25,7 +25,7 @@ class TxController implements IController {
 
   parser: RawDataParser
 
-  storageProcessor: StorageProcessor
+  db: Database
 
   validator: Validator
 
@@ -33,13 +33,13 @@ class TxController implements IController {
     logger: Logger,
     dataProvider: RawDataProvider,
     parser: RawDataParser,
-    storageProcessor: StorageProcessor,
+    db: Database,
     validator: Validator,
   ) {
     this.logger = logger
     this.dataProvider = dataProvider
     this.parser = parser
-    this.storageProcessor = storageProcessor
+    this.db = db
     this.validator = validator
   }
 
@@ -60,9 +60,11 @@ class TxController implements IController {
           // Network success but locally we failed validation - log local
           this.logger.warn('Local validation error, but network send succeeded!')
         }
+      } else {
+        await this.storeTxAsFailed(txObj)
       }
     } catch (err) {
-      this.logger.error('Failed to store tx as pending!', err)
+      this.logger.error('Failed to store tx', err)
       throw new Error('Internal DB fail in the importer!')
     }
     let statusText
@@ -102,7 +104,16 @@ class TxController implements IController {
 
   async storeTxAsPending(tx: TxType) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-    await this.storageProcessor.storeTx(tx)
+    await this.db.storeTx(tx)
+  }
+
+  async storeTxAsFailed(tx: TxType) {
+    const failedTx = {
+      ...tx,
+      status: TX_STATUS.TX_FAILED_STATUS,
+    }
+    this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
+    await this.db.storeTx(failedTx, [], false)
   }
 }
 
@@ -110,7 +121,7 @@ helpers.annotate(TxController, [
   SERVICE_IDENTIFIER.LOGGER,
   SERVICE_IDENTIFIER.RAW_DATA_PROVIDER,
   SERVICE_IDENTIFIER.RAW_DATA_PARSER,
-  SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
+  SERVICE_IDENTIFIER.DATABASE,
   SERVICE_IDENTIFIER.VALIDATOR,
 ])
 

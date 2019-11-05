@@ -3,9 +3,9 @@
 import cbor from 'cbor'
 
 import byronUtils from './utils'
-import type { EpochId, SlotId } from '../common'
+import type { EpochId, SlotId, TxType } from '../common'
 import { Block } from '../common'
-import type { TxType } from '../common'
+
 
 const SLOTS_IN_EPOCH = 21600
 
@@ -126,7 +126,7 @@ export default class ByronBlock implements Block {
     header: HeaderType,
     body: {},
     blockHash: string,
-    networkStartTime: number
+    networkStartTime: number,
   ) {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]

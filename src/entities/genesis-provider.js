@@ -16,7 +16,7 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 
 import { utils } from '../blockchain/common'
 import type { NetworkConfig } from '../interfaces'
-import type { GenesisLeaderType } from "../interfaces/storage-processor";
+import type { GenesisLeaderType } from '../interfaces/storage-processor'
 
 const generateUtxoHash = (address) => {
   const data = bs58.decode(address)
@@ -50,7 +50,7 @@ class GenesisProvider implements Genesis {
         leadId: heavyDelegationId,
         name: `Bootstrap era pool #${ordinal}`,
         description: `Pool ${ordinal} used before decentralization`,
-        ordinal
+        ordinal,
       }
       return lead
     })

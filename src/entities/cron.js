@@ -113,7 +113,7 @@ class CronScheduler implements Scheduler {
     }
     this.blocksToStore.push(block)
     if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
-      await this.pushCachedBlocksToStorage();
+      await this.pushCachedBlocksToStorage()
     }
 
     if (flushCache || block.getHeight() % LOG_BLOCK_PARSED_THRESHOLD === 0) {
@@ -162,7 +162,7 @@ class CronScheduler implements Scheduler {
             this.logger.debug(`Epoch parsed: ${epochId}, ${height}`)
           }
           this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
-          await this.pushCachedBlocksToStorage();
+          await this.pushCachedBlocksToStorage()
         } else {
           // Packed epoch is not available yet
           this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)

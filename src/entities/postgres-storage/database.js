@@ -3,12 +3,14 @@
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
 
-import type { Database, DBConnection, Logger } from '../interfaces'
-import type { BlockInfoType } from '../interfaces/storage-processor'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
-import { Block, TX_STATUS, utils } from '../blockchain/common'
-import type { TxType } from '../blockchain/common'
-import Q from '../db-queries'
+import type { Database, DBConnection, Logger } from '../../interfaces'
+import type { BlockInfoType } from '../../interfaces/storage-processor'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import { Block, TX_STATUS, utils } from '../../blockchain/common'
+import type { TxType, TxInputType } from '../../blockchain/common'
+import Q from './db-queries'
+
+const SNAPSHOTS_TABLE = 'transient_snapshots'
 
 
 class DB implements Database {
@@ -51,6 +53,33 @@ class DB implements Database {
     return { height: 0, epoch: 0 }
   }
 
+  async utxosForInputsExists(inputs: Array<TxInputType>): boolean {
+    const utxoIds = inputs.map(utils.getUtxoId)
+    const conn = this.getConn()
+    const sql = Q.sql.select()
+      .from('utxos')
+      .field('COUNT(*)', 'utxoscount')
+      .where('utxo_id IN ?', utxoIds)
+      .toString()
+    this.#logger.debug(`utxosForInputsExists: ${sql}`)
+    const dbRes = await conn.query(sql)
+    return inputs.length === Number(dbRes.rows[0].utxoscount)
+  }
+
+  async txsForInputsExists(inputs: Array<TxInputType>) {
+    const conn = this.getConn()
+    const sql = Q.sql.select()
+      .from('txs')
+      .field('COUNT(*)', 'txscount')
+      .where('hash IN ?', _.map(inputs, 'txId'))
+      .where('tx_state = ?', TX_STATUS.TX_SUCCESS_STATUS)
+      .toString()
+    this.#logger.debug(`txsForInputsExists: ${sql}`)
+    const dbRes = await conn.query(sql)
+    return inputs.length === Number(dbRes.rows[0].txscount)
+  }
+
+
   async updateBestBlockNum(bestBlockNum: number) {
     const conn = this.getConn()
     const dbRes = await conn.query(
@@ -61,6 +90,7 @@ class DB implements Database {
   async rollBackTransactions(blockHeight: number) {
     this.#logger.info(`rollBackTransactions to block ${blockHeight}`)
     const conn = this.getConn()
+    // all txs after the `blockHeight` are marked as “Pending”
     const sql = Q.sql.update()
       .table('txs')
       .set('tx_state', TX_STATUS.TX_PENDING_STATUS)
@@ -70,8 +100,16 @@ class DB implements Database {
       .set('last_update', 'NOW()', { dontQuote: true })
       .where('block_num > ?', blockHeight)
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
+    await conn.query(sql)
+  }
+
+  async rollbackTransientSnapshots(blockHeight: number) {
+    // Delete all pending and failed snapshots after `blockHeight`
+    this.#logger.info(`rollbackTransientSnapshots to block ${blockHeight}`)
+    const conn = this.getConn()
+    const sql = Q.sql.delete().from(SNAPSHOTS_TABLE)
+      .where('block_height > ?', blockHeight)
+    return conn.query(sql)
   }
 
   async deleteInvalidUtxos(blockHeight: number) {
@@ -117,8 +155,7 @@ class DB implements Database {
       .from('blocks')
       .where('block_height > ?', blockHeight)
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
+    await conn.query(sql)
   }
 
   async storeBlock(block: Block) {
@@ -230,7 +267,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(tx: TxType, txUtxos:Array<mixed> = []) {
+  async storeTx(tx: TxType, txUtxos:Array<mixed> = [], upsert:boolean = true) {
     const conn = this.getConn()
     const {
       inputs,
@@ -255,9 +292,6 @@ class DB implements Database {
     const txUTCTime = tx.txTime.toUTCString()
     const txDbFields = {
       hash: id,
-      inputs: JSON.stringify(inputUtxos),
-      inputs_address: inputAddresses,
-      inputs_amount: inputAmmounts,
       outputs_address: outputAddresses,
       outputs_amount: outputAmmounts,
       block_num: blockNum,
@@ -267,10 +301,19 @@ class DB implements Database {
       tx_ordinal: tx.txOrdinal,
       time: txUTCTime,
       last_update: txUTCTime,
+      ...(!_.isEmpty(inputUtxos)
+        ? {
+          inputs: JSON.stringify(inputUtxos),
+          inputs_address: inputAddresses,
+          inputs_amount: inputAmmounts,
+        }
+        : {}),
     }
     const now = new Date().toUTCString()
-    const query = Q.TX_INSERT.setFields(txDbFields)
-      .onConflict('hash', {
+
+    const onConflictArgs = []
+    if (upsert) {
+      onConflictArgs.push('hash', {
         block_num: blockNum,
         block_hash: blockHash,
         time: txUTCTime,
@@ -278,14 +321,155 @@ class DB implements Database {
         last_update: now,
         tx_ordinal: tx.txOrdinal,
       })
+    }
+
+    const sql = Q.TX_INSERT.setFields(txDbFields)
+      .onConflict(...onConflictArgs)
       .toString()
-    this.#logger.debug('Insert TX:', query, inputAddresses, inputAmmounts)
-    await conn.query(query)
+    this.#logger.debug('Insert TX:', sql, inputAddresses, inputAmmounts)
+    await conn.query(sql)
     await this.storeTxAddresses(
       id,
       [...new Set([...inputAddresses, ...outputAddresses])],
     )
   }
+
+  async isTxExists(txId: string): Promise<boolean> {
+    const sql = Q.sql.select().from('txs')
+      .field('1')
+      .where('hash = ?', txId)
+      .limit(1)
+      .toString()
+    const dbRes = await this.getConn().query(sql)
+    return dbRes.rows.length === 1
+  }
+
+  async selectInputsForPendingTxsOnly(txHashes: Array<string>): Promise<Array<mixed>> {
+    if (_.isEmpty(txHashes)) {
+      return []
+    }
+    const sql = Q.sql.select().from('txs')
+      .where('hash IN ?', txHashes)
+      .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
+      .toString()
+    this.#logger.debug('selectInputsForPendingTxsOnly', sql)
+    const dbRes = await this.getConn().query(sql)
+    return dbRes.rows
+  }
+
+  async queryPendingSet() {
+    const query = Q.sql.select().from(SNAPSHOTS_TABLE)
+      .field('tx_hash')
+      .where('block_height = ?', Q.sql.select().from(SNAPSHOTS_TABLE)
+        .field('MAX(block_height)'))
+      .where('status = ?', TX_STATUS.TX_PENDING_STATUS)
+      .union(Q.sql.select().from('txs')
+        .field('hash')
+        .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
+        .where('NOT EXISTS ?', Q.sql.select().from(SNAPSHOTS_TABLE)
+          .field('1')
+          .where('tx_hash = hash')))
+      .toString()
+    const dbRes = await this.getConn().query(query)
+    this.#logger.debug('queryPendingSet:', query, dbRes)
+    return _.map(dbRes.rows, 'tx_hash')
+  }
+
+  async groupPendingTxs(
+    txHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
+    const txs = await this.selectInputsForPendingTxsOnly(txHashes)
+    const validTxs = []
+    const invalidTxs = []
+    for (const tx of txs) {
+      const utxosForInputsExists = await this.utxosForInputsExists(tx.inputs)
+      if (utxosForInputsExists) {
+        validTxs.push(tx.hash)
+      } else {
+        this.#logger.info(`tx ${tx} inputs already spent`)
+        invalidTxs.push(tx.hash)
+      }
+    }
+    return [validTxs, invalidTxs]
+  }
+
+  async groupPendingTxsForSnapshot(
+    newConfirmedTxHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
+    const pendingSet = await this.queryPendingSet()
+    const txsInPendingState = _.difference(pendingSet, newConfirmedTxHashes)
+    const [pendingTxs, invalidTxs] = await this.groupPendingTxs(txsInPendingState)
+    return [pendingTxs, invalidTxs]
+  }
+
+
+  async storeNewPendingSnapshot(block: Block, snapshot: Array<string>) {
+    if (_.isEmpty(snapshot)) {
+      this.#logger.debug('storeNewPendingSnapshot: No pending txs added to snapshot..')
+      return
+    }
+    const dbFields = snapshot.map(txHash => ({
+      tx_hash: txHash,
+      block_hash: block.hash,
+      block_height: block.height,
+      status: TX_STATUS.TX_PENDING_STATUS,
+    }))
+    const sql = Q.sql.insert().into(SNAPSHOTS_TABLE)
+      .setFieldsRows(dbFields).toString()
+    this.#logger.debug('storeNewPendingSnapshot: ', snapshot, sql)
+    await this.getConn().query(sql)
+  }
+
+  async queryFailedSet() {
+    const sql = Q.sql.select().from('txs')
+      .field('hash')
+      .where('tx_state = ?', TX_STATUS.TX_FAILED_STATUS)
+      .where('NOT EXISTS ?', Q.sql.select().from(SNAPSHOTS_TABLE)
+        .where('status = ?', TX_STATUS.TX_FAILED_STATUS)
+        .where('tx_hash = hash'))
+      .toString()
+    const dbRes = await this.getConn().query(sql)
+    this.#logger.debug('queryFailedSet:', sql, dbRes)
+    return _.map(dbRes.rows, 'hash')
+  }
+
+  async storeNewFailedSnapshot(block: Block, invalidTxs: Array<string>) {
+    const failedSet = [
+      ...(await this.queryFailedSet()),
+      ...invalidTxs,
+    ]
+    if (_.isEmpty(failedSet)) {
+      this.#logger.debug('storeNewFailedSnapshot: No failed txs added to snapshot..')
+      return
+    }
+    const dbFields = failedSet.map(txHash => ({
+      tx_hash: txHash,
+      block_hash: block.hash,
+      block_height: block.height,
+      status: TX_STATUS.TX_FAILED_STATUS,
+    }))
+    const sql = Q.sql.insert().into(SNAPSHOTS_TABLE)
+      .setFieldsRows(dbFields).toString()
+    this.#logger.debug('storeNewFailedSnapshot: ', sql)
+    await this.getConn().query(sql)
+  }
+
+  async updateTxsStatus(txs: Array<string>, status: string) {
+    const sql = Q.sql.update().table('txs')
+      .set('tx_state', status)
+      .where('hash IN ?', txs)
+      .toString()
+    return this.getConn().query(sql)
+  }
+
+  async storeNewSnapshot(block: Block) {
+    const txHashes = _.map(block.txs, 'id')
+    const [pendingTxs, invalidTxs] = await this.groupPendingTxsForSnapshot(txHashes)
+    if (!_.isEmpty(invalidTxs)) {
+      await this.updateTxsStatus(invalidTxs, TX_STATUS.TX_FAILED_STATUS)
+    }
+    await this.storeNewPendingSnapshot(block, pendingTxs)
+    await this.storeNewFailedSnapshot(block, invalidTxs)
+  }
+
 
   async storeBlockTxs(block: Block) {
     // TODO: Do we need to serialize more in shelley?
