@@ -348,14 +348,13 @@ class DB implements Database {
     return dbRes.rows.length === 1
   }
 
-  async isTxValid(txHash: string): Promise<boolean> {
+  async selectInputsForPendingTxsOnly(txHashes: Array<string>): Promise<Array<mixed>> {
     const sql = Q.sql.select().from('txs')
-      .where('hash = ?', txHash)
+      .where('hash in ?', txHashes)
       .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
       .toString()
     const dbRes = await this.getConn().query(sql)
-    const [tx] = dbRes.rows
-    return Boolean(tx) && this.utxosForInputsExists(tx.inputs)
+    return dbRes.rows
   }
 
   async queryPendingSet() {
@@ -376,24 +375,27 @@ class DB implements Database {
     return _.map(dbRes.rows, 'tx_hash')
   }
 
-  async groupPendingTxs(txs: Array<string>): Promise<[Array<string>, Array<string>]> {
+  async groupPendingTxs(
+    txHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
+    const txs = await this.selectInputsForPendingTxsOnly(txHashes)
     const validTxs = []
     const invalidTxs = []
     for (const tx of txs) {
-      const isValid = await this.isTxValid(tx)
-      if (isValid) {
-        validTxs.push(tx)
+      const utxosForInputsExists = await this.utxosForInputsExists(tx.inputs)
+      if (utxosForInputsExists) {
+        validTxs.push(tx.hash)
       } else {
         this.#logger.info(`tx ${tx} inputs already spent`)
-        invalidTxs.push(tx)
+        invalidTxs.push(tx.hash)
       }
     }
     return [validTxs, invalidTxs]
   }
 
-  async groupPendingTxsForSnapshot(txHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
+  async groupPendingTxsForSnapshot(
+    newConfirmedTxHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
     const pendingSet = await this.queryPendingSet()
-    const txsInPendingState = _.difference(pendingSet, txHashes)
+    const txsInPendingState = _.difference(pendingSet, newConfirmedTxHashes)
     const [pendingTxs, invalidTxs] = await this.groupPendingTxs(txsInPendingState)
     return [pendingTxs, invalidTxs]
   }
