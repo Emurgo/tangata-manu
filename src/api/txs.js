@@ -15,7 +15,7 @@ import { Controller as IController } from 'inversify-restify-utils/lib/interface
 import { injectable, decorate, inject } from 'inversify'
 
 import {
-  RawDataProvider, StorageProcessor, NetworkConfig,
+  RawDataProvider, Database, NetworkConfig,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import utils from '../blockchain/utils'
@@ -28,19 +28,19 @@ class TxController implements IController {
 
   dataProvider: RawDataProvider
 
-  storageProcessor: StorageProcessor
+  db: Database
 
   expectedNetworkMagic: number
 
   constructor(
     logger: Logger,
     dataProvider: RawDataProvider,
-    storageProcessor: StorageProcessor,
+    db: Database,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger
     this.dataProvider = dataProvider
-    this.storageProcessor = storageProcessor
+    this.db = db
     this.expectedNetworkMagic = networkConfig.networkMagic()
   }
 
@@ -61,9 +61,11 @@ class TxController implements IController {
           // Network success but locally we failed validation - log local
           this.logger.warn('Local validation error, but network send succeeded!')
         }
+      } else {
+        await this.storeTxAsFailed(txObj)
       }
     } catch (err) {
-      this.logger.error('Failed to store tx as pending!', err)
+      this.logger.error('Failed to store tx', err)
       throw new Error('Internal DB fail in the importer!')
     }
     let statusText
@@ -103,17 +105,44 @@ class TxController implements IController {
 
   async storeTxAsPending(tx: TxType) {
     this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-    await this.storageProcessor.storeTx(tx)
+    await this.db.storeTx(tx)
+  }
+
+  async storeTxAsFailed(tx: TxType) {
+    const failedTx = {
+      ...tx,
+      status: TX_STATUS.TX_FAILED_STATUS,
+    }
+    this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
+    await this.db.storeTx(failedTx, [], false)
+  }
+
+  async validateDuplicates(tx: TxType) {
+    const txExists = this.db.isTxExists(tx.id)
+    if (txExists) {
+      throw new Error(`Tx ${tx.id} already exists.`)
+    }
   }
 
   async validateTx(txObj: TxType) {
     try {
+      await this.validateDuplicates(txObj)
+      await this.validateInputs(txObj)
       await this.validateTxWitnesses(txObj)
       this.validateDestinationNetwork(txObj)
-      // TODO: more validation
       return null
     } catch (e) {
       return e
+    }
+  }
+
+  async validateInputs({ id, inputs }: TxType) {
+    const allUtxosForInputsExists = await this.db.utxosForInputsExists(inputs)
+    if (!allUtxosForInputsExists) {
+      const txsForInputsExists = await this.db.txsForInputsExists(inputs)
+      if (txsForInputsExists) {
+        throw new Error(`UTxOs for tx ${id} already spent`)
+      }
     }
   }
 
@@ -126,7 +155,7 @@ class TxController implements IController {
     }
 
     const txHashes = _.uniq(inputs.map(({ txId }) => txId))
-    const fullOutputs = await this.storageProcessor.getOutputsForTxHashes(txHashes)
+    const fullOutputs = await this.db.getOutputsForTxHashes(txHashes)
 
     _.zip(inputs, witnesses).forEach(([input, witness]) => {
       const { type: inputType, txId: inputTxId, idx: inputIdx } = input
@@ -186,7 +215,7 @@ decorate(Post('/signed'), TxController.prototype, 'signed')
 
 decorate(inject(SERVICE_IDENTIFIER.LOGGER), TxController, 0)
 decorate(inject(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER), TxController, 1)
-decorate(inject(SERVICE_IDENTIFIER.STORAGE_PROCESSOR), TxController, 2)
+decorate(inject(SERVICE_IDENTIFIER.DATABASE), TxController, 2)
 decorate(inject(SERVICE_IDENTIFIER.NETWORK_CONFIG), TxController, 3)
 
 export default TxController

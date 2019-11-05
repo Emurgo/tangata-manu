@@ -6,8 +6,8 @@ import type { StorageProcessor, Database } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import { PostgresStorageProcessor, ElasticStorageProcessor, DB } from '../entities'
 
-const SEIZA_ELASTIC = 'seiza-elastic'
-const YOROI_POSTGRES = 'yoroi-postgres'
+export const SEIZA_ELASTIC = 'seiza-elastic'
+export const YOROI_POSTGRES = 'yoroi-postgres'
 
 const initStorageProcessor = (container: Container) => {
   const storageName = container.getNamed('storageProcessor')

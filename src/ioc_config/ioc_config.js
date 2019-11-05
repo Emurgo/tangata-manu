@@ -25,7 +25,7 @@ import dbModule from './db'
 import loggerModule from './logger'
 import networkConfigModule from './network-config'
 import initRoutes from './routes'
-import initStorageProcessor from './storage-processor'
+import initStorageProcessor, { YOROI_POSTGRES } from './storage-processor'
 
 const configBinder = new EagerBinder({
   objects: true,
@@ -55,8 +55,10 @@ const initIoC = async () => {
   container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider).inSingletonScope()
 
   initStorageProcessor(container)
-  initRoutes(container)
-
+  const storageName = container.getNamed('storageProcessor')
+  if (storageName === YOROI_POSTGRES) {
+    initRoutes(container)
+  }
   return container
 }
 
