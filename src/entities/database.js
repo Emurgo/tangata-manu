@@ -349,10 +349,14 @@ class DB implements Database {
   }
 
   async selectInputsForPendingTxsOnly(txHashes: Array<string>): Promise<Array<mixed>> {
+    if (_.isEmpty(txHashes)) {
+      return []
+    }
     const sql = Q.sql.select().from('txs')
-      .where('hash in ?', txHashes)
+      .where('hash IN ?', txHashes)
       .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
       .toString()
+    this.#logger.debug('selectInputsForPendingTxsOnly', sql)
     const dbRes = await this.getConn().query(sql)
     return dbRes.rows
   }
