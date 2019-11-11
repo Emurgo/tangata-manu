@@ -17,9 +17,9 @@ CREATE TABLE ${TABLE_NAME}  (
 );
 `
 
-exports.up = async (pgm, run) => {
+exports.up = async (pgm) => {
 
-  pgm.sql(SQL)
+  await pgm.db.query(SQL)
 
   const fileStream = fs.createReadStream('migrations-shelley/data/known-legacy-addresses-byron-mainnet.txt')
   const rl = readline.createInterface({
@@ -27,25 +27,25 @@ exports.up = async (pgm, run) => {
     crlfDelay: Infinity
   })
 
-  const rows = []
+  console.log('Inserting the known legacy addresses dump')
+  let counter = 0
   for await (const line of rl) {
     // ignore comments or blank lines
     const strippedLine = line.trim()
     if (strippedLine && !strippedLine.startsWith('#')) {
-      rows.push({ address: strippedLine })
+      const insertSql = Q.insert({
+          replaceSingleQuotes: true
+        })
+        .into(TABLE_NAME)
+        .setFields({ address: strippedLine })
+        .toString()
+
+      await pgm.db.query(insertSql)
+      if (++counter % 100000 === 0) {
+        console.log(`Inserted ${counter} legacy addresses`)
+      }
     }
   }
-
-  const insertSql = Q.insert({
-      replaceSingleQuotes: true
-    })
-    .into(TABLE_NAME)
-    .setFieldsRows(rows)
-    .toString()
-
-  pgm.sql(insertSql)
-
-  run()
 };
 
 exports.down = (pgm) => {
