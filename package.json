@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "migrate": "NODE_ENV=${NODE_ENV:-develop} node-pg-migrate",
+    "migrate-shelley": "NODE_ENV=${NODE_ENV:-develop} node-pg-migrate -m migrations-shelley",
     "build": "babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
     "dev": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js --max_old_space_size=4096 --inspect --exec babel-node | bunyan",
@@ -72,6 +73,7 @@
     "restify": "^8.0.0",
     "restify-cors-middleware": "^1.1.1",
     "restify-errors": "^6.1.1",
+    "sqlstring": "2.3.1",
     "squel": "^5.12.2",
     "to-array-buffer": "^3.2.0",
     "url-join": "^4.0.0"
