@@ -1,0 +1,4 @@
+# Here we will put all the unique empty Byron legacy addresses seen before the Shelley snapshot
+# Empty lines or lines starting with '#' are ignored
+
+DdzFFzCqrht2WKNEFqHvMSumSQpcnMxcYLNNBXPYXyHpRk9M7PqVjZ5ysYzutnruNubzXak2NxT8UWTFQNzc77uzjQ1GtehBRBdAv7xb
