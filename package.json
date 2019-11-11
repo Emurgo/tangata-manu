@@ -73,7 +73,6 @@
     "restify": "^8.0.0",
     "restify-cors-middleware": "^1.1.1",
     "restify-errors": "^6.1.1",
-    "sqlstring": "2.3.1",
     "squel": "^5.12.2",
     "to-array-buffer": "^3.2.0",
     "url-join": "^4.0.0"
