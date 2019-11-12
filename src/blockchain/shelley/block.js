@@ -47,6 +47,7 @@ export default class ShelleyBlock implements Block {
   getPrevHash(): string {
     return this.prevHash
   }
+
   getEpoch(): EpochId {
     return this.epoch
   }
@@ -54,20 +55,25 @@ export default class ShelleyBlock implements Block {
   getSlot(): ?SlotId {
     return this.slot
   }
+
   getHeight(): number {
     return this.height
   }
+
   getTxs(): Array<any> {
     return this.txs
   }
+
   getTime(): Date {
     // TODO: implement
     return new Date(Date.now())
   }
+
   getSize(): number {
     // TODO: implement
     return 0
   }
+
   getSlotLeaderId(): ?string {
     // TODO: implement
     return null
@@ -80,7 +86,7 @@ export default class ShelleyBlock implements Block {
 
     const epochId = block.epoch()
     const slotId = block.slot()
-    console.log('SHELLEY BLOCK TIME: [' + epochId + ', ' + slotId + ']')
+    console.log(`SHELLEY BLOCK TIME: [${epochId}, ${slotId}]`)
     const chainLength = block.chain_length()
     // TODO: should these be hex strings or not?
     const blockHash = Buffer.from(block.id().as_bytes()).toString('hex')
@@ -92,31 +98,29 @@ export default class ShelleyBlock implements Block {
       + (epochId * SLOTS_IN_EPOCH + slotId) * 20)
       * 1000)
     const fragments = block.fragments()
-    let txs = []
-    console.log('\n\nfragments: ' + fragments.size())
+    const txs = []
+    console.log(`\n\nfragments: ${fragments.size()}`)
     for (let index = 0; index < fragments.size(); index += 1) {
       const fragment = fragments.get(index)
-      if (fragment.is_transaction()) console.log('#' + index + ' = TRANSACTION')
-      if (fragment.is_owner_stake_delegation()) console.log('#' + index + ' = OWNER STAKE DELEG')
-      if (fragment.is_stake_delegation()) console.log('#' + index + ' = STAKE DELEG')
-      if (fragment.is_pool_registration()) console.log('#' + index + ' = POOL REG')
-      if (fragment.is_pool_management()) console.log('#' + index + ' = POOL MANAGE')
+      if (fragment.is_transaction()) console.log(`#${index} = TRANSACTION`)
+      if (fragment.is_owner_stake_delegation()) console.log(`#${index} = OWNER STAKE DELEG`)
+      if (fragment.is_stake_delegation()) console.log(`#${index} = STAKE DELEG`)
+      if (fragment.is_pool_registration()) console.log(`#${index} = POOL REG`)
+      if (fragment.is_pool_management()) console.log(`#${index} = POOL MANAGE`)
       if (fragment.is_transaction() || fragment.is_owner_stake_delegation() || fragment.is_pool_registration() || fragment.is_pool_management() || fragment.is_stake_delegation()) {
         txs.push(shelleyUtils.fragmentToObj(fragment, {
           txTime: blockTime,
           txOrdinal: index,
           blockNum: chainLength,
-          blockHash: blockHash,
+          blockHash,
         }))
-      } else if (fragment.is_initial())
-      {
-        console.log('#' + index + ' = INITIAL FRAG')
+      } else if (fragment.is_initial()) {
+        console.log(`#${index} = INITIAL FRAG`)
       } else if (fragment.is_old_utxo_declaration()) {
-        console.log('#' + index + ' = OLD UTXO')
-      }
-      else {
+        console.log(`#${index} = OLD UTXO`)
+      } else {
         // skip updates
-        console.log('#' + index + ' skipped')
+        console.log(`#${index} skipped`)
       }
     }
     return new ShelleyBlock(blockHash, slotId, epochId, chainLength, txs, parentHash)

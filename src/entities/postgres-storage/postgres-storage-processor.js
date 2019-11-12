@@ -4,10 +4,10 @@ import _ from 'lodash'
 import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import type { StorageProcessor, Database } from '../interfaces'
-import type { BlockInfoType } from '../interfaces/storage-processor'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
-import type { Block, TxType } from '../blockchain/common'
+import type { StorageProcessor, Database } from '../../interfaces'
+import type { BlockInfoType } from '../../interfaces/storage-processor'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import type { Block, TxType } from '../../blockchain/common'
 
 class PostgresStorageProcessor implements StorageProcessor {
   logger: Logger
@@ -29,6 +29,7 @@ class PostgresStorageProcessor implements StorageProcessor {
         const blockHaveTxs = !_.isEmpty(block.getTxs())
         if (blockHaveTxs) {
           await this.db.storeBlockTxs(block)
+          await this.db.storeNewSnapshot(block)
         }
       }
       await this.db.updateBestBlockNum(_.last(blocks).getHeight())
@@ -38,6 +39,7 @@ class PostgresStorageProcessor implements StorageProcessor {
   async rollbackTo(height: number) {
     return this.doInTransaction(async () => {
       await this.db.rollBackTransactions(height)
+      await this.db.rollbackTransientSnapshots(height)
       await this.db.rollBackUtxoBackup(height)
       await this.db.rollBackBlockHistory(height)
       await this.db.updateBestBlockNum(height)
@@ -54,6 +56,14 @@ class PostgresStorageProcessor implements StorageProcessor {
       await dbConn.query('ROLLBACK')
       throw e
     }
+  }
+
+  async utxosForInputsExists(inputs) {
+    return this.db.utxosForInputsExists(inputs)
+  }
+
+  async txsForInputsExists(inputs) {
+    return this.db.txsForInputsExists(inputs)
   }
 
   async getBestBlockNum(): Promise<BlockInfoType> {
@@ -73,7 +83,7 @@ class PostgresStorageProcessor implements StorageProcessor {
   }
 
   async storeGenesisLeaders(leaders: Array<mixed>) {
-    // ignored
+    this.logger.debug('storeGenesisLeaders: ignored.')
   }
 
   async storeGenesisUtxos(utxos: Array<mixed>) {

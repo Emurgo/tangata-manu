@@ -4,14 +4,13 @@ import axios from 'axios'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
+import config from 'config'
 import { RawDataProvider, RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { NetworkConfig } from '../../interfaces'
 
 // these two are for getting the network instead of using NetworkConfig
-import config from 'config'
 import utils from '../../utils'
-import { AssertionError } from 'assert'
 
 
 class JormungandrApi implements RawDataProvider {
@@ -43,7 +42,7 @@ class JormungandrApi implements RawDataProvider {
   async get(path: string, options?: {}) {
     const opts = options || {}
     const endpointUrl = urljoin(this.#networkBaseUrl, path)
-    console.log('jormungandr: endpointUrl = ' + endpointUrl)
+    console.log(`jormungandr: endpointUrl = ${endpointUrl}`)
     try {
       const resp = await axios(endpointUrl,
         {
@@ -53,7 +52,7 @@ class JormungandrApi implements RawDataProvider {
       return resp
     } catch (e) {
       if (e.code === 'ECONNREFUSED') {
-        let error = new Error('jormungandr is not accessible (ECONNREFUSED)')
+        const error = new Error('jormungandr is not accessible (ECONNREFUSED)')
         error.code = 'NODE_INACCESSIBLE'
         throw error
       }
@@ -80,21 +79,21 @@ class JormungandrApi implements RawDataProvider {
   // payload is base64 encoded raw binary signed transaction
   async postSignedTx(payload: string): Promise<any> {
     // Jormungandr expects a binary POST input
-    let config = {
+    const config = {
       headers: {
-        'Content-Type': 'application/octet-stream'
-      }
+        'Content-Type': 'application/octet-stream',
+      },
     }
-    let payloadBinary = Buffer.from(payload, 'base64')
+    const payloadBinary = Buffer.from(payload, 'base64')
     const resp = await this.post('txs/signed', payloadBinary, config)
     return resp
   }
 
   // This would need some further investigating into Jormungandr storage format
   async getEpoch(id: number) {
-    //const resp = await this.get(`/epoch/${id}`)
-    //return resp.data
-    throw new Error("JormungandrApi::getEpoch() not implemented")
+    // const resp = await this.get(`/epoch/${id}`)
+    // return resp.data
+    throw new Error('JormungandrApi::getEpoch() not implemented')
   }
 
   // TODO: remove when height endpoint exists
@@ -103,7 +102,7 @@ class JormungandrApi implements RawDataProvider {
   }
 
   async getBlock(id: string): Promise<string> {
-    console.log('jormun GET BLOCK: ' + id)
+    console.log(`jormun GET BLOCK: ${id}`)
     const resp = await this.get(`block/${id}`)
     const { data } = resp
     return data
@@ -111,10 +110,10 @@ class JormungandrApi implements RawDataProvider {
 
   // TODO: remove once we support querying by height
   async getNextBlockId(id: string): Promise<string> {
-    console.log('getNextBlockId(' + id + ')')
+    console.log(`getNextBlockId(${id})`)
     const resp = await this.get(`block/${id}/next_id`)
     const { data } = resp
-    console.log(' = ' + data)
+    console.log(` = ${data}`)
     return data
   }
 
@@ -126,7 +125,7 @@ class JormungandrApi implements RawDataProvider {
     // as something empty to not cause any issues.
     return {
       protocolConsts: {
-        protocolMagic: null
+        protocolMagic: null,
       },
       nonAvvmBalances: [],
       avvmDistr: [],
@@ -141,14 +140,14 @@ class JormungandrApi implements RawDataProvider {
     const x = {
       height: data.lastBlockHeight,
       slot: [Math.floor(data.lastBlockHeight / 21600), data.lastBlockHeight % 21600],
-      hash: "<fake hash>", // we aren't actually reading this afaik
+      hash: '<fake hash>', // we aren't actually reading this afaik
     }
     return {
       tip: {
         local: x,
-        remote: x
+        remote: x,
       },
-      packedEpochs: Math.floor(data.lastBlockHeight / 21600)
+      packedEpochs: Math.floor(data.lastBlockHeight / 21600),
     }
   }
 

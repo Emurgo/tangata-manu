@@ -1,14 +1,10 @@
 {
   "appName": "yoroi-importer",
-  "cardanoBridge": {
-    "baseUrl": "http://jormungandr.emurgo.rocks:18443",
-    "template": "testnet2"
-  },
   "elastic": {
     "node": "http://jormungandr.emurgo.rocks:18443",
     "indexPrefix": "seiza"
   },
-  "storageProcessor": "yoroi-postgres",
+  "storageProcessor": "seiza-elastic",
   "server": {
     "port": 8080,
     "logLevel": "debug",
@@ -24,8 +20,8 @@
   "checkTipSeconds": 15,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 20,
-  "defaultNetwork": "jormun-testnet",
-  "defaultBridgeUrl": "http://jormungandr.emurgo.rocks:18443",
+  "defaultNetwork": "testnet2",
+  "defaultBridgeUrl": "http://localhost:8082",
   "networks": {
     "testnet2": {
       "genesis": "96fceff972c2c06bd3bb5243c39215333be6d56aaf4823073dca31afe5038471",
@@ -38,11 +34,13 @@
     },
     "mainnet": {
       "genesis": "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb",
-      "startTime": 1506203091
+      "startTime": 1506203091,
+      "protocol": "byron"
     },
     "jormun-testnet": {
       "genesis": "ae57995b8fe086ba590c36dc930f2aa9b52b2ffa92c0698fff2347adafe8dc65",
-      "startTime": 0
+      "startTime": 0,
+      "protocol": "shelley"
     }
   }
 }

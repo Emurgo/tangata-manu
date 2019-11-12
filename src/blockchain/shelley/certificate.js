@@ -29,4 +29,4 @@ export type StakeDelegation = {
   account: string,
 }
 
-export type Certificate = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegation 
+export type Certificate = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegation

@@ -7,6 +7,8 @@ type NetworkConfigType = {
   genesis: string,
   startTime: number,
   networkMagic: number,
+  version: string,
+  protocol: string,
 }
 
 const getNetworkConfig = (networkName: string): NetworkConfigType => {

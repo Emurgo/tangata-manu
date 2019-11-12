@@ -6,6 +6,7 @@ import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
+import BigNumber from 'bignumber.js'
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
 import type { Block } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
@@ -13,7 +14,6 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import type { UtxoType } from './utxo-data'
 
-import BigNumber from "bignumber.js"
 import BlockData from './block-data'
 import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import TxData from './tx-data'
@@ -422,16 +422,14 @@ class ElasticStorageProcessor implements StorageProcessor {
     const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
-    const mappedBlocks: Array<BlockData> =
-      getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
 
     const blockInputsToStore = mappedBlocks
       .flatMap((b: BlockData) => b.getResolvedTxs())
       .flatMap((tx: TxData) => tx.getInputsData())
 
     const tip: BlockInfoType = await this.getBestBlockNum()
-    const paddedBlocks: Array<BlockData> =
-      padEmptySlots(mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
+    const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
 
     const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
@@ -541,7 +539,7 @@ function padEmptySlots(
     const [blockEpoch, blockSlot] = [b.block.getEpoch(), b.block.getSlot()]
     if (blockEpoch < epoch || (blockSlot === epoch && blockSlot < slot)) {
       throw new Error(`Got a block for storing younger than next expected slot.
-         Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`
+         Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`,
       )
     }
     if (blockEpoch > epoch) {
@@ -598,7 +596,7 @@ function qSort(...entries) {
     let unmapped_type = 'long'
     if (Array.isArray(e)) {
       if (e.length < 1 || e.length > 3) {
-        throw new Error("qSort array entry expect 1-3 elements!")
+        throw new Error('qSort array entry expect 1-3 elements!')
       }
       key = e[0]
       if (e.length > 1) {

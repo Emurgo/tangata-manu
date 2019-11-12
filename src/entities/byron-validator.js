@@ -7,42 +7,59 @@ import bs58 from 'bs58'
 import blake from 'blakejs'
 // eslint-disable-next-line camelcase
 import { sha3_256 } from 'js-sha3'
-//import { injectable, decorate, inject } from 'inversify'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 
 import type { TxType, UtxoInput } from '../blockchain/common'
 import {
-  StorageProcessor, NetworkConfig, Validator,
+  Database, NetworkConfig, Validator,
 } from '../interfaces'
-import SERVICE_IDENTIFIER from "../constants/identifiers";
+import SERVICE_IDENTIFIER from '../constants/identifiers'
+
 
 class ByronValidator implements Validator {
-
   logger: Logger
 
-  storageProcessor: StorageProcessor
+  db: Database
 
   expectedNetworkMagic: number
 
   constructor(
     logger: Logger,
-    storageProcessor: StorageProcessor,
+    db: Database,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger
-    this.storageProcessor = storageProcessor
+    this.db = db
     this.expectedNetworkMagic = networkConfig.networkMagic()
   }
 
   async validateTx(txObj: TxType) {
     try {
+      await this.validateDuplicates(txObj)
+      await this.validateInputs(txObj)
       await this.validateTxWitnesses(txObj)
       this.validateDestinationNetwork(txObj)
-      // TODO: more validation
       return null
     } catch (e) {
       return e
+    }
+  }
+
+  async validateInputs({ id, inputs }: TxType) {
+    const allUtxosForInputsExists = await this.db.utxosForInputsExists(inputs)
+    if (!allUtxosForInputsExists) {
+      const txsForInputsExists = await this.db.txsForInputsExists(inputs)
+      if (txsForInputsExists) {
+        throw new Error(`UTxOs for tx ${id} already spent`)
+      }
+    }
+  }
+
+  async validateDuplicates(tx: TxType) {
+    const txExists = this.db.isTxExists(tx.id)
+    if (txExists) {
+      throw new Error(`Tx ${tx.id} already exists.`)
     }
   }
 
@@ -58,12 +75,12 @@ class ByronValidator implements Validator {
         case 'utxo':
           return inp
         default:
-          throw new Error('non-UTXO input found: ' + JSON.stringify(inp))
+          throw new Error(`non-UTXO input found: ${JSON.stringify(inp)}`)
       }
     })
 
     const txHashes = _.uniq(utxoInputs.map(({ txId }) => txId))
-    const fullOutputs = await this.storageProcessor.getOutputsForTxHashes(txHashes)
+    const fullOutputs = await this.db.getOutputsForTxHashes(txHashes)
 
     _.zip(utxoInputs, witnesses).forEach(([input, witness]) => {
       const { byronInputType: inputType, txId: inputTxId, idx: inputIdx } = input
@@ -118,7 +135,7 @@ class ByronValidator implements Validator {
 
 helpers.annotate(ByronValidator, [
   SERVICE_IDENTIFIER.LOGGER,
-  SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
+  SERVICE_IDENTIFIER.DATABASE,
   SERVICE_IDENTIFIER.NETWORK_CONFIG,
 ])
 

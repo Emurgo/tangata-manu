@@ -1,6 +1,6 @@
 // @flow
 
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 
 const LOVELACE_IN_ADA = 1000000
 
@@ -20,7 +20,7 @@ export const coinFormat = (num: number|BigNumber) => {
 }
 
 export const parseCoinToBigInteger = (
-  { integers, decimals }: { integers: number, decimals: number }
+  { integers, decimals }: { integers: number, decimals: number },
 ): BigNumber => new BigNumber(integers).multipliedBy(LOVELACE_IN_ADA).plus(decimals)
 
 class ElasticData {

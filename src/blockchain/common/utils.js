@@ -1,16 +1,15 @@
 // @flow
 
-import type { TxInputType, TxType } from '../common/tx'
+import type { TxInputType, TxType } from './tx'
 
 const getUtxoId = (input: TxInputType) => {
   switch (input.type) {
     case 'utxo':
-      return `utxo:${input.txId}${input.idx}`
-    // TODO: implement for accounts
-    default:
-      //throw Error('getUtxoId(): unsupported TxInputType ' + input.type)
-      // TODO: actually needs to use spending counter I think
+      return `{input.txId}${input.idx}`
+    case 'account':
       return `account:${input.account_id}${input.value}`
+    default:
+      throw Error(`getUtxoId(): unsupported TxInputType ${input.type}`)
   }
 }
 

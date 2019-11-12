@@ -2,13 +2,13 @@
 
 import _ from 'lodash'
 
+import BigNumber from 'bignumber.js'
 import { ByronBlock } from '../../blockchain/byron'
 import { Block, utils } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type { UtxoType } from './utxo-data'
 import TxData from './tx-data'
-import BigNumber from "bignumber.js"
 
 class BlockData extends ElasticData {
   block: Block
@@ -62,8 +62,8 @@ class BlockData extends ElasticData {
   ) {
     return new BlockData(new ByronBlock({
       hash: null,
-      slot: slot,
-      epoch: epoch,
+      slot,
+      epoch,
       height: null,
       txs: [],
       isEBB: false,
@@ -71,7 +71,7 @@ class BlockData extends ElasticData {
       time: ByronBlock.calcSlotTime(epoch, slot, networkStartTime),
       lead: null,
       slotLeaderPk: null,
-      size: 0
+      size: 0,
     }))
   }
 

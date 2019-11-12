@@ -18,7 +18,7 @@ export const getTxInputUtxoId = (input: TxInputType) => {
       return `${UTXO_OUTPUT_TYPE}:${input.txId}:${input.idx}`
     // TODO: implement for accounts
     default:
-      throw Error('getTxInputUtxoId(): unsupported TxInputType ' + input.type)
+      throw Error(`getTxInputUtxoId(): unsupported TxInputType ${input.type}`)
   }
 }
 

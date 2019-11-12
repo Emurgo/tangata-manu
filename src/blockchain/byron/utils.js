@@ -100,7 +100,7 @@ const rawTxToObj = (tx: Array<any>, extraData: {
         byronInputType: type,
         type: 'utxo',
         txId: inputTxId.toString('hex'),
-        idx: idx,
+        idx,
       }
     }),
     outputs: outputs.map(out => {

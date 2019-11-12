@@ -70,7 +70,7 @@ class CronScheduler implements Scheduler {
     this.lastBlock = null
     // TODO: this can't be the best way, can it? (for jormungandr next_id syncing)
     this.#genesisHash = networkConfig.genesisHash()
-    logger.debug("genesisHash = " + this.#genesisHash)
+    logger.debug(`genesisHash = ${this.#genesisHash}`)
   }
 
   async rollback(atBlockHeight: number) {
@@ -120,8 +120,7 @@ class CronScheduler implements Scheduler {
     }
     this.blocksToStore.push(block)
     if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
-      this.logger.debug('\n\n\nSTORING TO DATABASE\n\n\n\n\n\n')
-      await this.pushCachedBlocksToStorage();
+      await this.pushCachedBlocksToStorage()
     }
 
     if (flushCache || block.getHeight() % LOG_BLOCK_PARSED_THRESHOLD === 0) {
@@ -164,7 +163,7 @@ class CronScheduler implements Scheduler {
       // Check if there's any point to bother with whole epochs
       if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
         // TODO: remove this once jormungandr supports epoch downloading
-        if ("getParsedEpochById" in this.#dataProvider) {
+        if ('getParsedEpochById' in this.#dataProvider) {
           if (packedEpochs > epoch) {
             for (const epochId of _.range(epoch, packedEpochs)) {
               // Process epoch
@@ -172,12 +171,16 @@ class CronScheduler implements Scheduler {
               this.logger.debug(`Epoch parsed: ${epochId}, ${height}`)
             }
             this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
-            await this.pushCachedBlocksToStorage();
+            await this.pushCachedBlocksToStorage()
           } else {
             // Packed epoch is not available yet
             this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
           }
-          return
+          this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
+          await this.pushCachedBlocksToStorage()
+        } else {
+          // Packed epoch is not available yet
+          this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
         }
       }
     }
@@ -187,23 +190,22 @@ class CronScheduler implements Scheduler {
     for (let blockHeight = height + 1, i = 0;
       (blockHeight <= tipStatus.height) && (i < MAX_BLOCKS_PER_LOOP);
       blockHeight++, i++) {
-      this.logger.info('requesting block at height ' + blockHeight)
+      this.logger.info(`requesting block at height ${blockHeight}`)
       // TODO: remove this once jormungandr supports blocks by height, just querying consecutive blocks here temporarily instead
-      //const nextBlockId = (this.lastBlock == null) ? this.#genesisHash : (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
+      // const nextBlockId = (this.lastBlock == null) ? this.#genesisHash : (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
       let nextBlockId
       if (this.lastBlock == null) {
         nextBlockId = this.#genesisHash
       } else {
-        
         const nextBlockIdRaw = await this.#dataProvider.getNextBlockId(this.lastBlock.hash)
         nextBlockId = nextBlockIdRaw.toString('hex')
       }
-      this.logger.debug('nextBlockId: ' + nextBlockId)
+      this.logger.debug(`nextBlockId: ${nextBlockId}`)
       const nextBlockRaw = await this.#dataProvider.getBlock(nextBlockId)
       this.logger.debug('nextBlockRaw aquired.')
       const nextBlock = await this.#dataProvider.parseBlock(nextBlockRaw)
-      this.logger.debug('block parsed: ' + JSON.stringify(nextBlock))
-      const status = await this.processBlock(nextBlock)//await this.processBlockHeight(blockHeight)
+      this.logger.debug(`block parsed: ${JSON.stringify(nextBlock)}`)
+      const status = await this.processBlock(nextBlock)// await this.processBlockHeight(blockHeight)
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.logger.info('Rollback required.')
         await this.rollback(blockHeight)

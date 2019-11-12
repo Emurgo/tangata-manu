@@ -40,12 +40,12 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
   if (fragment.is_update_vote()) {
     console.log('\n\n\n\nUPDATE VOTE\n\n\n\n')
   }
-  let tx = fragment.get_transaction().transaction()
+  const tx = fragment.get_transaction().transaction()
   const inputs = tx.inputs()
-  let inputs_parsed = []
+  const inputs_parsed = []
   for (let input_index = 0; input_index < inputs.size(); input_index += 1) {
     const input = inputs.get(input_index)
-    console.log('tx input type: ' + input.get_type())
+    console.log(`tx input type: ${input.get_type()}`)
     let specific
     if (input.is_utxo()) {
       const utxo = input.get_utxo_pointer()
@@ -59,12 +59,12 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
       inputs_parsed.push({
         type: 'account',
         account_id: account.to_hex(),
-        value: parseInt(input.value().to_str())
+        value: parseInt(input.value().to_str()),
       })
     }
   }
   const outputs = tx.outputs()
-  let outputs_parsed = []
+  const outputs_parsed = []
   for (let output_index = 0; output_index < outputs.size(); output_index += 1) {
     const output = outputs.get(output_index)
     outputs_parsed.push({
@@ -75,15 +75,14 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
     })
   }
   const cert = tx.certificate()
-  if (cert)
-  {
+  if (cert) {
     switch (cert.get_type()) {
       case 'PoolRegistration':
         const reg = cert.get_pool_registration()
         const pool_keys = reg.owners()
-        let pool_owners = []
+        const pool_owners = []
         for (let i = 0; i < pool_keys.size(); i += 1) {
-          let keyBytes = Buffer.from(pool_keys.get(i).as_bytes())
+          const keyBytes = Buffer.from(pool_keys.get(i).as_bytes())
           pool_owners.push(keyBytes.toString('hex'))
         }
         common.certificate = {
@@ -112,23 +111,23 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         }
         break
       case 'PoolUpdate':
-          console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
-          break
+        console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
+        break
       case 'OwnerStakeDelegation':
         console.log('\n\n\n\n\n========\n\nOWNER STAKE DELEGATION FOUND\n\n\n')
         break
       default:
-        throw new Error('parsing certificate type not implemented' + cert.get_type())
+        throw new Error(`parsing certificate type not implemented${cert.get_type()}`)
     }
   }
-  let ret = {
+  const ret = {
     inputs: inputs_parsed,
     outputs: outputs_parsed,
     witnesses: [],
     ...common,
     ...extraData,
   }
-  console.log('parsed a tx: \n' + JSON.stringify(ret) + '\n')
+  console.log(`parsed a tx: \n${JSON.stringify(ret)}\n`)
   return ret
   // const [[inputs, outputs], witnesses] = tx
   // const [txId, txBody] = packRawTxIdAndBody(tx)
@@ -150,5 +149,5 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
 
 export default {
   rawTxToObj,
-  fragmentToObj
+  fragmentToObj,
 }
