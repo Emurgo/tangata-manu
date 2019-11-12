@@ -1,4 +1,3 @@
-# Here we will put all the unique empty Byron legacy addresses seen before the Shelley snapshot
-# Empty lines or lines starting with '#' are ignored
-
-DdzFFzCqrht2WKNEFqHvMSumSQpcnMxcYLNNBXPYXyHpRk9M7PqVjZ5ysYzutnruNubzXak2NxT8UWTFQNzc77uzjQ1GtehBRBdAv7xb
+version https://git-lfs.github.com/spec/v1
+oid sha256:26b756f726585e563b65b769b873e71ac3ff96dfe4c976810d01b32e08a04ba9
+size 207817483

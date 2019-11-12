@@ -7,6 +7,16 @@ Cardano chain data-importer (replacement for the `project-icarus-importer`)
 
 Tangata Manu is a tool to import Cardano blockchain data into an easily usable database storage (e.g. Postgres database). The main goal of the project is to provide the main middle-layer functionality and to allow easy connection for new custom data-storage connectors or data-provider connectors, basically allowing to read blockchain data from any source with an API (for example, different full-node implementations), and export it into any custom storage or database that you can connect.
 
+# We are using Git LFS!
+
+We are using external storage for large files, note that you need to have a special tool installed to have these files properly synced when cloning the repository.
+
+See: [https://git-lfs.github.com/](https://git-lfs.github.com/)
+
+Affected files:
+- [known-legacy-addresses-byron-mainnet.txt](migrations-shelley/data) (Postgres only)
+
+
 ## Pre-requisites
 
 * NodeJS v12.9.1. We recommend [nvm](https://github.com/creationix/nvm) to install it

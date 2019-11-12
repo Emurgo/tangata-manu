@@ -28,10 +28,18 @@ exports.up = async (pgm) => {
   })
 
   console.log('Inserting the known legacy addresses dump')
+  let lfsChecked = false
   let counter = 0
   for await (const line of rl) {
     // ignore comments or blank lines
     const strippedLine = line.trim()
+    if (!lfsChecked) {
+      if (strippedLine.startsWith('version https://git-lfs.github.com/spec')) {
+        throw Error(`The full legacy address dump file is located on Git LFS,
+        you need to download it manually or install a tool to sync it (see https://git-lfs.github.com)`)
+      }
+      lfsChecked = true
+    }
     if (strippedLine && !strippedLine.startsWith('#')) {
       const insertSql = Q.insert({
           replaceSingleQuotes: true
