@@ -54,6 +54,8 @@ exports.up = async (pgm) => {
       }
     }
   }
+
+  console.log(`Finished. Total: ${counter} legacy addresses`)
 };
 
 exports.down = (pgm) => {
