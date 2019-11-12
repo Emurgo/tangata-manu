@@ -74,7 +74,7 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
       value: parseInt(output.value().to_str()),
     })
   }
-  const cert = tx.certificate()
+  const cert = tx.certificate !== undefined ? tx.certificate() : null
   if (cert) {
     switch (cert.get_type()) {
       case 'PoolRegistration':

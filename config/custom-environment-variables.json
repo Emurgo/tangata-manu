@@ -1,4 +1,5 @@
 {
   "defaultNetwork": "TANGATA_DEFAULT_NETWORK",
-  "storageProcessor": "TANGATA_STORAGE_PROCESSOR"
+  "storageProcessor": "TANGATA_STORAGE_PROCESSOR",
+  "defaultBridgeUrl": "TANGATA_BRIDGE_URL"
 }

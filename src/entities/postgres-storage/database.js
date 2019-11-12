@@ -296,8 +296,6 @@ class DB implements Database {
     const txUTCTime = tx.txTime.toUTCString()
     const txDbFields = {
       hash: id,
-      outputs_address: outputAddresses,
-      outputs_amount: outputAmmounts,
       block_num: blockNum,
       block_hash: blockHash,
       tx_state: txStatus,
@@ -310,6 +308,12 @@ class DB implements Database {
           inputs: JSON.stringify(inputUtxos),
           inputs_address: inputAddresses,
           inputs_amount: inputAmmounts,
+        }
+        : {}),
+      ...(!_.isEmpty(outputAddresses)
+        ? {
+          outputs_address: outputAddresses,
+          outputs_amount: outputAmmounts,
         }
         : {}),
     }
@@ -330,7 +334,7 @@ class DB implements Database {
     const sql = Q.TX_INSERT.setFields(txDbFields)
       .onConflict(...onConflictArgs)
       .toString()
-    this.#logger.debug('Insert TX:', sql, inputAddresses, inputAmmounts)
+  this.#logger.debug('Insert TX:', sql, inputAddresses, inputAmmounts)
     await conn.query(sql)
     await this.storeTxAddresses(
       id,

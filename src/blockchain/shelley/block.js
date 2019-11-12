@@ -107,7 +107,11 @@ export default class ShelleyBlock implements Block {
       if (fragment.is_stake_delegation()) console.log(`#${index} = STAKE DELEG`)
       if (fragment.is_pool_registration()) console.log(`#${index} = POOL REG`)
       if (fragment.is_pool_management()) console.log(`#${index} = POOL MANAGE`)
-      if (fragment.is_transaction() || fragment.is_owner_stake_delegation() || fragment.is_pool_registration() || fragment.is_pool_management() || fragment.is_stake_delegation()) {
+      if (fragment.is_transaction() ||
+          fragment.is_owner_stake_delegation() ||
+          fragment.is_pool_registration() ||
+          fragment.is_pool_management() ||
+          fragment.is_stake_delegation()) {
         txs.push(shelleyUtils.fragmentToObj(fragment, {
           txTime: blockTime,
           txOrdinal: index,
