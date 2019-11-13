@@ -38,7 +38,7 @@
       "protocol": "byron"
     },
     "jormun-testnet": {
-      "genesis": "cfd99bc54ebf44b44e72db7e2d48a40499888781e7628ea0fbf286bfd480ca58",
+      "genesis": "7be0014ffe4e5fd74aeb2916bd85cbfdaf52c2d738e4883f4cf52f6f695a6e2d",
       "startTime": 0,
       "protocol": "shelley"
     }
