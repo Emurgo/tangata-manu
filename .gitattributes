@@ -1,0 +1,1 @@
+migrations-shelley/data/known-legacy-addresses-byron-mainnet.txt filter=lfs diff=lfs merge=lfs -text
