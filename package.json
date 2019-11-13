@@ -13,7 +13,8 @@
     "start": "yarn run dev",
     "start:prod": "yarn run prod",
     "test": "jest",
-    "build-docker": "./scripts/docker/build-docker.sh"
+    "build-docker": "./scripts/docker/build-docker.sh",
+    "preinstall": "cd js-chain-libs; wasm-pack build --target=nodejs; wasm-pack pack; cd .."
   },
   "repository": {
     "type": "git",
@@ -68,7 +69,7 @@
     "inversify-config-injection": "^0.0.2",
     "inversify-restify-utils": "^3.4.0",
     "inversify-vanillajs-helpers": "^2.0.0",
-    "js-chain-libs": "file:js-chain-libs/pkg/",
+    "js-chain-libs": "file:js-chain-libs/pkg",
     "js-sha3": "0.8.0",
     "lodash": "^4.17.11",
     "node-pg-migrate": "^3.16.1",
