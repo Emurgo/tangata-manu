@@ -91,8 +91,9 @@ export default class ShelleyBlock implements Block {
     // TODO: should these be hex strings or not?
     const blockHash = Buffer.from(block.id().as_bytes()).toString('hex')
     const parentHash = Buffer.from(block.parent_id().as_bytes()).toString('hex')
-    // we probably shouldn't hardcode this? (taken from byron parsing, used for tx creation)
+    // we definitely shouldn't hardcode this (taken from byron parsing, used for tx creation)
     // this is definitely not right as we have different epoch lengths for the networking testnet
+    // TODO: parse block0's Initial fragment and store that somewhere
     const blockTime = new Date(
       (networkStartTime
       + (epochId * SLOTS_IN_EPOCH + slotId) * 20)
@@ -101,28 +102,45 @@ export default class ShelleyBlock implements Block {
     const txs = []
     console.log(`\n\nfragments: ${fragments.size()}`)
     for (let index = 0; index < fragments.size(); index += 1) {
+      const txCommon = {
+        txTime: blockTime,
+        txOrdinal: index,
+        blockNum: chainLength,
+        blockHash: blockHash,
+      }
       const fragment = fragments.get(index)
-      if (fragment.is_transaction()) console.log(`#${index} = TRANSACTION`)
-      if (fragment.is_owner_stake_delegation()) console.log(`#${index} = OWNER STAKE DELEG`)
-      if (fragment.is_stake_delegation()) console.log(`#${index} = STAKE DELEG`)
-      if (fragment.is_pool_registration()) console.log(`#${index} = POOL REG`)
-      if (fragment.is_pool_retirement()) console.log(`#${index} = POOL MANAGE`)
-      if (fragment.is_transaction() ||
-          fragment.is_owner_stake_delegation() ||
-          fragment.is_pool_registration() ||
-          fragment.is_pool_retirement() ||
-          fragment.is_stake_delegation()) {
-        txs.push(shelleyUtils.fragmentToObj(fragment, {
-          txTime: blockTime,
-          txOrdinal: index,
-          blockNum: chainLength,
-          blockHash,
-        }))
-      } else if (fragment.is_initial()) {
-        console.log(`#${index} = INITIAL FRAG`)
+      if (fragment.is_transaction()) console.log('#' + index + ' = TRANSACTION')
+      if (fragment.is_owner_stake_delegation()) console.log('#' + index + ' = OWNER STAKE DELEG')
+      if (fragment.is_stake_delegation()) console.log('#' + index + ' = STAKE DELEG')
+      if (fragment.is_pool_registration()) console.log('#' + index + ' = POOL REG')
+      if (fragment.is_pool_retirement()) console.log('#' + index + ' = POOL MANAGE')
+      if (fragment.is_transaction() || fragment.is_owner_stake_delegation() || fragment.is_pool_registration() || fragment.is_pool_management() || fragment.is_stake_delegation()) {
+        txs.push(shelleyUtils.fragmentToObj(fragment, txCommon))
+      } else if (fragment.is_initial())
+      {
+        console.log('#' + index + ' = INITIAL FRAG')
       } else if (fragment.is_old_utxo_declaration()) {
-        console.log(`#${index} = OLD UTXO`)
-      } else {
+        console.log('#' + index + ' = OLD UTXO')
+        // done before since the line after consumes the fragment
+        const fragmentId = Buffer.from(fragment.id().as_bytes()).toString('hex')
+        const oldUtxos = fragment.get_old_utxo_declaration()
+        let old_utxo_outputs = []
+        for (let i = 0; i < oldUtxos.size(); ++i) {
+          old_utxo_outputs.push({
+            address: oldUtxos.get_address(i),
+            value: parseInt(oldUtxos.get_value(i).to_str()),
+          })
+        }
+        const tx = {
+          id: fragmentId,
+          // TODO: do we need empty inputs or will it not cause problems?
+          outputs: old_utxo_outputs,
+          ...txCommon,
+        }
+        console.log('parsed a block0 tx: \n' + JSON.stringify(tx) + '\n')
+        txs.push(tx)
+      }
+      else {
         // skip updates
         console.log(`#${index} skipped`)
       }
