@@ -28,7 +28,7 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
   if (fragment.is_pool_registration()) {
     console.log('\n\n\n\nPOOL REGISTRATION\n\n\n\n')
   }
-  if (fragment.is_pool_management()) {
+  if (fragment.is_pool_retirement()) {
     console.log('\n\n\n\nPOOL MANAGEMENT\n\n\n\n')
   }
   if (fragment.is_old_utxo_declaration()) {
@@ -40,7 +40,7 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
   if (fragment.is_update_vote()) {
     console.log('\n\n\n\nUPDATE VOTE\n\n\n\n')
   }
-  const tx = fragment.get_transaction().transaction()
+  const tx = fragment.get_transaction()
   const inputs = tx.inputs()
   const inputs_parsed = []
   for (let input_index = 0; input_index < inputs.size(); input_index += 1) {
@@ -97,7 +97,9 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         const deleg = cert.get_stake_delegation()
         common.certificate = {
           type: 'StakeDelegation',
-          pool_id: deleg.pool_id().to_string(),
+          // TODO: handle DelegationType parsing
+          //pool_id: deleg.pool_id().to_string(),
+          pool_id: "TODO: handle DelegationType parsing",
           account: deleg.account().to_hex(),
         }
         break
