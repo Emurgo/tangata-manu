@@ -201,17 +201,22 @@ class CronScheduler implements Scheduler {
         nextBlockId = nextBlockIdRaw.toString('hex')
       }
       this.logger.debug(`nextBlockId: ${nextBlockId}`)
-      const nextBlockRaw = await this.#dataProvider.getBlock(nextBlockId)
-      this.logger.debug('nextBlockRaw aquired.')
-      const nextBlock = await this.#dataProvider.parseBlock(nextBlockRaw)
-      this.logger.debug(`block parsed: ${JSON.stringify(nextBlock)}`)
-      const status = await this.processBlock(nextBlock)// await this.processBlockHeight(blockHeight)
+      const status = await this.processBlockById(id)
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.logger.info('Rollback required.')
         await this.rollback(blockHeight)
         return
       }
     }
+  }
+
+  async processBlockById(id: string) {
+    const blockRaw = await this.#dataProvider.getBlock(id)
+    this.logger.debug('blockRaw aquired.')
+    const block = await this.#dataProvider.parseBlock(blockRaw)
+    this.logger.debug(`block parsed: ${JSON.stringify(block)}`)
+    const status = await this.processBlock(block)
+    return status
   }
 
   async startAsync() {
