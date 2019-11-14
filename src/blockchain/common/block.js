@@ -1,17 +1,17 @@
 // @flow
 
-export type EpochId = number
+export type EpochIdType = number
 
-export type SlotId = number
+export type SlotIdType = number
 
 export interface Block {
   // TODO: more documentation on this method
   serialize(): any;
   getHash(): string;
   getPrevHash(): string;
-  getEpoch(): EpochId;
+  getEpoch(): EpochIdType;
   // slot, or null if not applicable (ie Byron EBB)
-  getSlot(): ?SlotId;
+  getSlot(): ?SlotIdType;
   getHeight(): number;
   // TODO: Tx should be TxObj or other?
   getTxs(): Array<any>;

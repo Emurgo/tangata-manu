@@ -5,7 +5,7 @@ import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import type { StorageProcessor, Database } from '../../interfaces'
-import type { BlockInfoType } from '../../interfaces/storage-processor'
+import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { Block, TxType } from '../../blockchain/common'
 
@@ -82,8 +82,8 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.genesisLoaded()
   }
 
-  async storeGenesisLeaders(leaders: Array<mixed>) {
-    this.logger.debug('storeGenesisLeaders: ignored.')
+  async storeGenesisLeaders(leaders: Array<GenesisLeaderType>) {
+    this.logger.debug('storeGenesisLeaders: ignored.', leaders)
   }
 
   async storeGenesisUtxos(utxos: Array<mixed>) {
@@ -99,7 +99,7 @@ class PostgresStorageProcessor implements StorageProcessor {
   }
 
   async storeTx(tx: TxType) {
-    return this.db.storeTx(tx)
+    await this.db.storeTx(tx)
   }
 
   async getOutputsForTxHashes(txHashes: Array<string>) {

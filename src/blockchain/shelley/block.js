@@ -1,8 +1,8 @@
 // @flow
 
 import { Block } from '../common'
-import type { EpochId, SlotId, TxType } from '../common'
-import { shelleyUtils } from '.'
+import type { EpochIdType, SlotIdType, TxType } from '../common'
+import shelleyUtils from './utils'
 
 // TODO: is this right?
 const SLOTS_IN_EPOCH = 21600
@@ -22,7 +22,8 @@ export default class ShelleyBlock implements Block {
 
   txs: Array<TxType>
 
-  constructor(hash: string, slot: number, epoch: number, height:number, txs: any, prevHash: string) {
+  constructor(hash: string, slot: number, epoch: number,
+    height:number, txs: any, prevHash: string) {
     this.hash = hash
     this.prevHash = prevHash
     this.slot = slot
@@ -48,11 +49,11 @@ export default class ShelleyBlock implements Block {
     return this.prevHash
   }
 
-  getEpoch(): EpochId {
+  getEpoch(): EpochIdType {
     return this.epoch
   }
 
-  getSlot(): ?SlotId {
+  getSlot(): ?SlotIdType {
     return this.slot
   }
 
@@ -86,7 +87,6 @@ export default class ShelleyBlock implements Block {
 
     const epochId = block.epoch()
     const slotId = block.slot()
-    console.log(`SHELLEY BLOCK TIME: [${epochId}, ${slotId}]`)
     const chainLength = block.chain_length()
     // TODO: should these be hex strings or not?
     const blockHash = Buffer.from(block.id().as_bytes()).toString('hex')

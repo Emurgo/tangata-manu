@@ -1,10 +1,12 @@
 // @flow
-import type { Block } from '../blockchain/common'
+
+import type { Block, TxType } from '../blockchain/common'
 
 export interface Database {
   getBestBlockNum(): any;
   storeUtxos(utxos: Array<mixed>): Promise<any>;
   storeBlockTxs(block: any): Promise<void>;
+  storeTx(tx: TxType, txUtxos?:Array<mixed>, upsert?:boolean): Promise<void>;
   genesisLoaded(): Promise<boolean>;
   updateBestBlockNum(height: number): Promise<void>;
   getConn(): any;
