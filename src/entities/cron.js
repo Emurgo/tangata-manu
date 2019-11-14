@@ -119,7 +119,9 @@ class CronScheduler implements Scheduler {
       hash: block.getHash(),
     }
     this.blocksToStore.push(block)
-    if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
+    if (this.blocksToStore.length > this.maxBlockBatchSize
+      || flushCache
+      || !_.isEmpty(block.getTxs())) {
       await this.pushCachedBlocksToStorage()
     }
 
@@ -215,7 +217,7 @@ class CronScheduler implements Scheduler {
     this.logger.debug('blockRaw aquired.')
     const block = await this.#dataProvider.parseBlock(blockRaw)
     this.logger.debug(`block parsed: ${JSON.stringify(block)}`)
-    const status = await this.processBlock(block)
+    const status = await this.processBlock(block, true)
     return status
   }
 

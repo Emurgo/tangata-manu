@@ -112,9 +112,9 @@ export default class ShelleyBlock implements Block {
       if (fragment.is_transaction()) console.log('#' + index + ' = TRANSACTION')
       if (fragment.is_owner_stake_delegation()) console.log('#' + index + ' = OWNER STAKE DELEG')
       if (fragment.is_stake_delegation()) console.log('#' + index + ' = STAKE DELEG')
-      if (fragment.is_pool_registration()) console.log('#' + index + ' = POOL REG')
+      // if (fragment.is_pool_registration()) console.log('#' + index + ' = POOL REG')
       if (fragment.is_pool_retirement()) console.log('#' + index + ' = POOL MANAGE')
-      if (fragment.is_transaction() || fragment.is_owner_stake_delegation() || fragment.is_pool_registration() || fragment.is_pool_management() || fragment.is_stake_delegation()) {
+      if (fragment.is_transaction() || fragment.is_owner_stake_delegation() || fragment.is_pool_registration() || fragment.is_stake_delegation()) {
         txs.push(shelleyUtils.fragmentToObj(fragment, txCommon))
       } else if (fragment.is_initial())
       {
@@ -133,11 +133,10 @@ export default class ShelleyBlock implements Block {
         }
         const tx = {
           id: fragmentId,
-          // TODO: do we need empty inputs or will it not cause problems?
+          inputs: [],
           outputs: old_utxo_outputs,
           ...txCommon,
         }
-        console.log('parsed a block0 tx: \n' + JSON.stringify(tx) + '\n')
         txs.push(tx)
       }
       else {

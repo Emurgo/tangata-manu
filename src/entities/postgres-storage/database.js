@@ -180,6 +180,9 @@ class DB implements Database {
   }
 
   async storeTxAddresses(txId: string, addresses: Array<string>) {
+    if (_.isEmpty(addresses)) {
+      this.#logger.info(`storeTxAddresses: ${txId} has no addresses`)
+    }
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
       tx_hash: txId,
@@ -189,7 +192,7 @@ class DB implements Database {
     try {
       await conn.query(query)
     } catch (e) {
-      this.#logger.debug(e)
+      this.#logger.debug(`storeTxAddresses: ${query}`, e)
       this.#logger.debug(`Addresses for ${txId} already stored`)
     }
   }
@@ -280,7 +283,7 @@ class DB implements Database {
       blockHash,
     } = tx
     let inputUtxos
-    this.#logger.debug('storeTx tx: ' + JSON.stringify(tx))
+    this.#logger.debug(`storeTx tx: ${  JSON.stringify(tx)}`)
     this.#logger.debug('storeTx:', txUtxos)
     const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     if (_.isEmpty(txUtxos)) {
@@ -299,7 +302,7 @@ class DB implements Database {
       block_num: blockNum,
       block_hash: blockHash,
       tx_state: txStatus,
-      tx_body: tx.txBody,
+      tx_body: tx.txBody || null,
       tx_ordinal: tx.txOrdinal,
       time: txUTCTime,
       last_update: txUTCTime,
@@ -334,7 +337,7 @@ class DB implements Database {
     const sql = Q.TX_INSERT.setFields(txDbFields)
       .onConflict(...onConflictArgs)
       .toString()
-  this.#logger.debug('Insert TX:', sql, inputAddresses, inputAmmounts)
+    this.#logger.debug('Insert TX:', sql, inputAddresses, inputAmmounts)
     await conn.query(sql)
     await this.storeTxAddresses(
       id,
@@ -491,8 +494,8 @@ class DB implements Database {
     // TODO: these are some changes I made quickly to see if I could protoype account spending
     // and the code is not exactly of the best quality.
     // indexed by tx index in block
-    let accountInputs: Map<number, Array<AccountType>> = new Map()
-    let withdrawls: Map<string, Number> = new Map()
+    const accountInputs: Map<number, Array<AccountType>> = new Map()
+    const withdrawls: Map<string, Number> = new Map()
     const requiredInputs = _.flatMap(txs, (tx) => tx.inputs).filter((inp, txOrdinal) => {
       switch (inp.type) {
         case 'utxo':
@@ -513,7 +516,7 @@ class DB implements Database {
           }
           return true
         case 'account':
-          if (typeof accountInputs.get(txOrdinal) == 'undefined') {
+          if (typeof accountInputs.get(txOrdinal) === 'undefined') {
             accountInputs.set(txOrdinal, [])
           }
           accountInputs.get(txOrdinal).push(inp)
