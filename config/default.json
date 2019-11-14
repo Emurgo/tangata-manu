@@ -1,7 +1,7 @@
 {
   "appName": "yoroi-importer",
   "elastic": {
-    "node": "http://jormungandr.emurgo.rocks:18443",
+    "node": "http://localhost:9200",
     "indexPrefix": "seiza"
   },
   "storageProcessor": "seiza-elastic",
