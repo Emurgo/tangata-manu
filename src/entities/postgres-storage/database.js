@@ -182,6 +182,7 @@ class DB implements Database {
   async storeTxAddresses(txId: string, addresses: Array<string>) {
     if (_.isEmpty(addresses)) {
       this.#logger.info(`storeTxAddresses: ${txId} has no addresses`)
+      return
     }
     const conn = this.getConn()
     const dbFields = _.map(addresses, (address) => ({
