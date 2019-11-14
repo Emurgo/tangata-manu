@@ -7,7 +7,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import type { StorageProcessor, Database } from '../../interfaces'
 import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
-import type { Block, TxType } from '../../blockchain/common'
+import type { Block, TxType, TxInputType } from '../../blockchain/common'
 
 class PostgresStorageProcessor implements StorageProcessor {
   logger: Logger
@@ -62,7 +62,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.utxosForInputsExists(inputs)
   }
 
-  async txsForInputsExists(inputs) {
+  async txsForInputsExists(inputs: Array<TxInputType>): Promise<boolean> {
     return this.db.txsForInputsExists(inputs)
   }
 

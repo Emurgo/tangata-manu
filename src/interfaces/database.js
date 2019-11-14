@@ -1,6 +1,6 @@
 // @flow
 
-import type { Block, TxType } from '../blockchain/common'
+import type { Block, TxType, TxInputType } from '../blockchain/common'
 
 export interface Database {
   getBestBlockNum(): any;
@@ -18,6 +18,7 @@ export interface Database {
   rollbackTransientSnapshots(blockHeight: number): Promise<void>;
   rollBackUtxoBackup(blockHeight: number): Promise<void>;
   rollBackBlockHistory(blockHeight: number): Promise<void>;
+  txsForInputsExists(inputs: Array<TxInputType>): Promise<boolean>;
 }
 
 export interface DBConnection {

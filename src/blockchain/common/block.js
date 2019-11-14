@@ -18,7 +18,8 @@ export interface Block {
   getTime(): Date;
   // size in bytes of block
   getSize(): number;
-  // string (Hex) encoding of leader id (not key!) during slot (Byron), or null if it doesn't exist (ie Byron EBB, or Byron but PK not resolved yet).
+  // string (Hex) encoding of leader id (not key!) during slot (Byron),
+  // or null if it doesn't exist (ie Byron EBB, or Byron but PK not resolved yet).
   // in Shelley this will be a (hex) encoded pool id of the slot leader
   getSlotLeaderId(): ?string;
 }
