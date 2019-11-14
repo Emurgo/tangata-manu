@@ -5,7 +5,7 @@ import type { TxInputType, TxType } from './tx'
 const getUtxoId = (input: TxInputType) => {
   switch (input.type) {
     case 'utxo':
-      return `{input.txId}${input.idx}`
+      return `${input.txId}${input.idx}`
     case 'account':
       return `account:${input.account_id}${input.value}`
     default:
