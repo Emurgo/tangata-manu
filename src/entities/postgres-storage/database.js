@@ -158,16 +158,6 @@ class DB implements Database {
     await conn.query(sql)
   }
 
-  async storeBlock(block: Block) {
-    const conn = this.getConn()
-    try {
-      await conn.query(Q.BLOCK_INSERT.setFields(block.serialize()).toString())
-    } catch (e) {
-      this.#logger.debug('Error occur on block', block.serialize())
-      throw e
-    }
-  }
-
   async storeBlocks(blocks: Array<Block>) {
     const conn = this.getConn()
     const blocksData = _.map(blocks, (block) => block.serialize())
