@@ -2,7 +2,6 @@
 
 import _ from 'lodash'
 import restify from 'restify'
-import config from 'config'
 import { InversifyRestifyServer } from 'inversify-restify-utils'
 
 import {
@@ -18,8 +17,6 @@ import SERVICE_IDENTIFIER from './constants/identifiers'
 import initIoC from './ioc_config'
 import { NETWORK_PROTOCOL } from './entities/network-config'
 import { YOROI_POSTGRES } from './ioc_config/storage-processor'
-
-const serverConfig = config.get('server')
 
 const loadGenesis = async (container) => {
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
@@ -76,6 +73,7 @@ const startServer = async () => {
   })
 
   const storageName = container.getNamed('storageProcessor')
+  const serverConfig = container.getNamed('server')
   if (storageName === YOROI_POSTGRES) {
     const server = new InversifyRestifyServer(container)
     const app = server.build()
