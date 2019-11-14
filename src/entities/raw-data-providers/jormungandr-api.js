@@ -1,10 +1,11 @@
 // @flow
+
 import urljoin from 'url-join'
 import axios from 'axios'
 
+import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import config from 'config'
 import { RawDataProvider, RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { NetworkConfig } from '../../interfaces'
@@ -20,15 +21,21 @@ class JormungandrApi implements RawDataProvider {
 
   #idToHeight: any
 
+  logger: Logger
+
   constructor(
     networkConfig: NetworkConfig,
     parser: RawDataParser,
+    logger: Logger,
+    defaultNetwork: string,
   ) {
-    // TODO: change NetworkConfig? the old bridge had different networks since they were just a proxy, but jormungandr nodes don't.
-    const networkName = process.env.importer_network || config.get('defaultNetwork')
+    // TODO: change NetworkConfig? the old bridge had different networks since they
+    // were just a proxy, but jormungandr nodes don't.
+    const networkName = process.env.importer_network || defaultNetwork
     const network = utils.getNetworkConfig(networkName)
     this.#networkBaseUrl = urljoin(network.bridgeUrl, 'api/v0')
     this.#parser = parser
+    this.logger = logger
   }
 
   // not sure if needed
@@ -42,7 +49,7 @@ class JormungandrApi implements RawDataProvider {
   async get(path: string, options?: {}) {
     const opts = options || {}
     const endpointUrl = urljoin(this.#networkBaseUrl, path)
-    console.log(`jormungandr: endpointUrl = ${endpointUrl}`)
+    this.logger.debug(`jormungandr: endpointUrl = ${endpointUrl}`)
     try {
       const resp = await axios(endpointUrl,
         {
@@ -53,7 +60,7 @@ class JormungandrApi implements RawDataProvider {
     } catch (e) {
       if (e.code === 'ECONNREFUSED') {
         const error = new Error('jormungandr is not accessible (ECONNREFUSED)')
-        error.code = 'NODE_INACCESSIBLE'
+        error.name = 'NODE_INACCESSIBLE'
         throw error
       }
       throw e
@@ -91,6 +98,7 @@ class JormungandrApi implements RawDataProvider {
 
   // This would need some further investigating into Jormungandr storage format
   async getEpoch(id: number) {
+    this.logger.debug(`getEpoch: ${id}`)
     // const resp = await this.get(`/epoch/${id}`)
     // return resp.data
     throw new Error('JormungandrApi::getEpoch() not implemented')
@@ -102,7 +110,7 @@ class JormungandrApi implements RawDataProvider {
   }
 
   async getBlock(id: string): Promise<string> {
-    console.log(`jormun GET BLOCK: ${id}`)
+    this.logger.debug(`jormun GET BLOCK: ${id}`)
     const resp = await this.get(`block/${id}`)
     const { data } = resp
     return data
@@ -110,14 +118,15 @@ class JormungandrApi implements RawDataProvider {
 
   // TODO: remove once we support querying by height
   async getNextBlockId(id: string): Promise<string> {
-    console.log(`getNextBlockId(${id})`)
+    this.logger.debug(`getNextBlockId(${id})`)
     const resp = await this.get(`block/${id}/next_id`)
     const { data } = resp
-    console.log(` = ${data}`)
+    this.logger.debug(` = ${data}`)
     return data
   }
 
   async getGenesis(hash: string): Promise<Object> {
+    this.logger.debug(`getGenesis: ${hash}`)
     // const resp = await this.getJson(`/genesis/${hash}`)
     // const { data } = resp
     // return data
@@ -153,6 +162,7 @@ class JormungandrApi implements RawDataProvider {
 
   // Currently does not exist yet, see: https://github.com/input-output-hk/jormungandr/issues/768
   async getBlockByHeight(height: number) {
+    this.logger.debug(`getBlockByHeight: ${height}`)
     // const resp = await this.get(`/height/${height}`)
     // const { data } = resp
     // return this.#parser.parseBlock(data)
@@ -172,6 +182,8 @@ class JormungandrApi implements RawDataProvider {
 helpers.annotate(JormungandrApi, [
   SERVICE_IDENTIFIER.NETWORK_CONFIG,
   SERVICE_IDENTIFIER.RAW_DATA_PARSER,
+  SERVICE_IDENTIFIER.LOGGER,
+  'defaultNetwork',
 ])
 
 export default JormungandrApi

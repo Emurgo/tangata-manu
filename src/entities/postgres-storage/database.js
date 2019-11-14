@@ -274,7 +274,7 @@ class DB implements Database {
       blockHash,
     } = tx
     let inputUtxos
-    this.#logger.debug(`storeTx tx: ${  JSON.stringify(tx)}`)
+    this.#logger.debug(`storeTx tx: ${JSON.stringify(tx)}`)
     this.#logger.debug('storeTx:', txUtxos)
     const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     if (_.isEmpty(txUtxos)) {

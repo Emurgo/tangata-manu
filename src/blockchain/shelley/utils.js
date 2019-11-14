@@ -98,8 +98,8 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         common.certificate = {
           type: 'StakeDelegation',
           // TODO: handle DelegationType parsing
-          //pool_id: deleg.pool_id().to_string(),
-          pool_id: "TODO: handle DelegationType parsing",
+          // pool_id: deleg.pool_id().to_string(),
+          pool_id: 'TODO: handle DelegationType parsing',
           account: deleg.account().to_hex(),
         }
         break
