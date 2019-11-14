@@ -9,7 +9,7 @@ import {
   CardanoBridgeApi,
   MockBridgeApi,
   MockDataParser,
-  CustomDataParser,
+  ByronDataParser,
   JormungandrApi,
   ShelleyDataParser,
 } from '../entities'
@@ -38,7 +38,7 @@ const initNetwork = (container: Container) => {
     dataParserClass = MockDataParser
   } else if (networkProtocol === NETWORK_PROTOCOL.BYRON) {
     apiClass = CardanoBridgeApi
-    dataParserClass = CustomDataParser
+    dataParserClass = ByronDataParser
   } else if (networkProtocol === NETWORK_PROTOCOL.SHELLEY) {
     apiClass = JormungandrApi
     dataParserClass = ShelleyDataParser

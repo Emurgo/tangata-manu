@@ -1,6 +1,6 @@
 // @flow
 
-import RawDataParser from './custom-data-parser'
+import RawDataParser from './byron-data-parser'
 
 class MockDataParser extends RawDataParser {
   parseBlock(blob: Buffer) {

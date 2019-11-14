@@ -11,7 +11,7 @@ import { Block } from '../../blockchain/common'
 import { ByronBlock, ByronEpoch, byronUtils } from '../../blockchain/byron'
 import type { NetworkConfig } from '../../interfaces'
 
-class CustomDataParser implements RawDataParser {
+class ByronDataParser implements RawDataParser {
   #logger: any
 
   networkStartTime: number
@@ -45,9 +45,9 @@ class CustomDataParser implements RawDataParser {
   }
 }
 
-helpers.annotate(CustomDataParser, [
+helpers.annotate(ByronDataParser, [
   SERVICE_IDENTIFIER.LOGGER,
   SERVICE_IDENTIFIER.NETWORK_CONFIG,
 ])
 
-export default CustomDataParser
+export default ByronDataParser
