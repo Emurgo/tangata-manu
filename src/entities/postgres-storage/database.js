@@ -343,7 +343,7 @@ class DB implements Database {
     this.#logger.debug('Insert TX:', sql, inputAddresses)
     await conn.query(sql)
     await this.storeTxAddresses(
-      id,
+      tx.id,
       [...new Set([...inputAddresses, ...outputAddresses])],
     )
   }
