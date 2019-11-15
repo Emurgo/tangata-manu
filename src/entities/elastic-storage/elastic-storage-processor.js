@@ -423,14 +423,16 @@ class ElasticStorageProcessor implements StorageProcessor {
     const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
-    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
+      blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
 
     const blockInputsToStore = mappedBlocks
       .flatMap((b: BlockData) => b.getResolvedTxs())
       .flatMap((tx: TxData) => tx.getInputsData())
 
     const tip: BlockInfoType = await this.getBestBlockNum()
-    const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
+    const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks,
+      tip.epoch, tip.slot, this.networkStartTime)
 
     const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
@@ -587,7 +589,8 @@ function padEmptySlots(
  *   ...qSort('field1', ['field2', 'desc'])
  * }
  *
- * NOTE: `unmapped_type` is set to `long` for all entries except direct objects and arrays of length 3.
+ * NOTE: `unmapped_type` is set to `long` for all entries except direct objects
+ * and arrays of length 3.
  */
 function qSort(...entries) {
   const mapped = entries.map(e => {

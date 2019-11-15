@@ -43,13 +43,14 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
       inputs_parsed.push(TxInputType.fromUtxo(txId, utxo.output_index()))
     } else {
       const account = input.get_account().to_identifier()
-      // TODO: Values are returned as strings under the rationale that js strings can only fit a 52-bit radix
-      // as integers, but since the max ADA supply is smaller than this (but bigger than a 32-bit int) this should be
-      // safe. We should try and see if this can be changed in js-chain-libs and use that there instead.
+      // TODO: Values are returned as strings under the rationale that js strings
+      // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
+      // than this (but bigger than a 32-bit int) this should be safe. We should try and
+      // see if this can be changed in js-chain-libs and use that there instead.
       inputs_parsed.push({
         type: 'account',
         account_id: account.to_hex(),
-        value: parseInt(input.value().to_str()),
+        value: parseInt(input.value().to_str(), 10),
       })
     }
   }
@@ -61,7 +62,7 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
       // TODO: what bech prefix do we put here?
       address: output.address().to_string('tc'),
       // See comment for input values
-      value: parseInt(output.value().to_str()),
+      value: parseInt(output.value().to_str(), 10),
     })
   }
   const cert = tx.certificate !== undefined ? tx.certificate() : null

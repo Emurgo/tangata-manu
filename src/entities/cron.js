@@ -193,8 +193,10 @@ class CronScheduler implements Scheduler {
       (blockHeight <= tipStatus.height) && (i < MAX_BLOCKS_PER_LOOP);
       blockHeight++, i++) {
       this.logger.info(`requesting block at height ${blockHeight}`)
-      // TODO: remove this once jormungandr supports blocks by height, just querying consecutive blocks here temporarily instead
-      // const nextBlockId = (this.lastBlock == null) ? this.#genesisHash : (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
+      // TODO: remove this once jormungandr supports blocks by height, just querying consecutive
+      // blocks here temporarily instead
+      // const nextBlockId = (this.lastBlock == null) ? this.#genesisHash :
+      // (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
       let nextBlockId
       if (this.lastBlock == null) {
         nextBlockId = this.#genesisHash
