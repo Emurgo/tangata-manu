@@ -203,7 +203,7 @@ class CronScheduler implements Scheduler {
         nextBlockId = nextBlockIdRaw.toString('hex')
       }
       this.logger.debug(`nextBlockId: ${nextBlockId}`)
-      const status = await this.processBlockById(id)
+      const status = await this.processBlockById(nextBlockId)
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.logger.info('Rollback required.')
         await this.rollback(blockHeight)

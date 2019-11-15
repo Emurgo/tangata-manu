@@ -195,7 +195,7 @@ class DB implements Database {
 
   async storeOutputs(tx: {id: string, blockNum: number, outputs: []}) {
     const { id, outputs, blockNum } = tx
-    const utxosData = _.map(outputs, (output, index) => utils.structUtxo(
+    const utxosData = _.map(outputs, (output, index: number) => utils.structUtxo(
       utils.fixLongAddress(output.address), output.value, id, index, blockNum))
     await this.storeUtxos(utxosData)
   }
@@ -269,7 +269,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async getTxDBData(tx: TxType, txUtxos:Array<mixed> = []) {
+  async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): {} {
     const {
       inputs,
       outputs,

@@ -104,7 +104,7 @@ class TxData extends ElasticData {
       const { addressBalanceDiff, isAddressInput, isAddressOutput } = txAddressDiff[address]
       const {
         balance_after_this_tx = 0,
-        tx_num_after_this_tx = 0,
+        tx_num_after_this_tx,
         received_tx_num_after_this_tx = 0,
         sent_tx_num_after_this_tx = 0,
         isNewAddress = false,

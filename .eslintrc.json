@@ -14,6 +14,7 @@
     "arrow-parens": "off",
     "function-paren-newline": "off",
     "no-extra-semi": "error",
+    "camelcase": "off",
     "no-restricted-syntax": [
       "off",
       "ForOfStatement"
