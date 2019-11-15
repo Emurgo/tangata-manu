@@ -178,7 +178,6 @@ class DB implements Database {
     return sql
   }
 
-
   async storeTxAddresses(txId: string, addresses: Array<string>) {
     if (_.isEmpty(addresses)) {
       this.#logger.info(`storeTxAddresses: ${txId} has no addresses`)
@@ -270,8 +269,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async storeTx(tx: TxType, txUtxos:Array<mixed> = [], upsert:boolean = true) {
-    const conn = this.getConn()
+  async getTxDBData(tx: TxType, txUtxos:Array<mixed> = []) {
     const {
       inputs,
       outputs,
@@ -317,24 +315,32 @@ class DB implements Database {
         }
         : {}),
     }
-    const now = new Date().toUTCString()
+    return {
+      txDbFields, inputAddresses, outputAddresses,
+    }
+  }
 
+  async storeTx(tx: TxType, txUtxos:Array<mixed> = [], upsert:boolean = true) {
+    const {
+      txDbFields, inputAddresses, outputAddresses,
+    } = await this.getTxDBData(tx, txUtxos)
     const onConflictArgs = []
     if (upsert) {
+      const now = new Date().toUTCString()
       onConflictArgs.push('hash', {
-        block_num: blockNum,
-        block_hash: blockHash,
-        time: txUTCTime,
-        tx_state: txStatus,
+        block_num: txDbFields.block_num,
+        block_hash: txDbFields.block_hash,
+        time: txDbFields.time,
+        tx_state: txDbFields.tx_state,
         last_update: now,
-        tx_ordinal: tx.txOrdinal,
+        tx_ordinal: txDbFields.tx_ordinal,
       })
     }
-
+    const conn = this.getConn()
     const sql = Q.TX_INSERT.setFields(txDbFields)
       .onConflict(...onConflictArgs)
       .toString()
-    this.#logger.debug('Insert TX:', sql, inputAddresses, inputAmmounts)
+    this.#logger.debug('Insert TX:', sql, inputAddresses)
     await conn.query(sql)
     await this.storeTxAddresses(
       id,
