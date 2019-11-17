@@ -12,6 +12,9 @@ import Q from './db-queries'
 
 const SNAPSHOTS_TABLE = 'transient_snapshots'
 
+type TxDbDataType = {
+  txDbFields: {}, inputAddresses:Array<string>, outputAddresses:Array<string>,
+}
 
 class DB implements Database {
   #conn: any
@@ -269,7 +272,7 @@ class DB implements Database {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): {} {
+  async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxDbDataType> {
     const {
       inputs,
       outputs,
@@ -320,7 +323,7 @@ class DB implements Database {
     }
   }
 
-  async storeTx(tx: TxType, txUtxos:Array<mixed> = [], upsert:boolean = true) {
+  async storeTx(tx: TxType, txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
     const {
       txDbFields, inputAddresses, outputAddresses,
     } = await this.getTxDBData(tx, txUtxos)

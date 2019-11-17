@@ -10,6 +10,7 @@ import type {
   StorageProcessor,
   NetworkConfig,
 } from '../interfaces'
+import { NETWORK_PROTOCOL } from './network-config'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import type { Block } from '../blockchain/common'
 
@@ -49,6 +50,8 @@ class CronScheduler implements Scheduler {
 
   #genesisHash: string
 
+  networkProtocol: string
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipSeconds: number,
@@ -70,6 +73,7 @@ class CronScheduler implements Scheduler {
     this.lastBlock = null
     // TODO: this can't be the best way, can it? (for jormungandr next_id syncing)
     this.#genesisHash = networkConfig.genesisHash()
+    this.networkProtocol = networkConfig.networkProtocol()
     logger.debug(`genesisHash = ${this.#genesisHash}`)
   }
 
@@ -178,34 +182,40 @@ class CronScheduler implements Scheduler {
             // Packed epoch is not available yet
             this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
           }
-          this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
-          await this.pushCachedBlocksToStorage()
         } else {
           // Packed epoch is not available yet
           this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
         }
+        return
       }
     }
-    // this is all temporary stuff that will either be removed if a height endpoint is added, or will be refactored into an API like so:
-    // this.#dataProvider.streamBlocks()
-    // within the data provider API. For now this temporary change to cron.js is breaking with respect to Byron
+    // this is all temporary stuff that will either be removed if a height endpoint is added,
+    // or will be refactored into an API like so:
+    // this.#dataProvider.streamBlocks() within the data provider API.
+    // For now this temporary change to cron.js is breaking with respect to Byron
     for (let blockHeight = height + 1, i = 0;
       (blockHeight <= tipStatus.height) && (i < MAX_BLOCKS_PER_LOOP);
       blockHeight++, i++) {
       this.logger.info(`requesting block at height ${blockHeight}`)
-      // TODO: remove this once jormungandr supports blocks by height, just querying consecutive
-      // blocks here temporarily instead
-      // const nextBlockId = (this.lastBlock == null) ? this.#genesisHash :
-      // (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
-      let nextBlockId
-      if (this.lastBlock == null) {
-        nextBlockId = this.#genesisHash
+      let status
+      if (this.networkProtocol === NETWORK_PROTOCOL.BYRON) {
+        status = await this.processBlockHeight(blockHeight)
       } else {
-        const nextBlockIdRaw = await this.#dataProvider.getNextBlockId(this.lastBlock.hash)
-        nextBlockId = nextBlockIdRaw.toString('hex')
+        // TODO: remove this once jormungandr supports blocks by height, just querying consecutive
+        // blocks here temporarily instead
+        // const nextBlockId = (this.lastBlock == null) ? this.#genesisHash :
+        // (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
+        let nextBlockId
+        if (this.lastBlock == null) {
+          nextBlockId = this.#genesisHash
+        } else {
+          const nextBlockIdRaw = await this.#dataProvider.getNextBlockId(this.lastBlock.hash)
+          nextBlockId = nextBlockIdRaw.toString('hex')
+        }
+        this.logger.debug(`nextBlockId: ${nextBlockId}`)
+        status = await this.processBlockById(nextBlockId)
       }
-      this.logger.debug(`nextBlockId: ${nextBlockId}`)
-      const status = await this.processBlockById(nextBlockId)
+
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.logger.info('Rollback required.')
         await this.rollback(blockHeight)
