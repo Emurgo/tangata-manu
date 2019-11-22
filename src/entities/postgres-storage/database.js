@@ -34,12 +34,14 @@ class DB implements Database {
     return this.#conn
   }
 
-  async storeUtxos(utxos: Array<mixed>) {
+  async storeUtxos(utxos: Array<mixed>): Promise<void> {
+    if (_.isEmpty(utxos)) {
+      return
+    }
     const conn = this.getConn()
     const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
     this.logger.debug('storeUtxos', utxos, query)
-    const dbRes = await conn.query(query)
-    return dbRes
+    await conn.query(query)
   }
 
   async getBestBlockNum(): Promise<BlockInfoType> {
