@@ -22,6 +22,12 @@ export default class ShelleyBlock implements Block {
 
   txs: Array<TxType>
 
+  time: Date
+
+  size: number
+
+  slotLeader: ?string
+
   constructor(hash: string, slot: number, epoch: number,
     height:number, txs: any, prevHash: string) {
     this.hash = hash
@@ -30,6 +36,11 @@ export default class ShelleyBlock implements Block {
     this.epoch = epoch
     this.height = height
     this.txs = txs
+
+    // FIXME: implement
+    this.time = new Date(Date.now())
+    this.size = 0
+    this.slotLeader = null
   }
 
   serialize() {
@@ -66,18 +77,15 @@ export default class ShelleyBlock implements Block {
   }
 
   getTime(): Date {
-    // TODO: implement
-    return new Date(Date.now())
+    return this.time
   }
 
   getSize(): number {
-    // TODO: implement
-    return 0
+    return this.size
   }
 
   getSlotLeaderId(): ?string {
-    // TODO: implement
-    return null
+    return this.slotLeader
   }
 
   static parseBlock(blob: Buffer, networkStartTime: number): ShelleyBlock {
@@ -112,11 +120,16 @@ export default class ShelleyBlock implements Block {
       if (fragment.is_transaction()) console.log(`#${index} = TRANSACTION`)
       if (fragment.is_owner_stake_delegation()) console.log(`#${index} = OWNER STAKE DELEG`)
       if (fragment.is_stake_delegation()) console.log(`#${index} = STAKE DELEG`)
-      // if (fragment.is_pool_registration()) console.log('#' + index + ' = POOL REG')
       if (fragment.is_pool_retirement()) console.log(`#${index} = POOL MANAGE`)
       if (fragment.is_transaction() || fragment.is_owner_stake_delegation()
         || fragment.is_pool_registration() || fragment.is_stake_delegation()) {
-        txs.push(shelleyUtils.fragmentToObj(fragment, txCommon))
+        txs.push(shelleyUtils.fragmentToObj(fragment,
+          {
+            ...txCommon,
+            epoch: epochId,
+            slot: slotId,
+            certOrdinal: 0,
+          }))
       } else if (fragment.is_initial()) {
         console.log(`#${index} = INITIAL FRAG`)
       } else if (fragment.is_old_utxo_declaration()) {

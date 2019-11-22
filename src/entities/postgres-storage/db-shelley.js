@@ -6,7 +6,6 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import DB from './database'
 import Q from './db-queries'
-import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
@@ -26,10 +25,14 @@ class DBShelley extends DB {
     const sql = Q.sql.insert()
       .into(DELEGATION_CERTIFICATES_TBL)
       .setFields({
+        epoch: tx.epoch,
+        slot: tx.slot,
+        tx_ordinal: tx.txOrdinal,
+        cert_ordinal: tx.certOrdinal,
         block_num: tx.blockNum,
         tx_hash: tx.id,
         pool: certificate.pool_id,
-        cert_id: tx.id,
+        cert_id: `cert:${tx.id}${tx.certOrdinal}`,
         account: certificate.account,
       })
       .toString()
@@ -41,7 +44,8 @@ class DBShelley extends DB {
     txUtxos:Array<mixed> = [], upsert: boolean = true): Promise<void> {
     const { certificate } = tx
     await super.storeTx(tx, txUtxos, upsert)
-    if (certificate && certificate.type === CERT_TYPE.StakeDelegation) {
+    if (certificate
+      && (certificate.type === global.jschainlibs.CertificateType.StakeDelegation)) {
       await this.storeStakeDelegationCertTx(tx)
     }
   }

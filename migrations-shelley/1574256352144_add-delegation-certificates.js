@@ -8,11 +8,10 @@ CREATE TABLE delegation_certificates  (
   cert_ordinal integer,
   block_num integer,
   tx_hash text,
-  cert_id text,
+  cert_id text PRIMARY KEY,
   account text,
   pool text,
-  UNIQUE (cert_id, pool),
-  PRIMARY KEY (cert_id, tx_hash)
+  UNIQUE (cert_id, pool)
 );
 `
 

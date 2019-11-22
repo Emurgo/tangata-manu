@@ -14,7 +14,12 @@ import Q from './db-queries'
 const SNAPSHOTS_TABLE = 'transient_snapshots'
 
 type TxDbDataType = {
-  txDbFields: {}, inputAddresses:Array<string>, outputAddresses:Array<string>,
+  txDbFields: {
+    block_num: ?number,
+    block_hash: ?string,
+  },
+  inputAddresses:Array<string>,
+  outputAddresses:Array<string>,
 }
 
 class DB implements Database {

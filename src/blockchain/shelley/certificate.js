@@ -1,9 +1,5 @@
 // @flow
 
-export const CERT_TYPE = {
-  StakeDelegation: 0,
-}
-
 // hex-encoded pool-id
 export type PoolId = string;
 

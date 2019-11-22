@@ -19,7 +19,6 @@ export interface Database {
   rollbackTransientSnapshots(blockHeight: number): Promise<void>;
   rollBackUtxoBackup(blockHeight: number): Promise<void>;
   rollBackBlockHistory(blockHeight: number): Promise<void>;
-  rollbackDelegationCerts(blockHeight: number): Promise<void>;
   txsForInputsExists(inputs: Array<TxInputType>): Promise<boolean>;
 }
 

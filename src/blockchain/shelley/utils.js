@@ -1,7 +1,5 @@
 // @flow
 
-import { CERT_TYPE } from './certificate'
-
 const fragmentToObj = (fragment: any, extraData: {}) => {
   const wasm = global.jschainlibs
 
@@ -40,9 +38,11 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
     const input = inputs.get(input_index)
     console.log(`tx input type: ${input.get_type()}`)
     if (input.is_utxo()) {
+      /*
       const utxo = input.get_utxo_pointer()
       const txId = Buffer.from(utxo.fragment_id().as_bytes()).toString('hex')
       inputs_parsed.push(TxInputType.fromUtxo(txId, utxo.output_index()))
+      */
     } else {
       const account = input.get_account_identifier()
       // TODO: Values are returned as strings under the rationale that js strings
@@ -70,6 +70,8 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
       case wasm.AddressKind.Single:
       case wasm.AddressKind.Group:
         outputType = 'utxo'
+        break
+      default:
         break
     }
     outputs_parsed.push({
@@ -104,7 +106,7 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         common.certificate = {
-          type: CERT_TYPE.StakeDelegation,
+          type: wasm.CertificateType.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
           account: deleg.account().to_hex(),

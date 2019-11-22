@@ -288,7 +288,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.logger.debug('storeGenesisLeaders: upload response ', resp)
   }
 
-  async getGenesisLeaders(): Array<GenesisLeaderType> {
+  async getGenesisLeaders(): Promise<Array<GenesisLeaderType>> {
     const index = this.indexFor(INDEX_LEADERS)
     const indexExists = (await this.client.indices.exists({
       index,
