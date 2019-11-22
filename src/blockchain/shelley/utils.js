@@ -44,7 +44,7 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
       const txId = Buffer.from(utxo.fragment_id().as_bytes()).toString('hex')
       inputs_parsed.push(TxInputType.fromUtxo(txId, utxo.output_index()))
     } else {
-      const account = input.get_account().to_identifier()
+      const account = input.get_account_identifier()
       // TODO: Values are returned as strings under the rationale that js strings
       // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
       // than this (but bigger than a 32-bit int) this should be safe. We should try and
@@ -101,7 +101,7 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
         break
       }
       case wasm.CertificateType.StakeDelegation: {
-        const deleg = cert.get_stake_delegation()
+        const deleg = cert.get_owner_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         common.certificate = {
           type: CERT_TYPE.StakeDelegation,
@@ -125,13 +125,16 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
         console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
         break
       case wasm.CertificateType.OwnerStakeDelegation: {
+        if (inputs_parsed.length != 1 || inputs_parsed[0].type != 'account') {
+          throw new Error(`Malformed OwnerStakeDelegation. Expected 1 account input, found: ${JSON.stringify(inputs_parsed)}`)
+        }
         const deleg = cert.get_stake_delegation()
-        const pool_id = deleg.delegation_type().get_full()
+        const poolId = deleg.delegation_type().get_full()
         common.certificate = {
           type: 'OwnerStakeDelegation',
-          // TODO: handle DelegationType parsing
+          // TODO: possibly handle Ratio types
           pool_id: poolId != null ? poolId.to_string() : null,
-          account: deleg.account().to_hex(),
+          account: inputs_parsed[0].account_id,
         }
         break
       }
