@@ -22,7 +22,6 @@ class ShelleyDataParser implements RawDataParser {
   }
 
   parseBlock(blob: Buffer) {
-    this.logger.debug(`this.networkStartTime = ${this.networkStartTime}; this = ${JSON.stringify(this)}`)
     return ShelleyBlock.parseBlock(blob, this.networkStartTime)
   }
 

@@ -159,7 +159,7 @@ class CronScheduler implements Scheduler {
     }
     this.logger.debug(`Last imported block ${height}. Node status: local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
     const [remEpoch, remSlot] = remoteStatus.slot
-    if (epoch < remEpoch) {
+    if (this.networkProtocol === NETWORK_PROTOCOL.BYRON && epoch < remEpoch) {
       // If local epoch is lower than the current network tip
       // there's a potential for us to download full epochs, instead of single blocks
       // Calculate latest stable remote epoch
@@ -169,21 +169,14 @@ class CronScheduler implements Scheduler {
         && (slot || 0) < EPOCH_DOWNLOAD_THRESHOLD
       // Check if there's any point to bother with whole epochs
       if (thereAreMoreStableEpoch || thereAreManyStableSlots) {
-        // TODO: remove this once jormungandr supports epoch downloading
-        if ('getParsedEpochById' in this.#dataProvider) {
-          if (packedEpochs > epoch) {
-            for (const epochId of _.range(epoch, packedEpochs)) {
-              // Process epoch
-              await this.processEpochId(epochId, height)
-              this.logger.debug(`Epoch parsed: ${epochId}, ${height}`)
-            }
-            this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
-            await this.pushCachedBlocksToStorage()
-          } else {
-            // Packed epoch is not available yet
-            this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+        if (packedEpochs > epoch) {
+          for (const epochId of _.range(epoch, packedEpochs)) {
+            // Process epoch
+            await this.processEpochId(epochId, height)
+            this.logger.debug(`Epoch parsed: ${epochId}, ${height}`)
           }
-          return
+          this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
+          await this.pushCachedBlocksToStorage()
         } else {
           this.logger.info('Jormungandr do not support epoch processing.')
         }
