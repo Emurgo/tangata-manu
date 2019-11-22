@@ -29,6 +29,8 @@ class DBShelley extends DB {
         block_num: tx.blockNum,
         tx_hash: tx.id,
         pool: certificate.pool_id,
+        cert_id: tx.id,
+        account: certificate.account,
       })
       .toString()
     this.logger.debug('storeStakeDelegationCertTx: ', sql)

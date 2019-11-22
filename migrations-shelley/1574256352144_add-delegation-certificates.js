@@ -11,7 +11,8 @@ CREATE TABLE delegation_certificates  (
   cert_id text,
   account text,
   pool text,
-  PRIMARY KEY (cert_id, pool)
+  UNIQUE (cert_id, pool),
+  PRIMARY KEY (cert_id, tx_hash)
 );
 `
 

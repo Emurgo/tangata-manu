@@ -87,12 +87,13 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
       }
       case CERT_TYPE.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
+        const account = deleg.account()
         common.certificate = {
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           // pool_id: deleg.pool_id().to_string(),
           pool_id: 'TODO: handle DelegationType parsing',
-          account: deleg.account().to_hex(),
+          account: account.to_hex(),
         }
         break
       }
