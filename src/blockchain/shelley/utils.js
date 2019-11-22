@@ -101,7 +101,7 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         break
       }
       case wasm.CertificateType.StakeDelegation: {
-        const deleg = cert.get_owner_stake_delegation()
+        const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         common.certificate = {
           type: 'StakeDelegation',
@@ -128,7 +128,7 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         if (inputs_parsed.length != 1 || inputs_parsed[0].type != 'account') {
           throw new Error(`Malformed OwnerStakeDelegation. Expected 1 account input, found: ${JSON.stringify(inputs_parsed)}`)
         }
-        const deleg = cert.get_stake_delegation()
+        const deleg = cert.get_owner_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         common.certificate = {
           type: 'OwnerStakeDelegation',
