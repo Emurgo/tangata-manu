@@ -23,6 +23,7 @@ const ERROR_META = {
     sleep: 60000,
   },
   ECONNREFUSED: {
+
     msg: 'some unidentified network service is inaccessible',
     sleep: 60000,
   },

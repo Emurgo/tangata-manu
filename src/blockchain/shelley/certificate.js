@@ -1,7 +1,11 @@
 // @flow
 
+export const CERT_TYPE = {
+  StakeDelegation: 0,
+}
+
 // hex-encoded pool-id
-export type PoolId = String;
+export type PoolId = string;
 
 export type PoolRegistration = {
   type: 'PoolRegistration',
@@ -23,10 +27,10 @@ export type PoolUpdate = {
   pool_id: PoolId,
 }
 
-export type StakeDelegation = {
-  type: 'StakeDelegation',
+export type StakeDelegationType = {
+  type: number,
   pool_id: PoolId,
   account: string,
 }
 
-export type Certificate = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegation
+export type CertificateType = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegationType

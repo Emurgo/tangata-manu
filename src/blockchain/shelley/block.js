@@ -128,7 +128,7 @@ export default class ShelleyBlock implements Block {
         for (let i = 0; i < oldUtxos.size(); ++i) {
           old_utxo_outputs.push({
             address: oldUtxos.get_address(i),
-            value: parseInt(oldUtxos.get_value(i).to_str()),
+            value: parseInt(oldUtxos.get_value(i).to_str(), 10),
           })
         }
         const tx = {

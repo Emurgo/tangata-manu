@@ -1,8 +1,8 @@
-// flow
+// @flow
 
-import { TxInputType } from '../common'
+import { CERT_TYPE } from './certificate'
 
-const fragmentToObj = (fragment: any, extraData: {}): TxType => {
+const fragmentToObj = (fragment: any, extraData: {}) => {
   // TODO: proper parsing - need to parse other tx types (certs) + parse witnesses
   const common = {
     id: Buffer.from(fragment.id().as_bytes()).toString('hex'),
@@ -85,10 +85,10 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         }
         break
       }
-      case 'StakeDelegation': {
+      case CERT_TYPE.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
         common.certificate = {
-          type: 'StakeDelegation',
+          type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           // pool_id: deleg.pool_id().to_string(),
           pool_id: 'TODO: handle DelegationType parsing',
@@ -113,7 +113,8 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         console.log('\n\n\n\n\n========\n\nOWNER STAKE DELEGATION FOUND\n\n\n')
         break
       default:
-        throw new Error(`parsing certificate type not implemented${cert.get_type()}`)
+        break
+        // throw new Error(`parsing certificate type not implemented${cert.get_type()}`)
     }
   }
   const ret = {
@@ -125,25 +126,9 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
   }
   console.log(`parsed a tx: \n${JSON.stringify(ret)}\n`)
   return ret
-  // const [[inputs, outputs], witnesses] = tx
-  // const [txId, txBody] = packRawTxIdAndBody(tx)
-  // return {
-  //   id: txId,
-  //   inputs: inputs.map(inp => {
-  //     const [type, tagged] = inp
-  //     const [inputTxId, idx] = cbor.decode(tagged.value)
-  //     return { type, txId: inputTxId.toString('hex'), idx }
-  //   }),
-  //   outputs: outputs.map(out => {
-  //     const [address, value] = out
-  //     return { address: bs58.encode(cbor.encode(address)), value }
-  //   }),
-  //   txBody,
-  //   ...extraData,
-  // }
 }
 
-const rawTxToObj = (tx: Array<any>): TxType => {
+const rawTxToObj = (tx: Array<any>) => {
   const wasm = global.jschainlibs
   return fragmentToObj(wasm.Block.from_bytes(tx))
 }

@@ -22,7 +22,8 @@
     "no-underscore-dangle": [
       2, { "allow": ["_source"] }
     ],
-    "semi": ["error", "never"]
+    "semi": ["error", "never"],
+    "import/prefer-default-export": "off"
   },
   "env": {
     "jest": true

@@ -58,15 +58,15 @@ class GenesisProvider implements Genesis {
     return res
   }
 
-  nonAvvmBalancesToUtxos(nonAvvmBalances: []) {
+  nonAvvmBalancesToUtxos(nonAvvmBalances: []): Array<any> {
     this.#logger.debug('nonAvvmBalances to utxos')
-    return _.map(nonAvvmBalances, (amount, receiver) => {
+    return _.map(nonAvvmBalances, (amount: string, receiver: string) => {
       const utxoHash = generateUtxoHash(receiver)
       return utils.structUtxo(receiver, Number(amount), utxoHash)
     })
   }
 
-  avvmDistrToUtxos(avvmDistr: [], protocolMagic: number) {
+  avvmDistrToUtxos(avvmDistr: [], protocolMagic: number): Array<any> {
     this.#logger.debug('avvmDistrToUtxos called.')
     if (avvmDistr.length === 0) {
       this.#logger.debug('avvmDistr.length is empty')
@@ -75,7 +75,7 @@ class GenesisProvider implements Genesis {
     const settings = Cardano.BlockchainSettings.from_json({
       protocol_magic: protocolMagic,
     })
-    return _.map(avvmDistr, (amount, publicRedeemKey) => {
+    return _.map(avvmDistr, (amount: string, publicRedeemKey: string) => {
       const prk = Cardano.PublicRedeemKey.from_hex(
         base64url.decode(publicRedeemKey, 'hex'))
       const receiver = prk.address(settings).to_base58()
