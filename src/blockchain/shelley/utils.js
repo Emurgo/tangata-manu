@@ -101,7 +101,7 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
         break
       }
       case wasm.CertificateType.StakeDelegation: {
-        const deleg = cert.get_owner_stake_delegation()
+        const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         common.certificate = {
           type: CERT_TYPE.StakeDelegation,
