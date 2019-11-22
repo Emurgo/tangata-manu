@@ -25,7 +25,16 @@ export type PoolUpdate = {
 
 export type StakeDelegation = {
   type: 'StakeDelegation',
-  pool_id: PoolId,
+  // null here signifies NonDelegated, ie un-delegate
+  pool_id: ?PoolId,
+  account: string,
+}
+
+export type OwnerStakeDelegation = {
+  type: 'OwnerStakeDelegation',
+  // null here signifies NonDelegated, ie un-delegate
+  pool_id: ?PoolId,
+  // this is not in the certificate, but was inferred from the tx
   account: string,
 }
 

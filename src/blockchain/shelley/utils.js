@@ -60,8 +60,8 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
   const outputs_parsed = []
   for (let output_index = 0; output_index < outputs.size(); output_index += 1) {
     const output = outputs.get(output_index)
-    let outputType
-    switch (output.address().kind_type()) {
+    let outputType = 'utxo'
+    switch (output.address().get_kind()) {
       case wasm.AddressKind.Account:
       case wasm.AddressKind.Multisig:
         // should multisig be just account, or will we need more info later?
@@ -83,7 +83,7 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
   const cert = tx.certificate !== undefined ? tx.certificate() : null
   if (cert) {
     switch (cert.get_type()) {
-      case 'PoolRegistration': {
+      case wasm.CertificateType.PoolRegistration: {
         const reg = cert.get_pool_registration()
         const pool_keys = reg.owners()
         const pool_owners = []
@@ -100,18 +100,18 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         }
         break
       }
-      case 'StakeDelegation': {
+      case wasm.CertificateType.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
+        const poolId = deleg.delegation_type().get_full()
         common.certificate = {
           type: 'StakeDelegation',
           // TODO: handle DelegationType parsing
-          // pool_id: deleg.pool_id().to_string(),
-          pool_id: 'TODO: handle DelegationType parsing',
+          pool_id: poolId != null ? poolId.to_string() : null,
           account: deleg.account().to_hex(),
         }
         break
       }
-      case 'PoolRetirement': {
+      case wasm.CertificateType.PoolRetirement: {
         const retire = cert.get_pool_retirement()
         common.certificate = {
           type: 'PoolRetirement',
@@ -121,14 +121,22 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         }
         break
       }
-      case 'PoolUpdate':
+      case wasm.CertificateType.PoolUpdate:
         console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
         break
-      case 'OwnerStakeDelegation':
-        console.log('\n\n\n\n\n========\n\nOWNER STAKE DELEGATION FOUND\n\n\n')
+      case wasm.CertificateType.OwnerStakeDelegation: {
+        const deleg = cert.get_stake_delegation()
+        const pool_id = deleg.delegation_type().get_full()
+        common.certificate = {
+          type: 'OwnerStakeDelegation',
+          // TODO: handle DelegationType parsing
+          pool_id: poolId != null ? poolId.to_string() : null,
+          account: deleg.account().to_hex(),
+        }
         break
+      }
       default:
-        throw new Error(`parsing certificate type not implemented${cert.get_type()}`)
+        throw new Error(`parsing certificate type not implemented: ${cert.get_type()}`)
     }
   }
   const ret = {
