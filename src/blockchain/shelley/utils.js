@@ -61,7 +61,7 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
   for (let output_index = 0; output_index < outputs.size(); output_index += 1) {
     const output = outputs.get(output_index)
     let outputType
-    switch (output.address().kind_type()) {
+    switch (output.address().get_kind()) {
       case wasm.AddressKind.Account:
       case wasm.AddressKind.Multisig:
         // should multisig be just account, or will we need more info later?
