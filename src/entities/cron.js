@@ -183,11 +183,10 @@ class CronScheduler implements Scheduler {
             // Packed epoch is not available yet
             this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
           }
+          return
         } else {
-          // Packed epoch is not available yet
-          this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+          this.logger.info('Jormungandr do not support epoch processing.')
         }
-        return
       }
     }
     // this is all temporary stuff that will either be removed if a height endpoint is added,
