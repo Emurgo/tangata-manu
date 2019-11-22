@@ -19,7 +19,7 @@
   },
   "checkTipSeconds": 15,
   "rollbackBlocksCount": 25,
-  "maxBlockBatchSize": 20,
+  "maxBlockBatchSize": 900,
   "defaultNetwork": "testnet2",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {

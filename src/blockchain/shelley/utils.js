@@ -3,6 +3,8 @@
 import { CERT_TYPE } from './certificate'
 
 const fragmentToObj = (fragment: any, extraData: {}) => {
+  const wasm = global.jschainlibs
+
   // TODO: proper parsing - need to parse other tx types (certs) + parse witnesses
   const common = {
     id: Buffer.from(fragment.id().as_bytes()).toString('hex'),
@@ -58,7 +60,20 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
   const outputs_parsed = []
   for (let output_index = 0; output_index < outputs.size(); output_index += 1) {
     const output = outputs.get(output_index)
+    let outputType
+    switch (output.address().kind_type()) {
+      case wasm.AddressKind.Account:
+      case wasm.AddressKind.Multisig:
+        // should multisig be just account, or will we need more info later?
+        outputType = 'account'
+        break
+      case wasm.AddressKind.Single:
+      case wasm.AddressKind.Group:
+        outputType = 'utxo'
+        break
+    }
     outputs_parsed.push({
+      type: outputType,
       // TODO: what bech prefix do we put here?
       address: output.address().to_string('tc'),
       // See comment for input values
