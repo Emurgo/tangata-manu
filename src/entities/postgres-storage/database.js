@@ -61,7 +61,9 @@ class DB implements Database {
         slot: Number(row.slot),
       }
     }
-    return { height: 0, epoch: 0 }
+    return {
+      height: 0, epoch: 0, slot: 0, hash: null,
+    }
   }
 
   async utxosForInputsExists(inputs: Array<TxInputType>): Promise<boolean> {

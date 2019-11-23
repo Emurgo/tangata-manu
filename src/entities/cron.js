@@ -145,7 +145,12 @@ class CronScheduler implements Scheduler {
   async checkTip() {
     this.logger.info('checkTip: checking for new blocks...')
     // local state
-    const { height, epoch, slot } = await this.storageProcessor.getBestBlockNum()
+    const {
+      height,
+      epoch,
+      slot,
+      hash: bestBlockHash,
+    } = await this.storageProcessor.getBestBlockNum()
 
     // cardano-http-bridge state
     const nodeStatus = await this.#dataProvider.getStatus()
@@ -198,10 +203,12 @@ class CronScheduler implements Scheduler {
         // const nextBlockId = (this.lastBlock == null) ? this.#genesisHash :
         // (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
         let nextBlockId
-        if (this.lastBlock == null) {
+        const lastProcessedBlock = this.lastBlock
+        const lastBlockHash = (lastProcessedBlock && lastProcessedBlock.hash) || bestBlockHash
+        if (lastBlockHash === null) {
           nextBlockId = this.#genesisHash
         } else {
-          const nextBlockIdRaw = await this.#dataProvider.getNextBlockId(this.lastBlock.hash)
+          const nextBlockIdRaw = await this.#dataProvider.getNextBlockId(lastBlockHash)
           nextBlockId = nextBlockIdRaw.toString('hex')
         }
         this.logger.debug(`nextBlockId: ${nextBlockId}`)
