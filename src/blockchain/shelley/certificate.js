@@ -1,13 +1,20 @@
 // @flow
 
 // hex-encoded pool-id
-export type PoolId = String;
+export type PoolId = string;
+
+export const CERT_TYPE = {
+  PoolRegistration: 'PoolRegistration',
+  PoolRetirement: 'PoolRetirement',
+  PoolUpdate: 'PoolUpdate',
+  StakeDelegation: 'StakeDelegation',
+}
 
 export type PoolRegistration = {
   type: 'PoolRegistration',
   pool_id: PoolId,
-  start_validity: string,
-  owners: [string],
+  start_validity: number,
+  owners: Array<string>,
 }
 
 export type PoolRetirement = {
@@ -23,19 +30,11 @@ export type PoolUpdate = {
   pool_id: PoolId,
 }
 
-export type StakeDelegation = {
+export type StakeDelegationType = {
   type: 'StakeDelegation',
-  // null here signifies NonDelegated, ie un-delegate
   pool_id: ?PoolId,
   account: string,
+  isOwnerStake: boolean,
 }
 
-export type OwnerStakeDelegation = {
-  type: 'OwnerStakeDelegation',
-  // null here signifies NonDelegated, ie un-delegate
-  pool_id: ?PoolId,
-  // this is not in the certificate, but was inferred from the tx
-  account: string,
-}
-
-export type Certificate = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegation
+export type CertificateType = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegationType

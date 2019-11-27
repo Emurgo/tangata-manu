@@ -1,13 +1,15 @@
-// flow
+// @flow
 
-import { TxInputType } from '../common'
+import { CERT_TYPE } from './certificate'
+import type { StakeDelegationType, PoolRegistration, PoolRetirement } from './certificate'
 
-const fragmentToObj = (fragment: any, extraData: {}): TxType => {
+const fragmentToObj = (fragment: any, extraData: {} = {}) => {
   const wasm = global.jschainlibs
 
   // TODO: proper parsing - need to parse other tx types (certs) + parse witnesses
   const common = {
     id: Buffer.from(fragment.id().as_bytes()).toString('hex'),
+    certificate: undefined,
   }
   if (fragment.is_initial()) {
     console.log('\n\n\n\nINITIAL\n\n\n\n')
@@ -40,9 +42,11 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
     const input = inputs.get(input_index)
     console.log(`tx input type: ${input.get_type()}`)
     if (input.is_utxo()) {
+      /*
       const utxo = input.get_utxo_pointer()
       const txId = Buffer.from(utxo.fragment_id().as_bytes()).toString('hex')
       inputs_parsed.push(TxInputType.fromUtxo(txId, utxo.output_index()))
+      */
     } else {
       const account = input.get_account_identifier()
       // TODO: Values are returned as strings under the rationale that js strings
@@ -71,6 +75,8 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
       case wasm.AddressKind.Group:
         outputType = 'utxo'
         break
+      default:
+        break
     }
     outputs_parsed.push({
       type: outputType,
@@ -91,34 +97,38 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
           const keyBytes = Buffer.from(pool_keys.get(i).as_bytes())
           pool_owners.push(keyBytes.toString('hex'))
         }
-        common.certificate = {
-          type: 'PoolRegistration',
+        const parsedCert: PoolRegistration = {
+          type: CERT_TYPE.PoolRegistration,
           pool_id: reg.id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
           start_validity: parseInt(reg.start_validity().to_string(), 10),
           owners: pool_owners,
         }
+        common.certificate = parsedCert
         break
       }
       case wasm.CertificateType.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
-        common.certificate = {
-          type: 'StakeDelegation',
-          // TODO: possibly handle Ratio types
+        const parsedCert: StakeDelegationType = {
+          type: CERT_TYPE.StakeDelegation,
+          // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
           account: deleg.account().to_hex(),
+          isOwnerStake: false,
         }
+        common.certificate = parsedCert
         break
       }
       case wasm.CertificateType.PoolRetirement: {
         const retire = cert.get_pool_retirement()
-        common.certificate = {
-          type: 'PoolRetirement',
+        const parsedCert: PoolRetirement = {
+          type: CERT_TYPE.PoolRetirement,
           pool_id: retire.pool_id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
           retirement_time: parseInt(retire.retirement_time().to_string(), 10),
         }
+        common.certificate = parsedCert
         break
       }
       case wasm.CertificateType.PoolUpdate:
@@ -130,16 +140,19 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
         }
         const deleg = cert.get_owner_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
-        common.certificate = {
-          type: 'OwnerStakeDelegation',
+        const parsedCert: StakeDelegationType = {
+          type: CERT_TYPE.StakeDelegation,
           // TODO: possibly handle Ratio types
           pool_id: poolId != null ? poolId.to_string() : null,
           account: inputs_parsed[0].account_id,
+          isOwnerStake: true,
         }
+        common.certificate = parsedCert
         break
       }
       default:
-        throw new Error(`parsing certificate type not implemented: ${cert.get_type()}`)
+        break
+        // throw new Error(`parsing certificate type not implemented${cert.get_type()}`)
     }
   }
   const ret = {
@@ -151,25 +164,9 @@ const fragmentToObj = (fragment: any, extraData: {}): TxType => {
   }
   console.log(`parsed a tx: \n${JSON.stringify(ret)}\n`)
   return ret
-  // const [[inputs, outputs], witnesses] = tx
-  // const [txId, txBody] = packRawTxIdAndBody(tx)
-  // return {
-  //   id: txId,
-  //   inputs: inputs.map(inp => {
-  //     const [type, tagged] = inp
-  //     const [inputTxId, idx] = cbor.decode(tagged.value)
-  //     return { type, txId: inputTxId.toString('hex'), idx }
-  //   }),
-  //   outputs: outputs.map(out => {
-  //     const [address, value] = out
-  //     return { address: bs58.encode(cbor.encode(address)), value }
-  //   }),
-  //   txBody,
-  //   ...extraData,
-  // }
 }
 
-const rawTxToObj = (tx: Array<any>): TxType => {
+const rawTxToObj = (tx: Array<any>) => {
   const wasm = global.jschainlibs
   return fragmentToObj(wasm.Block.from_bytes(tx))
 }

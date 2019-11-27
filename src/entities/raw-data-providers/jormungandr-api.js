@@ -13,6 +13,7 @@ import type { NetworkConfig } from '../../interfaces'
 // these two are for getting the network instead of using NetworkConfig
 import utils from '../../utils'
 
+const GENESIS_PARENT = '0000000000000000000000000000000000000000000000000000000000000000'
 
 class JormungandrApi implements RawDataProvider {
   #networkBaseUrl: string
@@ -149,7 +150,7 @@ class JormungandrApi implements RawDataProvider {
     const x = {
       height: data.lastBlockHeight,
       slot: [Math.floor(data.lastBlockHeight / 21600), data.lastBlockHeight % 21600],
-      hash: '<fake hash>', // we aren't actually reading this afaik
+      hash: GENESIS_PARENT, // we aren't actually reading this afaik
     }
     return {
       tip: {
