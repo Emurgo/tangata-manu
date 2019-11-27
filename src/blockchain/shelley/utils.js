@@ -166,9 +166,9 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
   return ret
 }
 
-const rawTxToObj = (tx: Array<any>) => {
+const rawTxToObj = (tx: Array<any>, extraData: {} = {}) => {
   const wasm = global.jschainlibs
-  return fragmentToObj(wasm.Block.from_bytes(tx))
+  return fragmentToObj(wasm.Block.from_bytes(tx), extraData)
 }
 
 export default {
