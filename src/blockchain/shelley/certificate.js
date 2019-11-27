@@ -28,7 +28,7 @@ export type PoolUpdate = {
 }
 
 export type StakeDelegationType = {
-  type: number,
+  type: string,
   pool_id: PoolId,
   account: string,
 }
