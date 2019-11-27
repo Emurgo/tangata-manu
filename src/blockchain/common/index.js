@@ -1,7 +1,7 @@
 // @flow
 
 export { Block } from './block'
-export type { EpochId, SlotId } from './block'
+export type { EpochIdType, SlotIdType } from './block'
 export type {
   AccountInput, TxInputType, TxType, UtxoInput,
 } from './tx'

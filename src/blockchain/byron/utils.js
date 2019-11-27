@@ -5,7 +5,7 @@ import borc from 'borc'
 import bs58 from 'bs58'
 import blake from 'blakejs'
 
-import type { TxInputType, TxType } from '../common'
+import type { TxType } from '../common'
 
 type TxIdHexType = string
 type TxBodyHexType = string
@@ -107,7 +107,8 @@ const rawTxToObj = (tx: Array<any>, extraData: {
       const [address, value] = out
       return { address: bs58.encode(cbor.encode(address)), value }
     }),
-    // witnesses are also not stored in the DB, but we keep them here for similar reasons as input types
+    // witnesses are also not stored in the DB, but we keep them here for similar
+    // reasons as input types
     witnesses: witnesses.map(w => {
       const [type, tagged] = w
       return { type, sign: cbor.decode(tagged.value) }

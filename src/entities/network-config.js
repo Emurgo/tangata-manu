@@ -8,6 +8,11 @@ import urljoin from 'url-join'
 import utils from '../utils'
 import type { NetworkConfig } from '../interfaces/network-config'
 
+export const NETWORK_PROTOCOL = {
+  BYRON: 'byron',
+  SHELLEY: 'shelley',
+}
+
 class NetworkConfigImp implements NetworkConfig {
   #networkName: string
 
@@ -19,6 +24,8 @@ class NetworkConfigImp implements NetworkConfig {
 
   #networkMagic: number
 
+  #networkProtocol: string
+
   constructor() {
     this.#networkName = process.env.importer_network || config.get('defaultNetwork')
     const network = utils.getNetworkConfig(this.#networkName)
@@ -26,6 +33,7 @@ class NetworkConfigImp implements NetworkConfig {
     this.#genesisHash = network.genesis
     this.#startTime = network.startTime
     this.#networkMagic = network.networkMagic
+    this.#networkProtocol = network.protocol
   }
 
   networkName = () => this.#networkName
@@ -37,6 +45,8 @@ class NetworkConfigImp implements NetworkConfig {
   networkUrl = () => this.#networkBaseUrl
 
   networkMagic = () => this.#networkMagic
+
+  networkProtocol = () => this.#networkProtocol || NETWORK_PROTOCOL.BYRON
 }
 
 helpers.annotate(NetworkConfigImp, [])

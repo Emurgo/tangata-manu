@@ -1,7 +1,7 @@
 // @flow
 
+import _ from 'lodash'
 import restify from 'restify'
-import config from 'config'
 import { InversifyRestifyServer } from 'inversify-restify-utils'
 
 import {
@@ -10,31 +10,40 @@ import {
   Genesis,
   StorageProcessor,
   RawDataProvider,
+  NetworkConfig,
 } from './interfaces'
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
 import initIoC from './ioc_config'
+import { NETWORK_PROTOCOL } from './entities/network-config'
 import { YOROI_POSTGRES } from './ioc_config/storage-processor'
-import type { GenesisLeaderType } from './interfaces/storage-processor'
-
-const serverConfig = config.get('server')
 
 const loadGenesis = async (container) => {
+  const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
+  const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
   const dataProvider = container.get<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
+  if (networkConfig.networkProtocol() === NETWORK_PROTOCOL.SHELLEY) {
+    const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
+    await scheduler.processBlockById(networkConfig.genesisHash())
+    logger.debug(`loadGenesis: ${NETWORK_PROTOCOL.SHELLEY}: loaded.`)
+    return
+  }
   const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)
   const genesisFile = await dataProvider.getGenesis(genesis.genesisHash)
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
   const { protocolMagic } = genesisFile.protocolConsts
 
-  const genesisLeaders: Array<GenesisLeaderType> = genesis.getGenesisLeaders(
-    genesisFile.heavyDelegation || {})
+  const genesisLeaders = genesis.getGenesisLeaders(genesisFile.heavyDelegation || {})
   await storageProcessor.storeGenesisLeaders(genesisLeaders)
 
   const genesisUtxos = [
     ...genesis.nonAvvmBalancesToUtxos(genesisFile.nonAvvmBalances || []),
     ...genesis.avvmDistrToUtxos(genesisFile.avvmDistr || [], protocolMagic),
   ]
-  await storageProcessor.storeGenesisUtxos(genesisUtxos)
+  if (!_.isEmpty(genesisUtxos)) {
+    await storageProcessor.storeGenesisUtxos(genesisUtxos)
+    logger.debug('loadGenesis: loaded')
+  }
 }
 
 const startServer = async () => {
@@ -64,6 +73,7 @@ const startServer = async () => {
   })
 
   const storageName = container.getNamed('storageProcessor')
+  const serverConfig = container.getNamed('server')
   if (storageName === YOROI_POSTGRES) {
     const server = new InversifyRestifyServer(container)
     const app = server.build()

@@ -8,7 +8,9 @@ import type {
   Scheduler,
   RawDataProvider,
   StorageProcessor,
+  NetworkConfig,
 } from '../interfaces'
+import { NETWORK_PROTOCOL } from './network-config'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import type { Block } from '../blockchain/common'
 
@@ -46,6 +48,10 @@ class CronScheduler implements Scheduler {
 
   lastBlock: ?{ epoch: number, hash: string }
 
+  #genesisHash: string
+
+  networkProtocol: string
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipSeconds: number,
@@ -53,6 +59,7 @@ class CronScheduler implements Scheduler {
     logger: Logger,
     rollbackBlocksCount: number,
     maxBlockBatchSize: number,
+    networkConfig: NetworkConfig,
   ) {
     this.#dataProvider = dataProvider
     this.storageProcessor = storageProcessor
@@ -64,6 +71,10 @@ class CronScheduler implements Scheduler {
     this.logger = logger
     this.blocksToStore = []
     this.lastBlock = null
+    // TODO: this can't be the best way, can it? (for jormungandr next_id syncing)
+    this.#genesisHash = networkConfig.genesisHash()
+    this.networkProtocol = networkConfig.networkProtocol()
+    logger.debug(`genesisHash = ${this.#genesisHash}`)
   }
 
   async rollback(atBlockHeight: number) {
@@ -112,7 +123,9 @@ class CronScheduler implements Scheduler {
       hash: block.getHash(),
     }
     this.blocksToStore.push(block)
-    if (this.blocksToStore.length > this.maxBlockBatchSize || flushCache) {
+    if (this.blocksToStore.length > this.maxBlockBatchSize
+      || flushCache
+      || !_.isEmpty(block.getTxs())) {
       await this.pushCachedBlocksToStorage()
     }
 
@@ -132,7 +145,12 @@ class CronScheduler implements Scheduler {
   async checkTip() {
     this.logger.info('checkTip: checking for new blocks...')
     // local state
-    const { height, epoch, slot } = await this.storageProcessor.getBestBlockNum()
+    const {
+      height,
+      epoch,
+      slot,
+      hash: bestBlockHash,
+    } = await this.storageProcessor.getBestBlockNum()
 
     // cardano-http-bridge state
     const nodeStatus = await this.#dataProvider.getStatus()
@@ -145,7 +163,7 @@ class CronScheduler implements Scheduler {
     }
     this.logger.debug(`Last imported block ${height}. Node status: local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
     const [remEpoch, remSlot] = remoteStatus.slot
-    if (epoch < remEpoch) {
+    if (this.networkProtocol === NETWORK_PROTOCOL.BYRON && epoch < remEpoch) {
       // If local epoch is lower than the current network tip
       // there's a potential for us to download full epochs, instead of single blocks
       // Calculate latest stable remote epoch
@@ -164,22 +182,54 @@ class CronScheduler implements Scheduler {
           this.logger.debug('Finished loop for stable epochs. Pushing any cached blocks to storage.')
           await this.pushCachedBlocksToStorage()
         } else {
-          // Packed epoch is not available yet
-          this.logger.info(`cardano-http-brdige has not yet packed stable epoch: ${epoch} (lastRemStableEpoch=${lastRemStableEpoch})`)
+          this.logger.info('Jormungandr do not support epoch processing.')
         }
-        return
       }
     }
+    // this is all temporary stuff that will either be removed if a height endpoint is added,
+    // or will be refactored into an API like so:
+    // this.#dataProvider.streamBlocks() within the data provider API.
+    // For now this temporary change to cron.js is breaking with respect to Byron
     for (let blockHeight = height + 1, i = 0;
       (blockHeight <= tipStatus.height) && (i < MAX_BLOCKS_PER_LOOP);
       blockHeight++, i++) {
-      const status = await this.processBlockHeight(blockHeight)
+      this.logger.info(`requesting block at height ${blockHeight}`)
+      let status
+      if (this.networkProtocol === NETWORK_PROTOCOL.BYRON) {
+        status = await this.processBlockHeight(blockHeight)
+      } else {
+        // TODO: remove this once jormungandr supports blocks by height, just querying consecutive
+        // blocks here temporarily instead
+        // const nextBlockId = (this.lastBlock == null) ? this.#genesisHash :
+        // (await this.#dataProvider.getNextBlockId(this.lastBlock.hash).toString('hex'))
+        let nextBlockId
+        const lastProcessedBlock = this.lastBlock
+        const lastBlockHash = (lastProcessedBlock && lastProcessedBlock.hash) || bestBlockHash
+        if (lastBlockHash === null) {
+          nextBlockId = this.#genesisHash
+        } else {
+          const nextBlockIdRaw = await this.#dataProvider.getNextBlockId(lastBlockHash)
+          nextBlockId = nextBlockIdRaw.toString('hex')
+        }
+        this.logger.debug(`nextBlockId: ${nextBlockId}`)
+        status = await this.processBlockById(nextBlockId)
+      }
+
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.logger.info('Rollback required.')
         await this.rollback(blockHeight)
         return
       }
     }
+  }
+
+  async processBlockById(id: string) {
+    const blockRaw = await this.#dataProvider.getBlock(id)
+    this.logger.debug('blockRaw aquired.')
+    const block = await this.#dataProvider.parseBlock(blockRaw)
+    this.logger.debug(`block parsed: ${JSON.stringify(block)}`)
+    const status = await this.processBlock(block, true)
+    return status
   }
 
   async startAsync() {
@@ -220,6 +270,7 @@ helpers.annotate(CronScheduler,
     SERVICE_IDENTIFIER.LOGGER,
     'rollbackBlocksCount',
     'maxBlockBatchSize',
+    SERVICE_IDENTIFIER.NETWORK_CONFIG,
   ])
 
 export default CronScheduler

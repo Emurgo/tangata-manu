@@ -43,34 +43,39 @@ class GenesisProvider implements Genesis {
 
   getGenesisLeaders(heavyDelegation: { [string]: {} }): Array<GenesisLeaderType> {
     this.#logger.debug('getGenesisLeaders')
-    const res: Array<GenesisLeaderType> = Object.entries(heavyDelegation).map(([heavyDelegationId, { issuerPk }], idx) => {
-      const ordinal = idx + 1
-      const lead: GenesisLeaderType = {
-        slotLeaderPk: Buffer.from(issuerPk, 'base64').toString('hex'),
-        leadId: heavyDelegationId,
-        name: `Bootstrap era pool #${ordinal}`,
-        description: `Pool ${ordinal} used before decentralization`,
-        ordinal,
-      }
-      return lead
-    })
+    const res: Array<GenesisLeaderType> = Object.entries(heavyDelegation).map(
+      ([heavyDelegationId, { issuerPk }], idx) => {
+        const ordinal = idx + 1
+        const lead: GenesisLeaderType = {
+          slotLeaderPk: Buffer.from(issuerPk, 'base64').toString('hex'),
+          leadId: heavyDelegationId,
+          name: `Bootstrap era pool #${ordinal}`,
+          description: `Pool ${ordinal} used before decentralization`,
+          ordinal,
+        }
+        return lead
+      })
     return res
   }
 
-  nonAvvmBalancesToUtxos(nonAvvmBalances: []) {
+  nonAvvmBalancesToUtxos(nonAvvmBalances: []): Array<any> {
     this.#logger.debug('nonAvvmBalances to utxos')
-    return _.map(nonAvvmBalances, (amount, receiver) => {
+    return _.map(nonAvvmBalances, (amount: string, receiver: string) => {
       const utxoHash = generateUtxoHash(receiver)
       return utils.structUtxo(receiver, Number(amount), utxoHash)
     })
   }
 
-  avvmDistrToUtxos(avvmDistr: [], protocolMagic: number) {
+  avvmDistrToUtxos(avvmDistr: [], protocolMagic: number): Array<any> {
     this.#logger.debug('avvmDistrToUtxos called.')
+    if (avvmDistr.length === 0) {
+      this.#logger.debug('avvmDistr.length is empty')
+      return []
+    }
     const settings = Cardano.BlockchainSettings.from_json({
       protocol_magic: protocolMagic,
     })
-    return _.map(avvmDistr, (amount, publicRedeemKey) => {
+    return _.map(avvmDistr, (amount: string, publicRedeemKey: string) => {
       const prk = Cardano.PublicRedeemKey.from_hex(
         base64url.decode(publicRedeemKey, 'hex'))
       const receiver = prk.address(settings).to_base58()

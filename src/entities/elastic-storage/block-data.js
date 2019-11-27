@@ -80,11 +80,13 @@ class BlockData extends ElasticData {
   }
 
   getReceivedAmount(): BigNumber {
-    return this.txsData.reduce((sum, { sum_inputs }) => sum.plus(sum_inputs.full), new BigNumber(0))
+    return this.txsData.reduce(
+      (sum, { sum_inputs }) => sum.plus(sum_inputs.full), new BigNumber(0))
   }
 
   getSentAmount(): BigNumber {
-    return this.txsData.reduce((sum, { sum_outputs }) => sum.plus(sum_outputs.full), new BigNumber(0))
+    return this.txsData.reduce(
+      (sum, { sum_outputs }) => sum.plus(sum_outputs.full), new BigNumber(0))
   }
 
   getTxsData() {
@@ -117,7 +119,8 @@ class BlockData extends ElasticData {
       size: this.block.getSize(),
       height: this.block.getHeight(),
       lead: this.block.getSlotLeaderId(),
-      // this is byron-specific logic to store this PK since it doesn't exist in shelley blocks, need to figure this out
+      // this is byron-specific logic to store this PK since it doesn't exist in
+      // shelley blocks, need to figure this out
       // $FlowFixMe
       slotLeaderPk: this.block.slotLeaderPk,
       time,

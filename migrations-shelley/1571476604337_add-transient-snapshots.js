@@ -11,7 +11,7 @@ CREATE TABLE transient_snapshots  (
 `
 
 exports.up = (pgm) => {
-    pgm.sql(SQL)
+  pgm.sql(SQL)
 }
 
 exports.down = false

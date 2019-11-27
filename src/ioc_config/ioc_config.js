@@ -6,27 +6,19 @@ import { Container } from 'inversify'
 import { EagerBinder } from 'inversify-config-injection'
 
 import {
-  ByronValidator,
-  CardanoBridgeApi,
-  CustomDataParser,
   CronScheduler,
   GenesisProvider,
-  MockBridgeApi,
-  MockDataParser,
 } from '../entities'
 import {
-  RawDataProvider,
-  RawDataParser,
   Scheduler,
   Genesis,
-  Logger,
-  Validator,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import dbModule from './db'
 import loggerModule from './logger'
 import networkConfigModule from './network-config'
 import initRoutes from './routes'
+import initNetwork from './network'
 import initStorageProcessor, { YOROI_POSTGRES } from './storage-processor'
 
 const configBinder = new EagerBinder({
@@ -39,23 +31,10 @@ const initIoC = async () => {
   container.load(networkConfigModule)
   await container.loadAsync(dbModule)
 
-  const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
+  initNetwork(container)
 
-  let apiClass = CardanoBridgeApi
-  let dataParserClass = CustomDataParser
-  if (process.env.YOROI_IMPORTER_TEST) {
-    logger.info('$YOROI_IMPORTER_TEST env var is set. Mocking API and data parser.')
-    apiClass = MockBridgeApi
-    dataParserClass = MockDataParser
-  }
-
-  container.bind<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
-    .to(apiClass).inSingletonScope()
-  container.bind<RawDataParser>(SERVICE_IDENTIFIER.RAW_DATA_PARSER)
-    .to(dataParserClass).inSingletonScope()
   container.bind<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER).to(CronScheduler).inSingletonScope()
   container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider).inSingletonScope()
-  container.bind<Validator>(SERVICE_IDENTIFIER.VALIDATOR).to(ByronValidator).inSingletonScope()
 
   initStorageProcessor(container)
   const storageName = container.getNamed('storageProcessor')

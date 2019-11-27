@@ -6,4 +6,5 @@ export interface NetworkConfig {
   startTime(): number;
   networkUrl(): string;
   networkMagic(): number;
+  networkProtocol(): string;
 }
