@@ -4,14 +4,17 @@
 export type PoolId = string;
 
 export const CERT_TYPE = {
+  PoolRegistration: 'PoolRegistration',
+  PoolRetirement: 'PoolRetirement',
+  PoolUpdate: 'PoolUpdate',
   StakeDelegation: 'StakeDelegation',
 }
 
 export type PoolRegistration = {
   type: 'PoolRegistration',
   pool_id: PoolId,
-  start_validity: string,
-  owners: [string],
+  start_validity: number,
+  owners: Array<string>,
 }
 
 export type PoolRetirement = {
@@ -28,9 +31,10 @@ export type PoolUpdate = {
 }
 
 export type StakeDelegationType = {
-  type: string,
-  pool_id: PoolId,
+  type: 'StakeDelegation',
+  pool_id: ?PoolId,
   account: string,
+  isOwnerStake: boolean,
 }
 
 export type CertificateType = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegationType
