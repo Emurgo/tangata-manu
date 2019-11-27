@@ -1,7 +1,7 @@
 // @flow
 
 import { CERT_TYPE } from './certificate'
-import type { StakeDelegationType, PoolRegistration, PoolRetirement } from './certificate'
+import type { StakeDelegationType, PoolRegistrationType, PoolRetirementType } from './certificate'
 
 const fragmentToObj = (fragment: any, extraData: {} = {}) => {
   const wasm = global.jschainlibs
@@ -97,7 +97,7 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
           const keyBytes = Buffer.from(pool_keys.get(i).as_bytes())
           pool_owners.push(keyBytes.toString('hex'))
         }
-        const parsedCert: PoolRegistration = {
+        const parsedCert: PoolRegistrationType = {
           type: CERT_TYPE.PoolRegistration,
           pool_id: reg.id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
@@ -122,7 +122,7 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
       }
       case wasm.CertificateType.PoolRetirement: {
         const retire = cert.get_pool_retirement()
-        const parsedCert: PoolRetirement = {
+        const parsedCert: PoolRetirementType = {
           type: CERT_TYPE.PoolRetirement,
           pool_id: retire.pool_id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years

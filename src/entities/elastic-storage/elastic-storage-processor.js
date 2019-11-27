@@ -602,12 +602,12 @@ function qSort(...entries) {
       if (e.length < 1 || e.length > 3) {
         throw new Error('qSort array entry expect 1-3 elements!')
       }
-      [key] = e
+      key = e[0]
       if (e.length > 1) {
-        [, order] = e
+        order = e[1]
       }
       if (e.length > 2) {
-        [, , unmapped_type] = e
+        unmapped_type = e[2]
       }
     } else if (typeof e === 'object') {
       return e

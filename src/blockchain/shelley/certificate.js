@@ -10,21 +10,21 @@ export const CERT_TYPE = {
   StakeDelegation: 'StakeDelegation',
 }
 
-export type PoolRegistration = {
+export type PoolRegistrationType = {
   type: 'PoolRegistration',
   pool_id: PoolId,
   start_validity: number,
   owners: Array<string>,
 }
 
-export type PoolRetirement = {
+export type PoolRetirementType = {
   type: 'PoolRetirement',
   pool_id: PoolId,
   // TODO: store time-offset? store slot it expires in?
   retirement_time: number,
 }
 
-export type PoolUpdate = {
+export type PoolUpdateType = {
   type: 'PoolUpdate',
   // do we need this in seiza?
   pool_id: PoolId,
@@ -37,4 +37,4 @@ export type StakeDelegationType = {
   isOwnerStake: boolean,
 }
 
-export type CertificateType = PoolRegistration | PoolRetirement | PoolUpdate | StakeDelegationType
+export type CertificateType = PoolRegistrationType | PoolRetirementType | PoolUpdateType | StakeDelegationType

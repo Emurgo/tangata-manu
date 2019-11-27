@@ -7,8 +7,8 @@ export { default as shelleyUtils } from './utils'
 export type {
   CertificateType,
   PoolId,
-  PoolRegistration,
-  PoolRetirement,
-  PoolUpdate,
+  PoolRegistrationType,
+  PoolRetirementType,
+  PoolUpdateType,
   StakeDelegationType,
 } from './certificate'

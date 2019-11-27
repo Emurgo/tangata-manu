@@ -15,6 +15,8 @@
     "function-paren-newline": "off",
     "no-extra-semi": "error",
     "camelcase": "off",
+    "no-console": "off",
+    "no-plusplus": "off",
     "no-restricted-syntax": [
       "off",
       "ForOfStatement"
@@ -22,6 +24,7 @@
     "no-underscore-dangle": [
       2, { "allow": ["_source"] }
     ],
+    "prefer-destructuring": ["error", {"object": true, "array": false}],
     "semi": ["error", "never"],
     "import/prefer-default-export": "off"
   },
