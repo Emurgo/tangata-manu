@@ -3,10 +3,12 @@
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import { CERT_TYPE } from '../../blockchain/shelley/certificate'
+import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 
 import DB from './database'
 import Q from './db-queries'
-import type { ShelleyTxType } from '../../blockchain/shelley/tx'
+
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
 
@@ -45,7 +47,7 @@ class DBShelley extends DB {
     const { certificate } = tx
     await super.storeTx(tx, txUtxos, upsert)
     if (certificate
-      && (certificate.type === global.jschainlibs.CertificateType.StakeDelegation)) {
+      && (certificate.type === CERT_TYPE.StakeDelegation)) {
       await this.storeStakeDelegationCertTx(tx)
     }
   }

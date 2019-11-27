@@ -1,5 +1,7 @@
 // @flow
 
+import { CERT_TYPE } from './certificate'
+
 const fragmentToObj = (fragment: any, extraData: {}) => {
   const wasm = global.jschainlibs
 
@@ -106,7 +108,7 @@ const fragmentToObj = (fragment: any, extraData: {}) => {
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         common.certificate = {
-          type: wasm.CertificateType.StakeDelegation,
+          type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
           account: deleg.account().to_hex(),

@@ -3,6 +3,10 @@
 // hex-encoded pool-id
 export type PoolId = string;
 
+export const CERT_TYPE = {
+  StakeDelegation: 'StakeDelegation',
+}
+
 export type PoolRegistration = {
   type: 'PoolRegistration',
   pool_id: PoolId,
