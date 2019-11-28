@@ -372,17 +372,21 @@ class DB implements Database {
       {
         const spendingKey = groupAddress.get_spending_key()
         const accountKey = groupAddress.get_account_key()
-        // TODO full address objects including discrim tomorrow
+        const discrim = address.get_discrimination()
+        const singleAddress = wasm.Address.single_from_public_key(spendingKey, discrim)
+        const accountAddress = wasm.Address.account_from_public_key(spendingKey, discrim)
         const metadata = {
           groupAddress: addressString,
-          utxoAddress: Buffer.from(spendingKey.as_bytes()).toString('hex'),
-          accountAddress: Buffer.from(accountKey.as_bytes()).toString('hex'),
+          utxoAddress: Buffer.from(singleAddress.as_bytes()).toString('hex'),
+          accountAddress: Buffer.from(accountAddress.as_bytes()).toString('hex'),
         }
+        singleAddress.free()
+        accountAddress.free()
         spendingKey.free()
         accountKey.free()
         groupAddress.free()
-        throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
-        //return metadata
+        //throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
+        return metadata
       }
       else
       {
