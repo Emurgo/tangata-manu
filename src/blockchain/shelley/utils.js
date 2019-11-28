@@ -81,8 +81,7 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
     }
     outputs_parsed.push({
       type: outputType,
-      // TODO: what bech prefix do we put here?
-      address: output.address().to_string('tc'),
+      address: Buffer.from(output.address().as_bytes()).toString('hex'),
       // See comment for input values
       value: parseInt(output.value().to_str(), 10),
     })
