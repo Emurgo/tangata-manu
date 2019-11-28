@@ -347,9 +347,50 @@ class DB implements Database {
 
   async storeTx(tx: ShelleyTxType,
     txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
+    const wasm = global.jschainlibs
+
     const {
       txDbFields, inputAddresses, outputAddresses,
     } = await this.getTxDBData(tx, txUtxos)
+    const groupAddresses = _.uniq([...inputAddresses, ...outputAddresses])
+    const groupAddressMetadata = groupAddresses.map(addressString => {
+      // TODO: replace bech addresses with hex encoded bytes
+      let address
+      try {
+        address = wasm.Address.from_bytes(Buffer.from(addressString, 'hex'))
+      } catch (e) {
+        const prefix = addressString.substring(0, 3)
+        // TODO: find a better way to distinguish legacy funds?
+        if (prefix != 'Ddz' && prefix != 'Ae2') {
+          throw new Error(`Group Metadata could not parse address: ${addressString}`)
+        }
+        return null
+      }
+      const groupAddress = address.to_group_address()
+      address.free()
+      if (groupAddress)
+      {
+        const spendingKey = groupAddress.get_spending_key()
+        const accountKey = groupAddress.get_account_key()
+        // TODO full address objects including discrim tomorrow
+        const metadata = {
+          groupAddress: addressString,
+          utxoAddress: Buffer.from(spendingKey.as_bytes()).toString('hex'),
+          accountAddress: Buffer.from(accountKey.as_bytes()).toString('hex'),
+        }
+        spendingKey.free()
+        accountKey.free()
+        groupAddress.free()
+        throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
+        //return metadata
+      }
+      else
+      {
+        return null;
+      }
+    }).filter(Boolean)
+    // TODO: store groupAddressMetadata in DB here
+    this.logger.debug(`\n\n\n*** Group TX Metadata: ${JSON.stringify(groupAddressMetadata)}\n\n`)
     const onConflictArgs = []
     if (upsert) {
       const now = new Date().toUTCString()
