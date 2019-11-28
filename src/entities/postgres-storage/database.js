@@ -243,6 +243,7 @@ class DB implements Database {
       id: row.utxo_id,
       index: row.tx_index,
       txHash: row.tx_hash,
+      type: 'utxo',
     }))
   }
 
@@ -491,6 +492,7 @@ class DB implements Database {
           amount: localUtxo.amount,
           txHash: localUtxo.tx_hash,
           index: localUtxo.tx_index,
+          type: 'utxo',
         })
         // Delete new Utxo if it's already spent in the same block
         delete newUtxos[utxoId]
