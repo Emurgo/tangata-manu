@@ -9,7 +9,7 @@ import config from 'config'
 import { DBConnection } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
-const createDb = async (dbSettings: PgPoolConfig): Pool => (new pg.Pool(dbSettings))
+const createDb = async (dbSettings: PgPoolConfig): Promise<Pool> => (new pg.Pool(dbSettings))
 
 const dbModule = new AsyncContainerModule(async (bind: interfaces.Bind) => {
   const dbConn = await createDb(config.get('db'))

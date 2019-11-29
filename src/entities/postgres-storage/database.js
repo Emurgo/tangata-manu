@@ -3,11 +3,11 @@
 import { helpers } from 'inversify-vanillajs-helpers'
 import _ from 'lodash'
 
-import type { Database, DBConnection, Logger } from '../../interfaces'
+import type { DBConnection, Logger } from '../../interfaces'
 import type { BlockInfoType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import { Block, TX_STATUS, utils } from '../../blockchain/common'
-import type { TxType, TxInputType } from '../../blockchain/common'
+import type { TxType as ByronTxType, TxInputType } from '../../blockchain/common'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 import Q from './db-queries'
 
@@ -22,7 +22,13 @@ type TxDbDataType = {
   outputAddresses:Array<string>,
 }
 
-class DB implements Database {
+type BlockTxsDataType = {
+  allUtxoMap: any,
+  newUtxos: any,
+  requiredUtxoIds: any,
+}
+
+class DB<TxType: ByronTxType | ShelleyTxType> {
   #conn: any
 
   logger: any
@@ -133,7 +139,7 @@ class DB implements Database {
     this.logger.info(`removeRecordsAfterBlock: ${blockHeight}`)
     const conn = this.getConn()
     const sql = Q.sql.delete().from(tableName)
-      .where('block_height > ?', blockHeight)
+      .where('block_num > ?', blockHeight).toString()
     await conn.query(sql)
   }
 
@@ -148,7 +154,7 @@ class DB implements Database {
     await conn.query(utxosBackupSql)
   }
 
-  async rollBackUtxoBackup(blockHeight: number) {
+  async rollBackUtxoBackup(blockHeight: number): Promise<void> {
     this.logger.info(`rollBackUtxoBackup to block ${blockHeight}`)
     await this.deleteInvalidUtxos(blockHeight)
     const conn = this.getConn()
@@ -169,8 +175,7 @@ class DB implements Database {
           .field('amount')
           .field('block_num'))
       .toString()
-    const dbRes = await conn.query(sql)
-    return dbRes
+    await conn.query(sql)
   }
 
   async rollBackBlockHistory(blockHeight: number) {
@@ -345,7 +350,7 @@ class DB implements Database {
     }
   }
 
-  async storeTx(tx: ShelleyTxType,
+  async storeTx(tx: TxType,
     txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
     const wasm = global.jschainlibs
 
@@ -368,8 +373,7 @@ class DB implements Database {
       }
       const groupAddress = address.to_group_address()
       address.free()
-      if (groupAddress)
-      {
+      if (groupAddress) {
         const spendingKey = groupAddress.get_spending_key()
         const accountKey = groupAddress.get_account_key()
         const discrim = address.get_discrimination()
@@ -385,13 +389,11 @@ class DB implements Database {
         spendingKey.free()
         accountKey.free()
         groupAddress.free()
-        //throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
+        // throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
         return metadata
       }
-      else
-      {
-        return null;
-      }
+
+      return null
     }).filter(Boolean)
     // TODO: store groupAddressMetadata in DB here
     this.logger.debug(`\n\n\n*** Group TX Metadata: ${JSON.stringify(groupAddressMetadata)}\n\n`)
@@ -445,8 +447,8 @@ class DB implements Database {
   async queryPendingSet() {
     const query = Q.sql.select().from(SNAPSHOTS_TABLE)
       .field('tx_hash')
-      .where('block_height = ?', Q.sql.select().from(SNAPSHOTS_TABLE)
-        .field('MAX(block_height)'))
+      .where('block_num = ?', Q.sql.select().from(SNAPSHOTS_TABLE)
+        .field('MAX(block_num)'))
       .where('status = ?', TX_STATUS.TX_PENDING_STATUS)
       .union(Q.sql.select().from('txs')
         .field('hash')
@@ -494,7 +496,7 @@ class DB implements Database {
     const dbFields = snapshot.map(txHash => ({
       tx_hash: txHash,
       block_hash: block.getHash(),
-      block_height: block.getHeight(),
+      block_num: block.getHeight(),
       status: TX_STATUS.TX_PENDING_STATUS,
     }))
     const sql = Q.sql.insert().into(SNAPSHOTS_TABLE)
@@ -528,7 +530,7 @@ class DB implements Database {
     const dbFields = failedSet.map(txHash => ({
       tx_hash: txHash,
       block_hash: block.getHash(),
-      block_height: block.getHeight(),
+      block_num: block.getHeight(),
       status: TX_STATUS.TX_FAILED_STATUS,
     }))
     const sql = Q.sql.insert().into(SNAPSHOTS_TABLE)
@@ -555,6 +557,46 @@ class DB implements Database {
     await this.storeNewFailedSnapshot(block, invalidTxs)
   }
 
+  async collectTxsData(block: Block): Promise<BlockTxsDataType> {
+    const txs = block.getTxs()
+    const newUtxos = utils.getTxsUtxos(txs)
+    const blockUtxos = []
+    const requiredInputs = []
+    const requiredUtxoIds = []
+    for (const tx of txs) {
+      requiredInputs.push(...tx.inputs.filter(inp => {
+        if (inp.type === 'utxo') {
+          const utxoId = utils.getUtxoId(inp)
+          const localUtxo = newUtxos[utxoId]
+          if (localUtxo) {
+            blockUtxos.push({
+              id: localUtxo.utxo_id,
+              address: localUtxo.receiver,
+              amount: localUtxo.amount,
+              txHash: localUtxo.tx_hash,
+              index: localUtxo.tx_index,
+            })
+            // Delete new Utxo if it's already spent in the same block
+            delete newUtxos[utxoId]
+            // Remove this input from required
+            return false
+          }
+          requiredUtxoIds.push(utxoId)
+          return true
+        }
+        return false
+      }))
+    }
+    this.logger.debug('storeBlockTxs.requiredUtxo', requiredUtxoIds)
+    const availableUtxos = await this.getUtxos(requiredUtxoIds)
+    const allUtxoMap = _.keyBy([...availableUtxos, ...blockUtxos], 'id')
+    return {
+      allUtxoMap,
+      newUtxos,
+      requiredUtxoIds,
+    }
+  }
+
 
   async storeBlockTxs(block: Block) {
     // TODO: Do we need to serialize more in shelley?
@@ -562,70 +604,24 @@ class DB implements Database {
     const epoch = block.getEpoch()
     const slot = block.getSlot()
     const txs = block.getTxs()
+    const {
+      allUtxoMap,
+      newUtxos,
+      requiredUtxoIds,
+    } = await this.collectTxsData(block)
     this.logger.debug(`storeBlockTxs (${epoch}/${String(slot)}, ${hash}, ${block.getHeight()})`)
-    const newUtxos = utils.getTxsUtxos(txs)
-    const blockUtxos = []
-    // TODO: these are some changes I made quickly to see if I could protoype account spending
-    // and the code is not exactly of the best quality.
-    // indexed by tx index in block
-    const accountInputs: Map<number, Array<AccountType>> = new Map()
-    const withdrawls: Map<string, Number> = new Map()
-    const requiredInputs = _.flatMap(txs, (tx) => tx.inputs).filter((inp, txOrdinal) => {
-      if (inp.type === 'utxo') {
-        const utxoId = utils.getUtxoId(inp)
-        const localUtxo = newUtxos[utxoId]
-        if (localUtxo) {
-          blockUtxos.push({
-            id: localUtxo.utxo_id,
-            address: localUtxo.receiver,
-            amount: localUtxo.amount,
-            txHash: localUtxo.tx_hash,
-            index: localUtxo.tx_index,
-          })
-          // Delete new Utxo if it's already spent in the same block
-          delete newUtxos[utxoId]
-          // Remove this input from required
-          return false
-        }
-        return true
-      }
-      if (inp.type === 'account') {
-        if (typeof accountInputs.get(txOrdinal) === 'undefined') {
-          accountInputs.set(txOrdinal, [])
-        }
-        accountInputs.get(txOrdinal).push(inp)
-        withdrawls.set(inp.account_id, (withdrawls.get(inp.account_id) || 0) + inp.value)
-        return false
-      }
-      return false
-    })
-    const requiredUtxoIds = requiredInputs.map(utils.getUtxoId)
-    this.logger.debug('storeBlockTxs.requiredUtxo', requiredUtxoIds)
-    const availableUtxos = await this.getUtxos(requiredUtxoIds)
-    const allUtxoMap = _.keyBy([...availableUtxos, ...blockUtxos], 'id')
     /* eslint-disable no-plusplus */
-    for (let index = 0; index < txs.length; index++) {
-      /* eslint-disable no-await-in-loop */
-      const tx = txs[index]
-      const utxos = tx.inputs.filter(inp => inp.type === 'utxo').map(input => allUtxoMap[utils.getUtxoId(input)]).filter(x => x)
-      if (utxos.length + (accountInputs.get(index)
-        ? accountInputs.get(index).length : 0) !== tx.inputs.length) {
-        throw new Error(
-          `Failed to query input utxos for tx ${
-            tx.id} for inputs: ${JSON.stringify(tx.inputs)}
-            all utxos: ${JSON.stringify(allUtxoMap)}`,
-        )
-      }
+    for (const tx of txs) {
+      const utxos = tx.inputs
+        .filter(inp => inp.type === 'utxo')
+        .map(input => allUtxoMap[utils.getUtxoId(input)])
+        .filter(x => x)
       this.logger.debug('storeBlockTxs.storeTx', tx.id)
       await this.storeTx(tx, utxos)
     }
     await this.storeUtxos(Object.values(newUtxos))
     if (requiredUtxoIds.length > 0) {
       await this.backupAndRemoveUtxos(requiredUtxoIds, block.getHeight())
-    }
-    // idea is to update the SQL account balance table here
-    if (withdrawls.size > 0) {
-      this.logger.info(`\n\n\n\n\n\nACCOUNT WITHDRAWLS: ${JSON.stringify(withdrawls)}\n\n\n\n`)
     }
   }
 }
