@@ -13,7 +13,7 @@ import Q from './db-queries'
 
 const SNAPSHOTS_TABLE = 'transient_snapshots'
 
-type TxDbDataType = {
+export type TxDbDataType = {
   txDbFields: {
     block_num: ?number,
     block_hash: ?string,
@@ -344,57 +344,20 @@ class DB implements Database {
       txDbFields, inputAddresses, outputAddresses,
     }
   }
-
-  async storeTx(tx: ShelleyTxType,
-    txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
-    const wasm = global.jschainlibs
-
+  
+  async storeTxImpl(tx: ShelleyTxType,
+    txUtxos: Array<mixed>,
+    upsert: boolean,
+    metadataCreator: ?(TxDbDataType) => any): Promise<void> {
+    const txDbData = await this.getTxDBData(tx, txUtxos)
     const {
       txDbFields, inputAddresses, outputAddresses,
-    } = await this.getTxDBData(tx, txUtxos)
-    const groupAddresses = _.uniq([...inputAddresses, ...outputAddresses])
-    const groupAddressMetadata = groupAddresses.map(addressString => {
-      // TODO: replace bech addresses with hex encoded bytes
-      let address
-      try {
-        address = wasm.Address.from_bytes(Buffer.from(addressString, 'hex'))
-      } catch (e) {
-        const prefix = addressString.substring(0, 3)
-        // TODO: find a better way to distinguish legacy funds?
-        if (prefix != 'Ddz' && prefix != 'Ae2') {
-          throw new Error(`Group Metadata could not parse address: ${addressString}`)
-        }
-        return null
-      }
-      const groupAddress = address.to_group_address()
-      address.free()
-      if (groupAddress)
-      {
-        const spendingKey = groupAddress.get_spending_key()
-        const accountKey = groupAddress.get_account_key()
-        const discrim = address.get_discrimination()
-        const singleAddress = wasm.Address.single_from_public_key(spendingKey, discrim)
-        const accountAddress = wasm.Address.account_from_public_key(spendingKey, discrim)
-        const metadata = {
-          groupAddress: addressString,
-          utxoAddress: Buffer.from(singleAddress.as_bytes()).toString('hex'),
-          accountAddress: Buffer.from(accountAddress.as_bytes()).toString('hex'),
-        }
-        singleAddress.free()
-        accountAddress.free()
-        spendingKey.free()
-        accountKey.free()
-        groupAddress.free()
-        //throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
-        return metadata
-      }
-      else
-      {
-        return null;
-      }
-    }).filter(Boolean)
-    // TODO: store groupAddressMetadata in DB here
-    this.logger.debug(`\n\n\n*** Group TX Metadata: ${JSON.stringify(groupAddressMetadata)}\n\n`)
+    } = txDbData
+    const metadata = metadataCreator ? metadataCreator(txDbData) : undefined
+    if (metadata) {
+      this.logger.debug(`\n\n\n*** Group TX Metadata: ${JSON.stringify(metadata)}\n\n`)
+    }
+    // TODO: store metadata
     const onConflictArgs = []
     if (upsert) {
       const now = new Date().toUTCString()
@@ -417,6 +380,11 @@ class DB implements Database {
       tx.id,
       [...new Set([...inputAddresses, ...outputAddresses])],
     )
+  }
+
+  async storeTx(tx: ShelleyTxType,
+    txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
+    await this.storeTxImpl(tx, txUtxos, upsert, undefined)
   }
 
   async isTxExists(txId: string): Promise<boolean> {
