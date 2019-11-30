@@ -1,4 +1,5 @@
 [ignore]
+.*/js-chain-libs/.*
 
 [include]
 

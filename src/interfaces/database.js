@@ -1,10 +1,13 @@
 // @flow
-import type { Block } from '../blockchain/common'
+
+import type { Block, TxInputType } from '../blockchain/common'
+import type { ShelleyTxType } from '../blockchain/shelley/tx'
 
 export interface Database {
   getBestBlockNum(): any;
   storeUtxos(utxos: Array<mixed>): Promise<any>;
   storeBlockTxs(block: any): Promise<void>;
+  storeTx(tx: ShelleyTxType, txUtxos?:Array<mixed>, upsert?:boolean): Promise<void>;
   genesisLoaded(): Promise<boolean>;
   updateBestBlockNum(height: number): Promise<void>;
   getConn(): any;
@@ -16,6 +19,7 @@ export interface Database {
   rollbackTransientSnapshots(blockHeight: number): Promise<void>;
   rollBackUtxoBackup(blockHeight: number): Promise<void>;
   rollBackBlockHistory(blockHeight: number): Promise<void>;
+  txsForInputsExists(inputs: Array<TxInputType>): Promise<boolean>;
 }
 
 export interface DBConnection {

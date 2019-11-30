@@ -1,11 +1,13 @@
 // @flow
 
+import type { TxType } from '../../blockchain/common'
+
 import UtxoData from './utxo-data'
 
 const INPUT_TYPE = 'input'
 
 class InputData extends UtxoData {
-  constructor(input, index, inputUtxo, tx) {
+  constructor(input, index: number, inputUtxo, tx: TxType) {
     super({
       tx_hash: tx.id,
       tx_index: index,

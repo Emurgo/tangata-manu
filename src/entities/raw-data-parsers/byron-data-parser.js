@@ -1,6 +1,7 @@
 // @flow
 
 import { helpers } from 'inversify-vanillajs-helpers'
+import type { Logger } from 'bunyan'
 
 import cbor from 'cbor'
 
@@ -11,8 +12,8 @@ import { Block } from '../../blockchain/common'
 import { ByronBlock, ByronEpoch, byronUtils } from '../../blockchain/byron'
 import type { NetworkConfig } from '../../interfaces'
 
-class CustomDataParser implements RawDataParser {
-  #logger: any
+class ByronDataParser implements RawDataParser {
+  logger: Logger
 
   networkStartTime: number
 
@@ -20,7 +21,7 @@ class CustomDataParser implements RawDataParser {
     logger: any,
     networkConfig: NetworkConfig,
   ) {
-    this.#logger = logger
+    this.logger = logger
     this.networkStartTime = networkConfig.startTime()
   }
 
@@ -39,15 +40,16 @@ class CustomDataParser implements RawDataParser {
     txOrdinal: ?number,
     txTime: Date,
   }): TxType {
+    this.logger.debug('ByronDataParser.parse')
     const txCbor = cbor.decode(data)
     const txObj = byronUtils.rawTxToObj(txCbor, extraData)
     return txObj
   }
 }
 
-helpers.annotate(CustomDataParser, [
+helpers.annotate(ByronDataParser, [
   SERVICE_IDENTIFIER.LOGGER,
   SERVICE_IDENTIFIER.NETWORK_CONFIG,
 ])
 
-export default CustomDataParser
+export default ByronDataParser

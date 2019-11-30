@@ -1,9 +1,5 @@
 {
   "appName": "yoroi-importer",
-  "cardanoBridge": {
-    "baseUrl": "http://localhost:8082",
-    "template": "testnet2"
-  },
   "elastic": {
     "node": "http://localhost:9200",
     "indexPrefix": "seiza"
@@ -38,7 +34,13 @@
     },
     "mainnet": {
       "genesis": "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb",
-      "startTime": 1506203091
+      "startTime": 1506203091,
+      "protocol": "byron"
+    },
+    "jormun-testnet": {
+      "genesis": "27668e95121566df0bb2e2c11c5fd95dfe59efd570f8f592235ecff167ca3f29",
+      "startTime": 0,
+      "protocol": "shelley"
     }
   }
 }

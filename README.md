@@ -33,7 +33,10 @@ They are loaded using [config](https://www.npmjs.com/package/config) package.
 
 We recommend using [Docker](https://hub.docker.com/_/postgres/) to quickly setup the DB in dev environment:
 
-`docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres`
+```
+docker pull postgres:11.2;
+docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres;
+```
 
 And then, to create the db, you need to do:
 

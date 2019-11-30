@@ -2,8 +2,6 @@
 
 import type { Logger } from 'bunyan'
 
-import _ from 'lodash'
-
 import { Request, Response } from 'restify'
 import { Controller, Post } from 'inversify-restify-utils'
 import { Controller as IController } from 'inversify-restify-utils/lib/interfaces'

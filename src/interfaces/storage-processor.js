@@ -6,7 +6,7 @@ export type BlockInfoType = {
   height: number,
   epoch: number,
   slot?: number,
-  hash?: string,
+  hash: ?string,
 }
 
 export type GenesisLeaderType = {
