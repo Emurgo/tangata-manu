@@ -6,7 +6,8 @@ const getUtxoId = (input: TxInputType) => {
   switch (input.type) {
     case 'utxo':
       return `${input.txId}${input.idx}`
-    // TODO: implement for accounts
+    case 'account':
+      return `account:${input.account_id}${input.value}`
     default:
       throw Error(`getUtxoId(): unsupported TxInputType ${input.type}`)
   }

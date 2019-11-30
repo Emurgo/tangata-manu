@@ -3,7 +3,7 @@
 import cbor from 'cbor'
 
 import byronUtils from './utils'
-import type { EpochId, SlotId, TxType } from '../common'
+import type { EpochIdType, SlotIdType, TxType } from '../common'
 import { Block } from '../common'
 
 
@@ -80,11 +80,11 @@ export default class ByronBlock implements Block {
     return this.prevHash
   }
 
-  getEpoch(): EpochId {
+  getEpoch(): EpochIdType {
     return this.epoch
   }
 
-  getSlot(): ?SlotId {
+  getSlot(): ?SlotIdType {
     return this.slot
   }
 

@@ -22,6 +22,8 @@ export type AccountInput = {
 export type TxInputType = UtxoInput | AccountInput
 
 export type TxOutputType = {
+  // derived from address, here for convenience
+  type: 'account' | 'utxo',
   address: string,
   value: number,
 }

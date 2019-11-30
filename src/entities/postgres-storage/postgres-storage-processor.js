@@ -5,9 +5,9 @@ import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import type { StorageProcessor, Database } from '../../interfaces'
-import type { BlockInfoType } from '../../interfaces/storage-processor'
+import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
-import type { Block, TxType } from '../../blockchain/common'
+import type { Block, TxType, TxInputType } from '../../blockchain/common'
 
 class PostgresStorageProcessor implements StorageProcessor {
   logger: Logger
@@ -38,11 +38,7 @@ class PostgresStorageProcessor implements StorageProcessor {
 
   async rollbackTo(height: number) {
     return this.doInTransaction(async () => {
-      await this.db.rollBackTransactions(height)
-      await this.db.rollbackTransientSnapshots(height)
-      await this.db.rollBackUtxoBackup(height)
-      await this.db.rollBackBlockHistory(height)
-      await this.db.updateBestBlockNum(height)
+      await this.db.rollbackTo(height)
     })
   }
 
@@ -62,7 +58,7 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.utxosForInputsExists(inputs)
   }
 
-  async txsForInputsExists(inputs) {
+  async txsForInputsExists(inputs: Array<TxInputType>): Promise<boolean> {
     return this.db.txsForInputsExists(inputs)
   }
 
@@ -82,8 +78,8 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.genesisLoaded()
   }
 
-  async storeGenesisLeaders(leaders: Array<mixed>) {
-    // ignored
+  async storeGenesisLeaders(leaders: Array<GenesisLeaderType>) {
+    this.logger.debug('storeGenesisLeaders: ignored.', leaders)
   }
 
   async storeGenesisUtxos(utxos: Array<mixed>) {
@@ -94,12 +90,8 @@ class PostgresStorageProcessor implements StorageProcessor {
     return this.db.storeUtxos(utxos)
   }
 
-  async storeBlockTxs(block: Block) {
-    return this.db.storeBlockTxs(block)
-  }
-
   async storeTx(tx: TxType) {
-    return this.db.storeTx(tx)
+    await this.db.storeTx(tx)
   }
 
   async getOutputsForTxHashes(txHashes: Array<string>) {
