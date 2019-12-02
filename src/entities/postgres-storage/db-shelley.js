@@ -74,7 +74,7 @@ class DBShelley extends DB {
           const accountKey = groupAddress.get_account_key()
           const discrim = address.get_discrimination()
           const singleAddress = wasm.Address.single_from_public_key(spendingKey, discrim)
-          const accountAddress = wasm.Address.account_from_public_key(spendingKey, discrim)
+          const accountAddress = wasm.Address.account_from_public_key(accountKey, discrim)
           const metadata = {
             groupAddress: addressString,
             utxoAddress: Buffer.from(singleAddress.as_bytes()).toString('hex'),
