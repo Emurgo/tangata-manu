@@ -4,7 +4,7 @@
     "node": "http://localhost:9200",
     "indexPrefix": "seiza"
   },
-  "storageProcessor": "seiza-elastic",
+  "storageProcessor": "yoroi-postgres",
   "server": {
     "port": 8080,
     "logLevel": "debug",
@@ -20,7 +20,7 @@
   "checkTipSeconds": 15,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
-  "defaultNetwork": "testnet2",
+  "defaultNetwork": "jormun-testnet",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {
     "testnet2": {
@@ -38,7 +38,7 @@
       "protocol": "byron"
     },
     "jormun-testnet": {
-      "genesis": "27668e95121566df0bb2e2c11c5fd95dfe59efd570f8f592235ecff167ca3f29",
+      "genesis": "058f7f562543f3987f0064d72091a464890a225b07a9edea248a9bfb99ea255c",
       "startTime": 0,
       "protocol": "shelley"
     }
