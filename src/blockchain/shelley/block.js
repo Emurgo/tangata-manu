@@ -115,6 +115,8 @@ export default class ShelleyBlock implements Block {
         txOrdinal: index,
         blockNum: chainLength,
         blockHash,
+        epoch: epochId,
+        slot: slotId,
       }
       const fragment = fragments.get(index)
       if (fragment.is_transaction()) console.log(`#${index} = TRANSACTION`)

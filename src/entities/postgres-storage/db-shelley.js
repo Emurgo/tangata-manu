@@ -3,7 +3,11 @@
 import _ from 'lodash'
 
 import { CERT_TYPE } from '../../blockchain/shelley/certificate'
-import type { ShelleyTxType as TxType } from '../../blockchain/shelley/tx'
+import type {
+  ShelleyTxType as TxType,
+} from '../../blockchain/shelley/tx'
+
+import type { AccountInputType, Block } from '../../blockchain/common'
 import type { Database } from '../../interfaces'
 
 import DB from './database'
@@ -12,6 +16,7 @@ import Q from './db-queries'
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
 const ACCOUNTS_TBL = 'accounts'
+const ACCOUNT_INP_TYPE = 'account'
 
 const ACCOUNT_OP_TYPE = {
   REGULAR_TX: 0,
@@ -53,41 +58,96 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     await this.getConn().query(sql)
   }
 
+  async getAccountDbData(accountInputs: Array<AccountInputType>): Promise<{
+  }> {
+    const accountIds = _.map(accountInputs, 'account_id')
+    const query = Q.sql.select()
+      .from(Q.sql.select()
+        .from(ACCOUNTS_TBL)
+        .where('account in ?', accountIds)
+        .order('account')
+        .order('spending_counter', false)
+        .distinct('account'), 't')
+      .order('spending_counter', false)
+      .toString()
+    const dbRes = await this.getConn().query(query)
+    let result = {}
+    for (const row of dbRes.rows) {
+      result = {
+        ...result,
+        ...{
+          [row.account]: {
+            balance: parseInt(row.balance, 10),
+            counter: parseInt(row.spending_counter, 10),
+          },
+        },
+      }
+    }
+    return result
+  }
+
   async storeAccountsChanges(tx: TxType): Promise<void> {
-    const accountInputs = tx.inputs.filter(inp => inp.type === 'account')
-    const accountOutputs = tx.outputs.filter(out => out.type === 'account')
-    if (_.isEmpty([...accountInputs, ...accountOutputs])) {
+    const accountInputs = tx.inputs.filter(inp => inp.type === ACCOUNT_INP_TYPE)
+    const accountOutputs = tx.outputs.filter(out => out.type === ACCOUNT_INP_TYPE)
+    const allAccountIdsAndValues = [
+      ...accountInputs,
+      ...(accountOutputs).map(inp => ({
+        account_id: inp.address,
+        value: inp.value,
+      })),
+    ]
+    if (_.isEmpty(allAccountIdsAndValues)) {
       return
     }
 
-    const accountsBalance = new Map<string, number>()
-    accountInputs.forEach((account, counter) => {
+    const accountStoredData = await this.getAccountDbData(allAccountIdsAndValues)
+
+    const accountChanges = {}
+    accountInputs.forEach(account => {
       const { account_id, value } = account
-      const currentBalance = accountsBalance.get(account_id)
-      if (currentBalance !== undefined) {
-        accountsBalance.set(account_id, currentBalance - value)
+      const currentChange = accountChanges[account_id]
+      if (currentChange !== undefined) {
+        accountChanges[account_id] = {
+          value: currentChange - value,
+          counter: accountChanges[account_id] + 1,
+        }
       } else {
-        accountsBalance.set(account_id, 0 - value)
+        accountChanges[account_id] = { value: 0 - value, counter: 1 }
       }
     })
 
-    accountOutputs.forEach((account, counter) => {
+    accountOutputs.forEach(account => {
       const { address, value } = account
-      const currentBalance = accountsBalance.get(address)
-      if (currentBalance !== undefined) {
-        accountsBalance.set(address, currentBalance + value)
+      const currentChange = accountChanges[address]
+      if (currentChange !== undefined) {
+        accountChanges[address] = {
+          value: currentChange + value,
+          counter: accountChanges[address].counter,
+        }
       } else {
-        accountsBalance.set(address, value)
+        accountChanges[address] = { value, counter: 0 }
       }
     })
 
     const accountsData = []
-    for (const [account, balance] of accountsBalance) {
+    for (const [account, data] of _.toPairs(accountChanges)) {
+      let previousBalance = 0
+      let previousCounter = 0
+      if (accountStoredData[account] !== undefined) {
+        previousBalance = accountStoredData[account].balance
+        previousCounter = accountStoredData[account].counter
+      }
       accountsData.push({
-        account,
-        balance: Math.ceil(balance / 100000),
+        epoch: tx.epoch,
+        slot: tx.slot,
+        tx_ordinal: tx.txOrdinal,
+        block_num: tx.blockNum,
+        operation_id: tx.id,
         operation_type: ACCOUNT_OP_TYPE.REGULAR_TX,
-        operation_id: `${account}:${tx.id}`,
+        account,
+        value: data.value,
+        balance: previousBalance + data.value,
+        spending_counter: previousCounter + data.counter,
       })
     }
     const conn = this.getConn()
@@ -95,6 +155,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       .into(ACCOUNTS_TBL)
       .setFieldsRows(accountsData)
       .toString()
+    this.logger.debug('storeAccountsChanges', sql)
     await conn.query(sql)
   }
 

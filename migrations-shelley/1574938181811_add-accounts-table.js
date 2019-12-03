@@ -5,15 +5,16 @@ CREATE TABLE accounts  (
   epoch integer,
   slot integer,
   tx_ordinal integer,
-  block_num integer,
-  operation_id text UNIQUE,
+  block_num bigint,
+  operation_id text,
   operation_type integer,
   account text,
-  value integer,
-  balance integer,
+  value bigint,
+  balance bigint,
   spending_counter integer,
   PRIMARY KEY (operation_id, account)
 );
+CREATE INDEX ON accounts (operation_id);
 `
 
 exports.up = (pgm) => {

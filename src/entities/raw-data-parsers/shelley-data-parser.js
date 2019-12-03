@@ -33,6 +33,8 @@ class ShelleyDataParser implements RawDataParser {
   parseTx(data: Buffer, extraData: {
     blockHash: ?string,
     blockNum: ?number,
+    epoch: ?number,
+    slot: ?number,
     txOrdinal: ?number,
     txTime: Date,
   }): TxType {

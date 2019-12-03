@@ -7,19 +7,19 @@
   * features are added this will have to change.
 */
 
-export type UtxoInput = {
+export type UtxoInputType = {
   type: 'utxo',
   txId: string,
   idx: number,
 }
 
-export type AccountInput = {
+export type AccountInputType = {
   type: 'account',
   account_id: string,
   value: number,
 }
 
-export type TxInputType = UtxoInput | AccountInput
+export type TxInputType = UtxoInputType | AccountInputType
 
 export type TxOutputType = {
   // derived from address, here for convenience
