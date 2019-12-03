@@ -88,7 +88,7 @@ export default class ShelleyBlock implements Block {
     return this.slotLeader
   }
 
-  static parseBlock(blob: Buffer, networkStartTime: number): ShelleyBlock {
+  static parseBlock(blob: Buffer, networkStartTime: number, networkDiscrimination: number): ShelleyBlock {
     const wasm = global.jschainlibs
 
     const block = wasm.Block.from_bytes(blob)
@@ -125,7 +125,7 @@ export default class ShelleyBlock implements Block {
       if (fragment.is_pool_retirement()) console.log(`#${index} = POOL MANAGE`)
       if (fragment.is_transaction() || fragment.is_owner_stake_delegation()
         || fragment.is_pool_registration() || fragment.is_stake_delegation()) {
-        txs.push(shelleyUtils.fragmentToObj(fragment,
+        txs.push(shelleyUtils.fragmentToObj(fragment, networkDiscrimination,
           {
             ...txCommon,
             epoch: epochId,

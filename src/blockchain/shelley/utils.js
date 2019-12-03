@@ -3,7 +3,7 @@
 import { CERT_TYPE } from './certificate'
 import type { StakeDelegationType, PoolRegistrationType, PoolRetirementType } from './certificate'
 
-const fragmentToObj = (fragment: any, extraData: {} = {}) => {
+const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {} = {}) => {
   const wasm = global.jschainlibs
 
   // TODO: proper parsing - need to parse other tx types (certs) + parse witnesses
@@ -50,13 +50,15 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
       })
     } else {
       const account = input.get_account_identifier()
+      const addr = account.to_account_single().to_address(networkDiscrimination)
+      const accountAddrHex = Buffer.from(addr.as_bytes()).toString('hex')
       // TODO: Values are returned as strings under the rationale that js strings
       // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
       // than this (but bigger than a 32-bit int) this should be safe. We should try and
       // see if this can be changed in js-chain-libs and use that there instead.
       inputs_parsed.push({
         type: 'account',
-        account_id: account.to_hex(),
+        account_id: accountAddrHex,
         value: parseInt(input.value().to_str(), 10),
       })
     }
@@ -166,9 +168,9 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
   return ret
 }
 
-const rawTxToObj = (tx: Array<any>, extraData: {} = {}) => {
+const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {} = {}) => {
   const wasm = global.jschainlibs
-  return fragmentToObj(wasm.Fragment.from_bytes(tx), extraData)
+  return fragmentToObj(wasm.Fragment.from_bytes(tx), networkDiscrimination, extraData)
 }
 
 export default {

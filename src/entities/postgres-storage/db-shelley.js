@@ -62,16 +62,21 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
   async getAccountDbData(accountInputs: Array<AccountInputType>): Promise<{
   }> {
     const accountIds = _.map(accountInputs, 'account_id')
-    const query = Q.sql.select()
+    const sql = Q.sql.select()
       .from(Q.sql.select()
         .from(ACCOUNTS_TBL)
         .where('account in ?', accountIds)
         .order('account')
+        .order('block_num', false)
+        .order('tx_ordinal', false)
         .order('spending_counter', false)
         .distinct('account'), 't')
+      .order('block_num', false)
+      .order('tx_ordinal', false)
       .order('spending_counter', false)
       .toString()
-    const dbRes = await this.getConn().query(query)
+    this.logger.debug('getAccountDbData', sql)
+    const dbRes = await this.getConn().query(sql)
     let result = {}
     for (const row of dbRes.rows) {
       result = {
@@ -138,6 +143,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
         previousBalance = accountStoredData[account].balance
         previousCounter = accountStoredData[account].counter
       }
+      const balance = previousBalance + data.value
       accountsData.push({
         epoch: tx.epoch,
         slot: tx.slot,
@@ -147,7 +153,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
         operation_type: ACCOUNT_OP_TYPE.REGULAR_TX,
         account,
         value: data.value,
-        balance: previousBalance + data.value,
+        balance,
         spending_counter: previousCounter + data.counter,
       })
     }

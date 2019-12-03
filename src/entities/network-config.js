@@ -26,6 +26,8 @@ class NetworkConfigImp implements NetworkConfig {
 
   #networkProtocol: string
 
+  #networkDiscrimination: ?string
+
   constructor() {
     this.#networkName = process.env.importer_network || config.get('defaultNetwork')
     const network = utils.getNetworkConfig(this.#networkName)
@@ -34,6 +36,7 @@ class NetworkConfigImp implements NetworkConfig {
     this.#startTime = network.startTime
     this.#networkMagic = network.networkMagic
     this.#networkProtocol = network.protocol
+    this.#networkDiscrimination = network.networkDiscrimination
   }
 
   networkName = () => this.#networkName
@@ -47,6 +50,11 @@ class NetworkConfigImp implements NetworkConfig {
   networkMagic = () => this.#networkMagic
 
   networkProtocol = () => this.#networkProtocol || NETWORK_PROTOCOL.BYRON
+
+  networkDiscrimination = () => {
+    const addrDiscrimantion = global.jschainlibs.AddressDiscrimination
+    return this.#networkDiscrimination === 'test' ? addrDiscrimantion.Test : addrDiscrimantion.Production
+  }
 }
 
 helpers.annotate(NetworkConfigImp, [])

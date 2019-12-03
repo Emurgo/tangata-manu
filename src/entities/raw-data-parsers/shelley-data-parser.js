@@ -13,16 +13,20 @@ class ShelleyDataParser implements RawDataParser {
 
   networkStartTime: number
 
+  networkDiscrimination: number
+
   constructor(
     logger: any,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger
     this.networkStartTime = networkConfig.startTime()
+    this.networkDiscrimination = networkConfig.networkDiscrimination()
   }
 
   parseBlock(blob: Buffer) {
-    return ShelleyBlock.parseBlock(blob, this.networkStartTime)
+    return ShelleyBlock.parseBlock(blob,
+      this.networkStartTime, this.networkDiscrimination)
   }
 
   parseEpoch(data: Buffer, options:{} = {}) {
@@ -39,7 +43,7 @@ class ShelleyDataParser implements RawDataParser {
     txTime: Date,
   }): TxType {
     this.logger.debug('ShelleyDataParser.parseTx')
-    return shelleyUtils.rawTxToObj(data, extraData)
+    return shelleyUtils.rawTxToObj(data, this.networkDiscrimination, extraData)
   }
 }
 
