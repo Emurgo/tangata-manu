@@ -183,8 +183,9 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
           return null
         }
         const groupAddress = address.to_group_address()
-        address.free()
-        if (groupAddress) {
+        let result = null
+        if (groupAddress)
+        {
           const spendingKey = groupAddress.get_spending_key()
           const accountKey = groupAddress.get_account_key()
           const discrim = address.get_discrimination()
@@ -200,13 +201,10 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
           spendingKey.free()
           accountKey.free()
           groupAddress.free()
-          //throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
-          return metadata
+          result = metadata
         }
-        else
-        {
-          return null;
-        }
+        address.free()
+        return result
       }).filter(Boolean)
     })
     await this.storeAccountsChanges(tx)
