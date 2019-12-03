@@ -122,8 +122,9 @@ class JormungandrApi implements RawDataProvider {
     this.logger.debug(`getNextBlockId(${id})`)
     const resp = await this.get(`block/${id}/next_id`)
     const { data } = resp
-    this.logger.debug(` = ${data}`)
-    return data
+    const hex = data.toString('hex')
+    this.logger.debug(` = ${hex}`)
+    return hex
   }
 
   async getGenesis(hash: string): Promise<Object> {

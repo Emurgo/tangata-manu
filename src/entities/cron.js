@@ -208,8 +208,7 @@ class CronScheduler implements Scheduler {
         if (lastBlockHash === null) {
           nextBlockId = this.#genesisHash
         } else {
-          const nextBlockIdRaw = await this.#dataProvider.getNextBlockId(lastBlockHash)
-          nextBlockId = nextBlockIdRaw.toString('hex')
+          nextBlockId = await this.#dataProvider.getNextBlockId(lastBlockHash)
         }
         this.logger.debug(`nextBlockId: ${nextBlockId}`)
         status = await this.processBlockById(nextBlockId)
@@ -225,7 +224,7 @@ class CronScheduler implements Scheduler {
 
   async processBlockById(id: string) {
     const blockRaw = await this.#dataProvider.getBlock(id)
-    this.logger.debug('blockRaw aquired.')
+    this.logger.debug('blockRaw acquired.')
     const block = await this.#dataProvider.parseBlock(blockRaw)
     this.logger.debug(`block parsed: ${JSON.stringify(block)}`)
     const status = await this.processBlock(block, true)

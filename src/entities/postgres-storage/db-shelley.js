@@ -67,7 +67,7 @@ class DBShelley extends DB {
           return null
         }
         const groupAddress = address.to_group_address()
-        address.free()
+        let result = null
         if (groupAddress)
         {
           const spendingKey = groupAddress.get_spending_key()
@@ -85,13 +85,10 @@ class DBShelley extends DB {
           spendingKey.free()
           accountKey.free()
           groupAddress.free()
-          //throw new Error(`finally found group address: ${JSON.stringify(metadata)}`)
-          return metadata
+          result = metadata
         }
-        else
-        {
-          return null;
-        }
+        address.free()
+        return result
       }).filter(Boolean)
     })
     if (certificate
