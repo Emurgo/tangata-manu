@@ -13,7 +13,7 @@ import Q from './db-queries'
 
 const SNAPSHOTS_TABLE = 'transient_snapshots'
 
-type TxDbDataType = {
+export type TxDbDataType = {
   txDbFields: {
     block_num: ?number,
     block_hash: ?string,
@@ -344,12 +344,20 @@ class DB implements Database {
       txDbFields, inputAddresses, outputAddresses,
     }
   }
-
-  async storeTx(tx: ShelleyTxType,
-    txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
+  
+  async storeTxImpl(tx: ShelleyTxType,
+    txUtxos: Array<mixed>,
+    upsert: boolean,
+    metadataCreator: ?(TxDbDataType) => any): Promise<void> {
+    const txDbData = await this.getTxDBData(tx, txUtxos)
     const {
       txDbFields, inputAddresses, outputAddresses,
-    } = await this.getTxDBData(tx, txUtxos)
+    } = txDbData
+    const metadata = metadataCreator ? metadataCreator(txDbData) : undefined
+    if (metadata) {
+      this.logger.debug(`\n\n\n*** Group TX Metadata: ${JSON.stringify(metadata)}\n\n`)
+    }
+    // TODO: store metadata
     const onConflictArgs = []
     if (upsert) {
       const now = new Date().toUTCString()
@@ -372,6 +380,11 @@ class DB implements Database {
       tx.id,
       [...new Set([...inputAddresses, ...outputAddresses])],
     )
+  }
+
+  async storeTx(tx: ShelleyTxType,
+    txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
+    await this.storeTxImpl(tx, txUtxos, upsert, undefined)
   }
 
   async isTxExists(txId: string): Promise<boolean> {

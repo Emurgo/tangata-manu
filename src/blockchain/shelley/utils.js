@@ -42,11 +42,12 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
     const input = inputs.get(input_index)
     console.log(`tx input type: ${input.get_type()}`)
     if (input.is_utxo()) {
-      /*
       const utxo = input.get_utxo_pointer()
-      const txId = Buffer.from(utxo.fragment_id().as_bytes()).toString('hex')
-      inputs_parsed.push(TxInputType.fromUtxo(txId, utxo.output_index()))
-      */
+      inputs_parsed.push({
+        type: 'utxo',
+        txId: Buffer.from(utxo.fragment_id().as_bytes()).toString('hex'),
+        idx: utxo.output_index(),
+      })
     } else {
       const account = input.get_account_identifier()
       // TODO: Values are returned as strings under the rationale that js strings
@@ -80,8 +81,7 @@ const fragmentToObj = (fragment: any, extraData: {} = {}) => {
     }
     outputs_parsed.push({
       type: outputType,
-      // TODO: what bech prefix do we put here?
-      address: output.address().to_string('tc'),
+      address: Buffer.from(output.address().as_bytes()).toString('hex'),
       // See comment for input values
       value: parseInt(output.value().to_str(), 10),
     })
