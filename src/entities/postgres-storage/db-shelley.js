@@ -108,8 +108,8 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       const currentChange = accountChanges[account_id]
       if (currentChange !== undefined) {
         accountChanges[account_id] = {
-          value: currentChange - value,
-          counter: accountChanges[account_id] + 1,
+          value: currentChange.value - value,
+          counter: currentChange.counter + 1,
         }
       } else {
         accountChanges[account_id] = { value: 0 - value, counter: 1 }
@@ -121,8 +121,8 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       const currentChange = accountChanges[address]
       if (currentChange !== undefined) {
         accountChanges[address] = {
-          value: currentChange + value,
-          counter: accountChanges[address].counter,
+          value: currentChange.value + value,
+          counter: currentChange.counter,
         }
       } else {
         accountChanges[address] = { value, counter: 0 }
