@@ -1,4 +1,6 @@
 // @flow
+/* eslint-disable no-param-reassign */
+
 import _ from 'lodash'
 
 import BigNumber from 'bignumber.js'

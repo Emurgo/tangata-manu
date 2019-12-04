@@ -88,7 +88,8 @@ export default class ShelleyBlock implements Block {
     return this.slotLeader
   }
 
-  static parseBlock(blob: Buffer, networkStartTime: number, networkDiscrimination: number): ShelleyBlock {
+  static parseBlock(blob: Buffer,
+    networkStartTime: number, networkDiscrimination: number): ShelleyBlock {
     const wasm = global.jschainlibs
 
     const block = wasm.Block.from_bytes(blob)

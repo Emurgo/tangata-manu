@@ -7,7 +7,7 @@ import type {
   ShelleyTxType as TxType,
 } from '../../blockchain/shelley/tx'
 
-import type { AccountInputType, Block } from '../../blockchain/common'
+import type { AccountInputType } from '../../blockchain/common'
 import type { Database } from '../../interfaces'
 
 import DB from './database'
@@ -171,7 +171,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       .setFieldsRows(groupAddresses.map(addr => ({
         group_address: addr.groupAddress,
         utxo_address: addr.utxoAddress,
-        account_address: addr.account_address,
+        account_address: addr.accountAddress,
       })))
       .onConflict()
       .toString()
