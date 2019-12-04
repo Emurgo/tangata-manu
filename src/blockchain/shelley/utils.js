@@ -137,7 +137,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
         break
       case wasm.CertificateType.OwnerStakeDelegation: {
-        if (inputs_parsed.length != 1 || inputs_parsed[0].type != 'account') {
+        if (inputs_parsed.length !== 1 || inputs_parsed[0].type !== 'account') {
           throw new Error(`Malformed OwnerStakeDelegation. Expected 1 account input, found: ${JSON.stringify(inputs_parsed)}`)
         }
         const deleg = cert.get_owner_stake_delegation()

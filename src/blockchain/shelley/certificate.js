@@ -1,7 +1,7 @@
 // @flow
 
 // hex-encoded pool-id
-export type PoolId = string;
+export type PoolIdType = string;
 
 export const CERT_TYPE = {
   PoolRegistration: 'PoolRegistration',
@@ -12,14 +12,14 @@ export const CERT_TYPE = {
 
 export type PoolRegistrationType = {
   type: 'PoolRegistration',
-  pool_id: PoolId,
+  pool_id: PoolIdType,
   start_validity: number,
   owners: Array<string>,
 }
 
 export type PoolRetirementType = {
   type: 'PoolRetirement',
-  pool_id: PoolId,
+  pool_id: PoolIdType,
   // TODO: store time-offset? store slot it expires in?
   retirement_time: number,
 }
@@ -27,14 +27,18 @@ export type PoolRetirementType = {
 export type PoolUpdateType = {
   type: 'PoolUpdate',
   // do we need this in seiza?
-  pool_id: PoolId,
+  pool_id: PoolIdType,
 }
 
 export type StakeDelegationType = {
   type: 'StakeDelegation',
-  pool_id: ?PoolId,
+  pool_id: ?PoolIdType,
   account: string,
   isOwnerStake: boolean,
 }
 
-export type CertificateType = PoolRegistrationType | PoolRetirementType | PoolUpdateType | StakeDelegationType
+export type CertificateType =
+  PoolRegistrationType |
+  PoolRetirementType |
+  PoolUpdateType |
+  StakeDelegationType

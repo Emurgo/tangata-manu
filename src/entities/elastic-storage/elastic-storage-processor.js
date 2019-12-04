@@ -490,7 +490,9 @@ class ElasticStorageProcessor implements StorageProcessor {
     const hit = res.hits[0]
     this.logger.debug('Latest tx-tracking state hit: ', JSON.stringify(hit, null, 2))
     return {
-      supply_after_this_tx: hit ? parseCoinToBigInteger(hit._source.supply_after_this_tx) : new BigNumber(0),
+      supply_after_this_tx: hit
+        ? parseCoinToBigInteger(hit._source.supply_after_this_tx)
+        : new BigNumber(0),
     }
   }
 
