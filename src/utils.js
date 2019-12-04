@@ -8,6 +8,7 @@ type NetworkConfigType = {
   startTime: number,
   networkMagic: number,
   protocol: string,
+  networkDiscrimination?: string,
 }
 
 const getNetworkConfig = (networkName: string): NetworkConfigType => {

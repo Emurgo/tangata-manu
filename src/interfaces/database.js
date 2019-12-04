@@ -1,13 +1,12 @@
 // @flow
 
 import type { Block, TxInputType } from '../blockchain/common'
-import type { ShelleyTxType } from '../blockchain/shelley/tx'
 
-export interface Database {
+export interface Database<TxType> {
   getBestBlockNum(): any;
   storeUtxos(utxos: Array<mixed>): Promise<any>;
   storeBlockTxs(block: any): Promise<void>;
-  storeTx(tx: ShelleyTxType, txUtxos?:Array<mixed>, upsert?:boolean): Promise<void>;
+  storeTx(tx: TxType, txUtxos?:Array<mixed>, upsert?:boolean): Promise<void>;
   genesisLoaded(): Promise<boolean>;
   updateBestBlockNum(height: number): Promise<void>;
   getConn(): any;

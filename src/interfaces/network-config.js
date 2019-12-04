@@ -7,4 +7,5 @@ export interface NetworkConfig {
   networkUrl(): string;
   networkMagic(): number;
   networkProtocol(): string;
+  networkDiscrimination(): number;
 }
