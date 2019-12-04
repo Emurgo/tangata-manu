@@ -350,19 +350,14 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     }
   }
 
-  async storeTxImpl(tx: ShelleyTxType,
+  async storeTxImpl(
+    tx: ShelleyTxType,
     txUtxos: Array<mixed>,
     upsert: boolean,
-    metadataCreator: ?(TxDbDataType) => any): Promise<void> {
-    const txDbData = await this.getTxDBData(tx, txUtxos)
+    txDbData: TxDbDataType): Promise<void> {
     const {
       txDbFields, inputAddresses, outputAddresses,
     } = txDbData
-    const metadata = metadataCreator ? metadataCreator(txDbData) : undefined
-    if (metadata) {
-      this.logger.debug(`\n\n\n*** Group TX Metadata: ${JSON.stringify(metadata)}\n\n`)
-    }
-    // TODO: store metadata
     const onConflictArgs = []
     if (upsert) {
       const now = new Date().toUTCString()
@@ -389,7 +384,8 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 
   async storeTx(tx: ShelleyTxType,
     txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
-    await this.storeTxImpl(tx, txUtxos, upsert, undefined)
+    const txDbData = this.getTxDBData(tx, txUtxos)
+    await this.storeTxImpl(tx, txUtxos, upsert, txDbData)
   }
 
   async isTxExists(txId: string): Promise<boolean> {
