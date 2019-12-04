@@ -22,6 +22,13 @@ export type TxDbDataType = {
   outputAddresses:Array<string>,
 }
 
+export type TxInputsDbDataType = {
+  inputAddresses:Array<string>,
+  inputAmounts:Array<number>,
+  inputs:Array<any>,
+}
+
+
 type BlockTxsDataType = {
   allUtxoMap: any,
   newUtxos: any,
@@ -275,6 +282,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       id: row.utxo_id,
       index: row.tx_index,
       txHash: row.tx_hash,
+      type: 'utxo',
     }))
   }
 
@@ -299,18 +307,9 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 
-  async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxDbDataType> {
-    const {
-      inputs,
-      outputs,
-      id,
-      blockNum,
-      blockHash,
-    } = tx
+  async getTxInputsDbData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxInputsDbDataType> {
+    const { inputs } = tx
     let inputUtxos
-    this.logger.debug(`storeTx tx: ${JSON.stringify(tx)}`)
-    this.logger.debug('storeTx:', txUtxos)
-    const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
     if (_.isEmpty(txUtxos)) {
       const inputUtxoIds = inputs.map(utils.getUtxoId)
       inputUtxos = await this.getUtxos(inputUtxoIds)
@@ -318,9 +317,29 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       inputUtxos = txUtxos
     }
     const inputAddresses = _.map(inputUtxos, 'address')
+    const inputAmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
+    return {
+      inputs: inputUtxos,
+      inputAddresses,
+      inputAmounts,
+    }
+  }
+
+  async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxDbDataType> {
+    const {
+      outputs,
+      id,
+      blockNum,
+      blockHash,
+    } = tx
+    this.logger.debug(`storeTx tx: ${JSON.stringify(tx)}`)
+    this.logger.debug('storeTx:', txUtxos)
+    const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
+
+    const { inputAddresses, inputAmounts, inputs } = await this.getTxInputsDbData(tx, txUtxos)
+
     const outputAddresses = _.map(outputs, (out) => utils.fixLongAddress(out.address))
-    const inputAmmounts = _.map(inputUtxos, (item) => Number.parseInt(item.amount, 10))
-    const outputAmmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
+    const outputAmounts = _.map(outputs, (item) => Number.parseInt(item.value, 10))
     const txUTCTime = tx.txTime.toUTCString()
     const txDbFields = {
       hash: id,
@@ -331,17 +350,17 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       tx_ordinal: tx.txOrdinal,
       time: txUTCTime,
       last_update: txUTCTime,
-      ...(!_.isEmpty(inputUtxos)
+      ...(!_.isEmpty(inputAddresses)
         ? {
-          inputs: JSON.stringify(inputUtxos),
+          inputs: JSON.stringify(inputs),
           inputs_address: inputAddresses,
-          inputs_amount: inputAmmounts,
+          inputs_amount: inputAmounts,
         }
         : {}),
       ...(!_.isEmpty(outputAddresses)
         ? {
           outputs_address: outputAddresses,
-          outputs_amount: outputAmmounts,
+          outputs_amount: outputAmounts,
         }
         : {}),
     }
@@ -542,6 +561,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
               amount: localUtxo.amount,
               txHash: localUtxo.tx_hash,
               index: localUtxo.tx_index,
+              type: 'utxo',
             })
             // Delete new Utxo if it's already spent in the same block
             delete newUtxos[utxoId]

@@ -11,7 +11,7 @@ import type { AccountInputType } from '../../blockchain/common'
 import type { Database } from '../../interfaces'
 
 import DB from './database'
-import type { TxDbDataType } from './database'
+import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
 
 
@@ -221,6 +221,22 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       address.free()
       return result
     }).filter(Boolean)
+  }
+
+  async getTxInputsDbData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxInputsDbDataType> {
+    const { inputAddresses, inputAmounts, inputs } = await super.getTxInputsDbData(tx, txUtxos)
+    const accountInputs = tx.inputs.filter(i => i.type === ACCOUNT_INP_TYPE)
+    for (const accountInput of accountInputs) {
+      const { account_id, value } = accountInput
+      inputAddresses.push(account_id)
+      inputAmounts.push(value)
+      inputs.push({
+        type: ACCOUNT_INP_TYPE,
+        address: account_id,
+        amount: value,
+      })
+    }
+    return { inputAddresses, inputAmounts, inputs }
   }
 
   async storeTx(tx: TxType,
