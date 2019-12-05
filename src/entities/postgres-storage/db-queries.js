@@ -20,7 +20,7 @@ const BEST_BLOCK_UPDATE = sql.update().table('bestblock')
 
 const BLOCK_INSERT = sql.insert().into('blocks')
 
-const TX_INSERT = sql.insert().registerValueHandler(Array, psqlArrayValueHandler).into('txs')
+const newTxInsert = () => sql.insert().registerValueHandler(Array, psqlArrayValueHandler).into('txs')
 
 const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses').onConflict()
 
@@ -42,7 +42,7 @@ export default {
   GET_BEST_BLOCK_NUM,
   BEST_BLOCK_UPDATE,
   BLOCK_INSERT,
-  TX_INSERT,
+  newTxInsert,
   TX_ADDRESSES_INSERT,
   GET_UTXOS_BLOCKS_COUNT,
 }

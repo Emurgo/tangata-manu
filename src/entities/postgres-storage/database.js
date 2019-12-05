@@ -390,7 +390,8 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       })
     }
     const conn = this.getConn()
-    const sql = Q.TX_INSERT.setFields(txDbFields)
+    const sql = Q.newTxInsert()
+      .setFields(txDbFields)
       .onConflict(...onConflictArgs)
       .toString()
     this.logger.debug('Insert TX:', sql, inputAddresses)
