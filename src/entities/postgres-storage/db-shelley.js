@@ -240,7 +240,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
   }
 
   async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxDbDataType> {
-    const basicTxDbData = (await super.getTxDBData(tx, txUtxos))
+    const basicTxDbData = await super.getTxDBData(tx, txUtxos)
     const txDbData = { ...basicTxDbData }
     const { certificate } = tx
     if (certificate && certificate.payload) {
