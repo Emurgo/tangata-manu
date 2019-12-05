@@ -2,13 +2,19 @@
 
 import { CERT_TYPE } from './certificate'
 import type { StakeDelegationType, PoolRegistrationType, PoolRetirementType } from './certificate'
+import type { ShelleyTxType } from './tx'
 
-const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {} = {}) => {
+const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
 
-  // TODO: proper parsing - need to parse other tx types (certs) + parse witnesses
   const common = {
     id: Buffer.from(fragment.id().as_bytes()).toString('hex'),
+    txBody: Buffer.from(fragment.as_bytes()).toString('hex'),
+    blockNum: undefined,
+    blockHash: undefined,
+    status: undefined,
+    txOrdinal: undefined,
+    isGenesis: undefined,
     certificate: undefined,
   }
   if (fragment.is_initial()) {
@@ -174,7 +180,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   return ret
 }
 
-const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {} = {}) => {
+const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
   return fragmentToObj(wasm.Fragment.from_bytes(tx), networkDiscrimination, extraData)
 }
