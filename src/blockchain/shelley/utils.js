@@ -98,7 +98,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   if (cert) {
     const payload = Buffer.from(cert.as_bytes()).toString('hex')
     switch (cert.get_type()) {
-      case wasm.CertificateType.PoolRegistration: {
+      case wasm.CertificateKind.PoolRegistration: {
         const reg = cert.get_pool_registration()
         const pool_keys = reg.owners()
         const pool_owners = []
@@ -117,7 +117,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         common.certificate = parsedCert
         break
       }
-      case wasm.CertificateType.StakeDelegation: {
+      case wasm.CertificateKind.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         const parsedCert: StakeDelegationType = {
@@ -131,7 +131,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         common.certificate = parsedCert
         break
       }
-      case wasm.CertificateType.PoolRetirement: {
+      case wasm.CertificateKind.PoolRetirement: {
         const retire = cert.get_pool_retirement()
         const parsedCert: PoolRetirementType = {
           payload,
@@ -143,10 +143,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         common.certificate = parsedCert
         break
       }
-      case wasm.CertificateType.PoolUpdate:
+      case wasm.CertificateKind.PoolUpdate:
         console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
         break
-      case wasm.CertificateType.OwnerStakeDelegation: {
+      case wasm.CertificateKind.OwnerStakeDelegation: {
         if (inputs_parsed.length !== 1 || inputs_parsed[0].type !== 'account') {
           throw new Error(`Malformed OwnerStakeDelegation. Expected 1 account input, found: ${JSON.stringify(inputs_parsed)}`)
         }
