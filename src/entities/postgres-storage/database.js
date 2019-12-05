@@ -6,8 +6,8 @@ import _ from 'lodash'
 import type { DBConnection, Logger } from '../../interfaces'
 import type { BlockInfoType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import type { TxInputType, TxType as ByronTxType } from '../../blockchain/common'
 import { Block, TX_STATUS, utils } from '../../blockchain/common'
-import type { TxType as ByronTxType, TxInputType } from '../../blockchain/common'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 import Q from './db-queries'
 
@@ -57,14 +57,14 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       return
     }
     const conn = this.getConn()
-    const query = Q.UTXOS_INSERT.setFieldsRows(utxos).toString()
+    const query = Q.newUtxosInsert().setFieldsRows(utxos).toString()
     this.logger.debug('storeUtxos', utxos, query)
     await conn.query(query)
   }
 
   async getBestBlockNum(): Promise<BlockInfoType> {
     const conn = this.getConn()
-    const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM.toString())
+    const dbRes = await conn.query(Q.GET_BEST_BLOCK_NUM)
     if (dbRes.rowCount > 0) {
       const row = dbRes.rows[0]
       return {
@@ -109,7 +109,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   async updateBestBlockNum(bestBlockNum: number) {
     const conn = this.getConn()
     const dbRes = await conn.query(
-      Q.BEST_BLOCK_UPDATE.set('best_block_num', bestBlockNum).toString())
+      Q.newBestBlockUpdate().set('best_block_num', bestBlockNum).toString())
     return dbRes
   }
 
@@ -199,7 +199,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     const conn = this.getConn()
     const blocksData = _.map(blocks, (block) => block.serialize())
     try {
-      await conn.query(Q.BLOCK_INSERT.setFieldsRows(blocksData).toString())
+      await conn.query(Q.newBlockInsert().setFieldsRows(blocksData).toString())
     } catch (e) {
       this.logger.debug('Error occur on block', blocks)
       throw e
@@ -211,7 +211,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       tx_hash: txId,
       address: utils.fixLongAddress(address),
     }))
-    const sql = Q.TX_ADDRESSES_INSERT.setFieldsRows(dbFields).toString()
+    const sql = Q.newTxAddressesInsert().setFieldsRows(dbFields).toString()
     return sql
   }
 
@@ -302,8 +302,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     /* Check whether utxo and blocks tables are empty.
     */
     const conn = this.getConn()
-    const query = Q.GET_UTXOS_BLOCKS_COUNT
-    const dbRes = await conn.query(query.toString())
+    const dbRes = await conn.query(Q.GET_UTXOS_BLOCKS_COUNT)
     return !!Number.parseInt(dbRes.rows[0].cnt, 10)
   }
 

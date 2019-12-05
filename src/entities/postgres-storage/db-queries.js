@@ -14,15 +14,15 @@ const psqlArrayValueHandler = (array) => {
   return `ARRAY[${data}]`
 }
 
-const UTXOS_INSERT = sql.insert().into('utxos')
+const newUtxosInsert = () => sql.insert().into('utxos')
 
-const BEST_BLOCK_UPDATE = sql.update().table('bestblock')
+const newBestBlockUpdate = () => sql.update().table('bestblock')
 
-const BLOCK_INSERT = sql.insert().into('blocks')
+const newBlockInsert = () => sql.insert().into('blocks')
 
 const newTxInsert = () => sql.insert().registerValueHandler(Array, psqlArrayValueHandler).into('txs')
 
-const TX_ADDRESSES_INSERT = sql.insert().into('tx_addresses').onConflict()
+const newTxAddressesInsert = () => sql.insert().into('tx_addresses').onConflict()
 
 const GET_BEST_BLOCK_NUM = sql.select()
   .from('blocks')
@@ -32,17 +32,19 @@ const GET_BEST_BLOCK_NUM = sql.select()
   .field('slot')
   .order('block_height', false)
   .limit(1)
+  .toString()
 
 const GET_UTXOS_BLOCKS_COUNT = sql.select()
   .field('(select count(*) from utxos ) + ( select count(*) from blocks) as cnt')
+  .toString()
 
 export default {
   sql,
-  UTXOS_INSERT,
+  newUtxosInsert,
   GET_BEST_BLOCK_NUM,
-  BEST_BLOCK_UPDATE,
-  BLOCK_INSERT,
+  newBestBlockUpdate,
+  newBlockInsert,
   newTxInsert,
-  TX_ADDRESSES_INSERT,
+  newTxAddressesInsert,
   GET_UTXOS_BLOCKS_COUNT,
 }
