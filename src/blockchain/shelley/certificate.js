@@ -10,7 +10,13 @@ export const CERT_TYPE = {
   StakeDelegation: 'StakeDelegation',
 }
 
+type CertificateCommonType = {
+  // hex-encoded raw binary payload of the certificate
+  payload: string,
+}
+
 export type PoolRegistrationType = {
+  ...CertificateCommonType,
   type: 'PoolRegistration',
   pool_id: PoolIdType,
   start_validity: number,
@@ -18,6 +24,7 @@ export type PoolRegistrationType = {
 }
 
 export type PoolRetirementType = {
+  ...CertificateCommonType,
   type: 'PoolRetirement',
   pool_id: PoolIdType,
   // TODO: store time-offset? store slot it expires in?
@@ -25,12 +32,14 @@ export type PoolRetirementType = {
 }
 
 export type PoolUpdateType = {
+  ...CertificateCommonType,
   type: 'PoolUpdate',
   // do we need this in seiza?
   pool_id: PoolIdType,
 }
 
 export type StakeDelegationType = {
+  ...CertificateCommonType,
   type: 'StakeDelegation',
   pool_id: ?PoolIdType,
   account: string,

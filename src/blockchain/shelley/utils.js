@@ -90,6 +90,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   }
   const cert = tx.certificate !== undefined ? tx.certificate() : null
   if (cert) {
+    const payload = Buffer.from(cert.as_bytes()).toString('hex')
     switch (cert.get_type()) {
       case wasm.CertificateType.PoolRegistration: {
         const reg = cert.get_pool_registration()
@@ -100,9 +101,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           pool_owners.push(keyBytes.toString('hex'))
         }
         const parsedCert: PoolRegistrationType = {
+          payload,
           type: CERT_TYPE.PoolRegistration,
           pool_id: reg.id().to_string(),
-          // we should be able to do this considering js max int would be 28,5616,414 years
+          // we should be able to do this considering js max int would be 285,616,414 years
           start_validity: parseInt(reg.start_validity().to_string(), 10),
           owners: pool_owners,
         }
@@ -113,6 +115,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         const parsedCert: StakeDelegationType = {
+          payload,
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
@@ -125,6 +128,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
       case wasm.CertificateType.PoolRetirement: {
         const retire = cert.get_pool_retirement()
         const parsedCert: PoolRetirementType = {
+          payload,
           type: CERT_TYPE.PoolRetirement,
           pool_id: retire.pool_id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
@@ -143,6 +147,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const deleg = cert.get_owner_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         const parsedCert: StakeDelegationType = {
+          payload,
           type: CERT_TYPE.StakeDelegation,
           // TODO: possibly handle Ratio types
           pool_id: poolId != null ? poolId.to_string() : null,
@@ -156,6 +161,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         break
         // throw new Error(`parsing certificate type not implemented${cert.get_type()}`)
     }
+    cert.free()
   }
   const ret = {
     inputs: inputs_parsed,
