@@ -239,8 +239,21 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     return { inputAddresses, inputAmounts, inputs }
   }
 
+  async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxDbDataType> {
+    const basicTxDbData = (await super.getTxDBData(tx, txUtxos))
+    const txDbData = { ...basicTxDbData }
+    const { certificate } = tx
+    if (certificate && certificate.payload) {
+      txDbData.txDbFields = {
+        ...txDbData.txDbFields,
+        certificates: [certificate.payload],
+      }
+    }
+    return txDbData
+  }
+
   async storeTx(tx: TxType,
-    txUtxos:Array<mixed> = [], upsert: boolean = true): Promise<void> {
+    txUtxos: Array<mixed> = [], upsert: boolean = true): Promise<void> {
     const { certificate } = tx
     const txDbData = await this.getTxDBData(tx, txUtxos)
     await super.storeTxImpl(tx, txUtxos, upsert, txDbData)
