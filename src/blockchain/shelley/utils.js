@@ -2,13 +2,19 @@
 
 import { CERT_TYPE } from './certificate'
 import type { StakeDelegationType, PoolRegistrationType, PoolRetirementType } from './certificate'
+import type { ShelleyTxType } from './tx'
 
-const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {} = {}) => {
+const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
 
-  // TODO: proper parsing - need to parse other tx types (certs) + parse witnesses
   const common = {
     id: Buffer.from(fragment.id().as_bytes()).toString('hex'),
+    txBody: Buffer.from(fragment.as_bytes()).toString('hex'),
+    blockNum: undefined,
+    blockHash: undefined,
+    status: undefined,
+    txOrdinal: undefined,
+    isGenesis: undefined,
     certificate: undefined,
   }
   if (fragment.is_initial()) {
@@ -90,8 +96,9 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   }
   const cert = tx.certificate !== undefined ? tx.certificate() : null
   if (cert) {
+    const payload = Buffer.from(cert.as_bytes()).toString('hex')
     switch (cert.get_type()) {
-      case wasm.CertificateType.PoolRegistration: {
+      case wasm.CertificateKind.PoolRegistration: {
         const reg = cert.get_pool_registration()
         const pool_keys = reg.owners()
         const pool_owners = []
@@ -100,19 +107,21 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           pool_owners.push(keyBytes.toString('hex'))
         }
         const parsedCert: PoolRegistrationType = {
+          payload,
           type: CERT_TYPE.PoolRegistration,
           pool_id: reg.id().to_string(),
-          // we should be able to do this considering js max int would be 28,5616,414 years
+          // we should be able to do this considering js max int would be 285,616,414 years
           start_validity: parseInt(reg.start_validity().to_string(), 10),
           owners: pool_owners,
         }
         common.certificate = parsedCert
         break
       }
-      case wasm.CertificateType.StakeDelegation: {
+      case wasm.CertificateKind.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         const parsedCert: StakeDelegationType = {
+          payload,
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
@@ -122,9 +131,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         common.certificate = parsedCert
         break
       }
-      case wasm.CertificateType.PoolRetirement: {
+      case wasm.CertificateKind.PoolRetirement: {
         const retire = cert.get_pool_retirement()
         const parsedCert: PoolRetirementType = {
+          payload,
           type: CERT_TYPE.PoolRetirement,
           pool_id: retire.pool_id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
@@ -133,16 +143,17 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         common.certificate = parsedCert
         break
       }
-      case wasm.CertificateType.PoolUpdate:
+      case wasm.CertificateKind.PoolUpdate:
         console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
         break
-      case wasm.CertificateType.OwnerStakeDelegation: {
+      case wasm.CertificateKind.OwnerStakeDelegation: {
         if (inputs_parsed.length !== 1 || inputs_parsed[0].type !== 'account') {
           throw new Error(`Malformed OwnerStakeDelegation. Expected 1 account input, found: ${JSON.stringify(inputs_parsed)}`)
         }
         const deleg = cert.get_owner_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         const parsedCert: StakeDelegationType = {
+          payload,
           type: CERT_TYPE.StakeDelegation,
           // TODO: possibly handle Ratio types
           pool_id: poolId != null ? poolId.to_string() : null,
@@ -156,6 +167,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         break
         // throw new Error(`parsing certificate type not implemented${cert.get_type()}`)
     }
+    cert.free()
   }
   const ret = {
     inputs: inputs_parsed,
@@ -168,7 +180,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   return ret
 }
 
-const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {} = {}) => {
+const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
   return fragmentToObj(wasm.Fragment.from_bytes(tx), networkDiscrimination, extraData)
 }

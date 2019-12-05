@@ -129,8 +129,6 @@ export default class ShelleyBlock implements Block {
         txs.push(shelleyUtils.fragmentToObj(fragment, networkDiscrimination,
           {
             ...txCommon,
-            epoch: epochId,
-            slot: slotId,
             certOrdinal: 0,
           }))
       } else if (fragment.is_initial()) {
