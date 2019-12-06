@@ -11,8 +11,11 @@ export const CERT_TYPE = {
 }
 
 type CertificateCommonType = {
-  // hex-encoded raw binary payload of the certificate
-  payload: string,
+  payload: {
+    payloadKind: string,
+    // hex-encoded raw binary payload of the certificate
+    payloadHex: string,
+  },
 }
 
 export type PoolRegistrationType = {

@@ -107,7 +107,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           pool_owners.push(keyBytes.toString('hex'))
         }
         const parsedCert: PoolRegistrationType = {
-          payload,
+          payload: {
+            payloadKind: 'PoolRegistration',
+            payloadHex: payload,
+          },
           type: CERT_TYPE.PoolRegistration,
           pool_id: reg.id().to_string(),
           // we should be able to do this considering js max int would be 285,616,414 years
@@ -121,7 +124,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         const parsedCert: StakeDelegationType = {
-          payload,
+          payload: {
+            payloadKind: 'StakeDelegation',
+            payloadHex: payload,
+          },
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
@@ -134,7 +140,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
       case wasm.CertificateKind.PoolRetirement: {
         const retire = cert.get_pool_retirement()
         const parsedCert: PoolRetirementType = {
-          payload,
+          payload: {
+            payloadKind: 'PoolRetirement',
+            payloadHex: payload,
+          },
           type: CERT_TYPE.PoolRetirement,
           pool_id: retire.pool_id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
@@ -153,7 +162,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const deleg = cert.get_owner_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
         const parsedCert: StakeDelegationType = {
-          payload,
+          payload: {
+            payloadKind: 'OwnerStakeDelegation',
+            payloadHex: payload,
+          },
           type: CERT_TYPE.StakeDelegation,
           // TODO: possibly handle Ratio types
           pool_id: poolId != null ? poolId.to_string() : null,
