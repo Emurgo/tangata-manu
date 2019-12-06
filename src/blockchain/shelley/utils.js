@@ -109,6 +109,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const parsedCert: PoolRegistrationType = {
           payload: {
             payloadKind: 'PoolRegistration',
+            payloadKindId: wasm.CertificateKind.PoolRegistration,
             payloadHex: payload,
           },
           type: CERT_TYPE.PoolRegistration,
@@ -126,6 +127,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const parsedCert: StakeDelegationType = {
           payload: {
             payloadKind: 'StakeDelegation',
+            payloadKindId: wasm.CertificateKind.StakeDelegation,
             payloadHex: payload,
           },
           type: CERT_TYPE.StakeDelegation,
@@ -142,6 +144,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const parsedCert: PoolRetirementType = {
           payload: {
             payloadKind: 'PoolRetirement',
+            payloadKindId: wasm.CertificateKind.PoolRetirement,
             payloadHex: payload,
           },
           type: CERT_TYPE.PoolRetirement,
@@ -164,6 +167,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const parsedCert: StakeDelegationType = {
           payload: {
             payloadKind: 'OwnerStakeDelegation',
+            payloadKindId: wasm.CertificateKind.OwnerStakeDelegation,
             payloadHex: payload,
           },
           type: CERT_TYPE.StakeDelegation,
