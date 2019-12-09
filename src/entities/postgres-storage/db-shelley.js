@@ -138,7 +138,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     const accountsData = []
     for (const [account, data] of _.toPairs(accountChanges)) {
       let previousBalance = 0
-      let previousCounter = 0
+      let previousCounter = -1
       if (accountStoredData[account] !== undefined) {
         previousBalance = accountStoredData[account].balance
         previousCounter = accountStoredData[account].counter
