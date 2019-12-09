@@ -24,6 +24,8 @@ class JormungandrApi implements RawDataProvider {
 
   logger: Logger
 
+  networkSlotsPerEpoch: number
+
   constructor(
     networkConfig: NetworkConfig,
     parser: RawDataParser,
@@ -37,6 +39,7 @@ class JormungandrApi implements RawDataProvider {
     this.#networkBaseUrl = urljoin(network.bridgeUrl, 'api/v0')
     this.#parser = parser
     this.logger = logger
+    this.networkSlotsPerEpoch = networkConfig.slotsPerEpoch()
   }
 
   // not sure if needed
@@ -148,9 +151,11 @@ class JormungandrApi implements RawDataProvider {
     // TODO: wait for jormungandr to be updated - mocking out some info for now instead
     const resp = await this.getJson('/node/stats')
     const { data } = resp
+    const epochNumber = Math.floor(data.lastBlockHeight / this.networkSlotsPerEpoch);
+    const slotNumber = data.lastBlockHeight % this.networkSlotsPerEpoch;
     const x = {
       height: data.lastBlockHeight,
-      slot: [Math.floor(data.lastBlockHeight / 21600), data.lastBlockHeight % 21600],
+      slot: [epochNumber, slotNumber],
       hash: GENESIS_PARENT, // we aren't actually reading this afaik
     }
     return {
@@ -158,7 +163,7 @@ class JormungandrApi implements RawDataProvider {
         local: x,
         remote: x,
       },
-      packedEpochs: Math.floor(data.lastBlockHeight / 21600),
+      packedEpochs: Math.floor(data.lastBlockHeight / this.networkSlotsPerEpoch),
     }
   }
 

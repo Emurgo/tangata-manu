@@ -22,6 +22,10 @@ class NetworkConfigImp implements NetworkConfig {
 
   #startTime: number
 
+  #slotsPerEpoch: number
+
+  #slotDurationSeconds: number
+
   #networkMagic: number
 
   #networkProtocol: string
@@ -34,6 +38,8 @@ class NetworkConfigImp implements NetworkConfig {
     this.#networkBaseUrl = urljoin(network.bridgeUrl, this.#networkName)
     this.#genesisHash = network.genesis
     this.#startTime = network.startTime
+    this.#slotsPerEpoch = network.slotsPerEpoch
+    this.#slotDurationSeconds = network.slotDurationSeconds
     this.#networkMagic = network.networkMagic
     this.#networkProtocol = network.protocol
     this.#networkDiscrimination = network.networkDiscrimination
@@ -42,6 +48,10 @@ class NetworkConfigImp implements NetworkConfig {
   networkName = () => this.#networkName
 
   startTime = () => this.#startTime
+
+  slotsPerEpoch = () => this.#slotsPerEpoch
+
+  slotDurationSeconds = () => this.#slotDurationSeconds
 
   genesisHash = () => this.#genesisHash
 

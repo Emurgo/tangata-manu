@@ -15,6 +15,10 @@ class ShelleyDataParser implements RawDataParser {
 
   networkDiscrimination: number
 
+  networkSlotsPerEpoch: number
+
+  networkSlotDurationSeconds: number
+
   constructor(
     logger: any,
     networkConfig: NetworkConfig,
@@ -22,11 +26,14 @@ class ShelleyDataParser implements RawDataParser {
     this.logger = logger
     this.networkStartTime = networkConfig.startTime()
     this.networkDiscrimination = networkConfig.networkDiscrimination()
+    this.networkSlotsPerEpoch = networkConfig.slotsPerEpoch()
+    this.networkSlotDurationSeconds = networkConfig.slotDurationSeconds()
   }
 
   parseBlock(blob: Buffer) {
     return ShelleyBlock.parseBlock(blob,
-      this.networkStartTime, this.networkDiscrimination)
+      this.networkStartTime, this.networkDiscrimination,
+      this.networkSlotsPerEpoch, this.networkSlotDurationSeconds)
   }
 
   parseEpoch(data: Buffer, options:{} = {}) {
