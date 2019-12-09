@@ -42,8 +42,16 @@ class TxController implements IController {
   }
 
   async signed(req: Request, resp: Response, next: Function) {
-    const txObj = this.parseRawTx(req.body.signedTx)
-    const localValidationError = await this.validator.validateTx(txObj)
+    let txObj = null
+    let localValidationError = null
+    try {
+      txObj = this.parseRawTx(req.body.signedTx)
+    } catch (e) {
+      localValidationError = `Failed to even parse the tx: '${req.body.signedTx}'`
+    }
+    if (txObj) {
+      localValidationError = await this.validator.validateTx(txObj)
+    }
     if (localValidationError) {
       this.logger.error(`Local tx validation failed: ${localValidationError}`)
       this.logger.info('Proceeding to send tx to network for double-check')
@@ -52,14 +60,22 @@ class TxController implements IController {
     this.logger.debug('TxController.index called', req.params, bridgeResp.status, `(${bridgeResp.statusText})`, bridgeResp.data)
     try {
       if (bridgeResp.status === 200) {
-        // store tx as pending
-        await this.storeTxAsPending(txObj)
         if (localValidationError) {
           // Network success but locally we failed validation - log local
           this.logger.warn('Local validation error, but network send succeeded!')
         }
+        if (txObj) {
+          // store tx as pending
+          await this.storeTxAsPending(txObj)
+        } else {
+          this.logger.warn('Can\'t even store the tx as pending cuz local parsing failed miserably.')
+        }
       } else {
-        await this.storeTxAsFailed(txObj)
+        if (txObj) {
+          await this.storeTxAsFailed(txObj)
+        } else {
+          this.logger.warn('Node rejected the tx, but we also failed to parse it, so not storing anything.')
+        }
       }
     } catch (err) {
       this.logger.error('Failed to store tx', err)
@@ -73,7 +89,7 @@ class TxController implements IController {
       // We send specific local response with network response attached
       status = 400
       statusText = `Transaction failed local validation (Network status: ${bridgeResp.statusText})`
-      respBody = `Transaction validation error: ${localValidationError} (Network response: ${bridgeResp.data})`
+      respBody = `Transaction validation error: ${localValidationError} (Network response: ${bridgeResp.data || `@${bridgeResp.statusText}`})`
     } else {
       // Locally we have no validation errors - proxy the network response
       ({ status, statusText } = bridgeResp)
