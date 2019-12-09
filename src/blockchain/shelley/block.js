@@ -4,9 +4,6 @@ import { Block } from '../common'
 import type { EpochIdType, SlotIdType, TxType } from '../common'
 import shelleyUtils from './utils'
 
-// TODO: is this right?
-const SLOTS_IN_EPOCH = 21600
-
 export type HeaderType = Array<any>
 
 export default class ShelleyBlock implements Block {
@@ -88,8 +85,13 @@ export default class ShelleyBlock implements Block {
     return this.slotLeader
   }
 
-  static parseBlock(blob: Buffer,
-    networkStartTime: number, networkDiscrimination: number): ShelleyBlock {
+  static parseBlock(
+    blob: Buffer,
+    networkStartTime: number,
+    networkDiscrimination: number,
+    networkSlotsPerEpoch: number,
+    networkSlotDurationSeconds: number,
+  ): ShelleyBlock {
     const wasm = global.jschainlibs
 
     const block = wasm.Block.from_bytes(blob)
@@ -105,7 +107,7 @@ export default class ShelleyBlock implements Block {
     // TODO: parse block0's Initial fragment and store that somewhere
     const blockTime = new Date(
       (networkStartTime
-      + (epochId * SLOTS_IN_EPOCH + slotId) * 20)
+      + (epochId * networkSlotsPerEpoch + slotId) * networkSlotDurationSeconds)
       * 1000)
     const fragments = block.fragments()
     const txs = []

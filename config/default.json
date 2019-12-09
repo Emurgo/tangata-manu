@@ -39,7 +39,9 @@
     },
     "jormun-testnet": {
       "genesis": "c511043dda377d7764d9f01d721ddea323f2a01b1e89f62c8ee587a65d7a1487",
-      "startTime": 0,
+      "startTime": 1575477497,
+      "slotsPerEpoch": 5000,
+      "slotDurationSeconds": 10,
       "protocol": "shelley",
       "networkDiscrimination": "test"
     }
