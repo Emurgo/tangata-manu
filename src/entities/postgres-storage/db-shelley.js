@@ -25,6 +25,8 @@ const ACCOUNT_OP_TYPE = {
   REWARD_DEPOSIT: 1,
 }
 
+const undefinedToNull = x => x === undefined ? null : x
+
 class DBShelley extends DB<TxType> implements Database<TxType> {
   async rollbackTo(blockHeight: number): Promise<void> {
     await super.rollbackTo(blockHeight)
@@ -146,10 +148,10 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       }
       const balance = previousBalance + data.value
       accountsData.push({
-        epoch: tx.epoch || null,
-        slot: tx.slot || null,
-        tx_ordinal: tx.txOrdinal || null,
-        block_num: tx.blockNum || null,
+        epoch: undefinedToNull(tx.epoch),
+        slot: undefinedToNull(tx.slot),
+        tx_ordinal: undefinedToNull(tx.txOrdinal),
+        block_num: undefinedToNull(tx.blockNum),
         operation_id: tx.id,
         operation_type: ACCOUNT_OP_TYPE.REGULAR_TX,
         account,
