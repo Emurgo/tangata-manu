@@ -13,6 +13,7 @@ import type { Database } from '../../interfaces'
 import DB from './database'
 import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
+import { TX_SUCCESS_STATUS } from "../../blockchain/common/tx";
 
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
@@ -145,10 +146,10 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       }
       const balance = previousBalance + data.value
       accountsData.push({
-        epoch: tx.epoch,
-        slot: tx.slot,
-        tx_ordinal: tx.txOrdinal,
-        block_num: tx.blockNum,
+        epoch: tx.epoch || null,
+        slot: tx.slot || null,
+        tx_ordinal: tx.txOrdinal || null,
+        block_num: tx.blockNum || null,
         operation_id: tx.id,
         operation_type: ACCOUNT_OP_TYPE.REGULAR_TX,
         account,
@@ -258,7 +259,9 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     const { certificate, id } = tx
     const txDbData = await this.getTxDBData(tx, txUtxos)
     await super.storeTxImpl(tx, txUtxos, upsert, txDbData)
-    await this.storeAccountsChanges(tx)
+    if (tx.status === TX_SUCCESS_STATUS) {
+      await this.storeAccountsChanges(tx)
+    }
 
     const groupAddresses = this.getGroupAddressesData(txDbData)
     if (!_.isEmpty(groupAddresses)) {
