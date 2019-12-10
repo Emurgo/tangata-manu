@@ -56,7 +56,7 @@ class TxController implements IController {
       this.logger.error(`Local tx validation failed: ${localValidationError}`)
       this.logger.info('Proceeding to send tx to network for double-check')
     }
-    const bridgeResp = await this.dataProvider.postSignedTx(req.rawBody)
+    const bridgeResp = await this.dataProvider.postSignedTx(req.body.signedTx)
     this.logger.debug('TxController.index called', req.params, bridgeResp.status, `(${bridgeResp.statusText})`, bridgeResp.data)
     try {
       if (bridgeResp.status === 200) {
