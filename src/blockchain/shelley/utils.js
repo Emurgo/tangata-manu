@@ -197,6 +197,36 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   return ret
 }
 
+const getAccountIdFromAddress = (accountAddressHex: string) => {
+  const wasm = global.jschainlibs
+  let address
+  try {
+    address = wasm.Address.from_bytes(Buffer.from(accountAddressHex, 'hex'))
+  } catch (e) {
+    return {
+      type: 'unknown',
+      comment: 'failed to parse as an address',
+    }
+  }
+  const kind = address.get_kind()
+  if (kind === AddressKind.Account) {
+    const accountAddress = address.to_account_address()
+    const accountKey = accountAddress.get_account_key();
+    const result = {
+      type: 'account',
+      accountId: Buffer.from(accountKey.as_bytes()).toString('hex'),
+    }
+    accountKey.free()
+    accountAddress.free()
+    return result
+  }
+  address.free()
+  return {
+    type: 'unknown',
+    comment: 'unsupported kind (no account id)',
+  }
+}
+
 const splitGroupAddress = (groupAddressHex: string) => {
   const wasm = global.jschainlibs
   let address
@@ -208,7 +238,10 @@ const splitGroupAddress = (groupAddressHex: string) => {
     if (prefix !== 'Ddz' && prefix !== 'Ae2') {
       throw new Error(`Group Metadata could not parse address: ${groupAddressHex}`)
     }
-    return null
+    return {
+      type: 'unknown',
+      comment: 'failed to parse as an address'
+    }
   }
   let result = null
   const kind = address.get_kind()
@@ -247,6 +280,7 @@ const splitGroupAddress = (groupAddressHex: string) => {
     // Unsupported type
     result = {
       type: 'unknown',
+      comment: 'unsupported kind'
     }
   }
   address.free()
@@ -262,4 +296,5 @@ export default {
   rawTxToObj,
   fragmentToObj,
   splitGroupAddress,
+  getAccountIdFromAddress,
 }

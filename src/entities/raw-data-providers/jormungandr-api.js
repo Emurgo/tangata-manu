@@ -87,6 +87,11 @@ class JormungandrApi implements RawDataProvider {
     return resp
   }
 
+  async getAccountState(accountId: string): Promise<any> {
+    const resp = await this.getJson(`account/${accountId}`)
+    return resp.data
+  }
+
   // payload is base64 encoded raw binary signed transaction
   async postSignedTx(payload: string): Promise<any> {
     // Jormungandr expects a binary POST input
