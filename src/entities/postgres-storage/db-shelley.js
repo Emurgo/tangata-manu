@@ -13,7 +13,7 @@ import type { Database } from '../../interfaces'
 import DB from './database'
 import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
-import { TX_SUCCESS_STATUS } from "../../blockchain/common/tx";
+import { TX_STATUS } from "../../blockchain/common/tx";
 
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
@@ -259,7 +259,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     const { certificate, id } = tx
     const txDbData = await this.getTxDBData(tx, txUtxos)
     await super.storeTxImpl(tx, txUtxos, upsert, txDbData)
-    if (tx.status === TX_SUCCESS_STATUS) {
+    if (txDbData.txDbFields.tx_state === TX_STATUS.TX_SUCCESS_STATUS) {
       await this.storeAccountsChanges(tx)
     }
 
