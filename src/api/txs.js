@@ -56,10 +56,10 @@ class TxController implements IController {
       this.logger.error(`Local tx validation failed: ${localValidationError}`)
       this.logger.info('Proceeding to send tx to network for double-check')
     }
-    const bridgeResp = await this.dataProvider.postSignedTx(req.body.signedTx)
-    this.logger.debug('TxController.index called', req.params, bridgeResp.status, `(${bridgeResp.statusText})`, bridgeResp.data)
+    const nodeResp = await this.dataProvider.postSignedTx(req.body.signedTx)
+    this.logger.debug('dataProvider.postSignedTx is called', req.params, nodeResp.status, `(${nodeResp.statusText})`, nodeResp.data)
     try {
-      if (bridgeResp.status === 200) {
+      if (nodeResp.status === 200) {
         if (localValidationError) {
           // Network success but locally we failed validation - log local
           this.logger.warn('Local validation error, but network send succeeded!')
@@ -84,16 +84,16 @@ class TxController implements IController {
     let statusText
     let status
     let respBody
-    if (localValidationError && bridgeResp.status !== 200) {
+    if (localValidationError && nodeResp.status !== 200) {
       // We have local validation error and network failed too
       // We send specific local response with network response attached
       status = 400
-      statusText = `Transaction failed local validation (Network status: ${bridgeResp.statusText})`
-      respBody = `Transaction validation error: ${localValidationError} (Network response: ${bridgeResp.data || `@${bridgeResp.statusText}`})`
+      statusText = `Transaction failed local validation (Network status: ${nodeResp.statusText})`
+      respBody = `Transaction validation error: ${localValidationError} (Network response: ${nodeResp.data || `@${nodeResp.statusText}`})`
     } else {
       // Locally we have no validation errors - proxy the network response
-      ({ status, statusText } = bridgeResp)
-      respBody = bridgeResp.data
+      ({ status, statusText } = nodeResp)
+      respBody = nodeResp.data || `@Ok`
     }
     resp.status(status)
     // eslint-disable-next-line no-param-reassign
