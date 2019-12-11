@@ -10,6 +10,7 @@ import { utils } from '../../blockchain/common'
 import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
+import AccountInputData from "./account-input-data";
 
 class TxData extends ElasticData {
   tx: TxType
@@ -40,6 +41,9 @@ class TxData extends ElasticData {
     this.tx = tx
 
     this.resolvedInputs = tx.inputs.map((inp, idx) => {
+      if (inp.type === 'account') {
+        return new AccountInputData(inp, tx, idx)
+      }
       const id = utils.getUtxoId(inp)
       const inputUtxo = inputsUtxos[id]
       if (!inputUtxo) {
@@ -60,8 +64,8 @@ class TxData extends ElasticData {
 
     if (this.resolvedInputs.length === 1
      && this.resolvedOutputs.length === 1
-     && this.resolvedInputs[0].utxo.amount === this.resolvedOutputs[0].utxo.amount) {
-      const value = this.resolvedInputs[0].utxo.amount
+     && this.resolvedInputs[0].getAmount() === this.resolvedOutputs[0].getAmount()) {
+      const value = this.resolvedInputs[0].getAmount()
 
       this.sumInputs = value
       this.sumOutputs = value
@@ -70,8 +74,8 @@ class TxData extends ElasticData {
       // This is a redemption tx that increases the total supply of coin
       txTrackedState.supply_after_this_tx = prevSupply.plus(value)
     } else {
-      this.sumInputs = _.sumBy(this.resolvedInputs, x => x.utxo.amount)
-      this.sumOutputs = _.sumBy(this.resolvedOutputs, x => x.utxo.amount)
+      this.sumInputs = _.sumBy(this.resolvedInputs, x => x.getAmount())
+      this.sumOutputs = _.sumBy(this.resolvedOutputs, x => x.getAmount())
       this.fee = Math.max(0, this.sumInputs - this.sumOutputs)
 
       if (!tx.isGenesis) {
@@ -83,9 +87,10 @@ class TxData extends ElasticData {
 
     // Aggregate all inputs/outputs into a "diff" object
     const txAddressDiff: { [string]: any } = {}
-    for (const { utxo, type } of [...this.resolvedInputs, ...this.resolvedOutputs]) {
-      const { receiver, amount } = utxo
-      const isInput = type === 'input'
+    for (const io of [...this.resolvedInputs, ...this.resolvedOutputs]) {
+      const receiver = io.getRelatedAddress()
+      const amount = io.getAmount()
+      const isInput = io.type === 'input'
       const balanceDiff = isInput ? -amount : amount
       const {
         addressBalanceDiff = 0,
@@ -165,6 +170,7 @@ class TxData extends ElasticData {
   }
 
   toPlainObject() {
+    const certificate = this.tx.certificate
     return {
       ...TxData.getBaseFields(),
       is_genesis: this.tx.isGenesis || false,
@@ -185,6 +191,7 @@ class TxData extends ElasticData {
       ...(this.tx.isGenesis ? {} : {
         supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
       }),
+      ...(certificate ? { certificates: [certificate] } : {})
     }
   }
 }

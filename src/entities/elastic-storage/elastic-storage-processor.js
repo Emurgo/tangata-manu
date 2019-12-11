@@ -8,7 +8,7 @@ import { Client } from '@elastic/elasticsearch'
 
 import BigNumber from 'bignumber.js'
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
-import type { Block } from '../../blockchain/common'
+import type {Block, TxInputType} from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
@@ -33,6 +33,15 @@ const ELASTIC_TEMPLATES = {
     mappings: {
       properties: {
         addresses: {
+          type: 'nested',
+        },
+        pools: {
+          type: 'nested',
+        },
+        pool_delegation: {
+          type: 'nested',
+        },
+        certificates: {
           type: 'nested',
         },
       },
@@ -151,6 +160,8 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   genesisLeaders: Array<GenesisLeaderType>
 
+  slotsPerEpoch: number
+
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -160,6 +171,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.elasticConfig = elasticConfig
     this.client = new Client({ node: elasticConfig.node })
     this.networkStartTime = networkConfig.startTime()
+    this.slotsPerEpoch = networkConfig.slotsPerEpoch()
   }
 
   indexFor(name: string) {
@@ -395,7 +407,9 @@ class ElasticStorageProcessor implements StorageProcessor {
       const txs = block.getTxs()
       if (txs.length > 0) {
         // TODO: imeplement for accounts
-        txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
+        txInputsIds.push(..._.flatten(_.map(txs, 'inputs'))
+          .filter((x: TxInputType) => x.type === 'utxo')
+          .map(getTxInputUtxoId))
         this.logger.debug('storeBlocksData', block)
         blockOutputsToStore.push(...getBlockUtxos(block))
         blockTxs.push(...txs)
@@ -432,7 +446,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     const tip: BlockInfoType = await this.getBestBlockNum()
     const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks,
-      tip.epoch, tip.slot, this.networkStartTime)
+      tip.epoch, tip.slot, this.networkStartTime, this.slotsPerEpoch)
 
     const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
@@ -503,6 +517,9 @@ class ElasticStorageProcessor implements StorageProcessor {
       ignoreUnavailable: true,
       body: createAddressStateQuery(uniqueBlockAddresses),
     })
+    if (res.body.hits.total.value === 0) {
+      return {}
+    }
     const { buckets } = res.body.aggregations.tmp_nest.tmp_filter.tmp_group_by
     try {
       const states = buckets.map(buck => {
@@ -534,10 +551,12 @@ function padEmptySlots(
   tipEpoch: number,
   tipSlot: ?number,
   networkStartTime: number,
+  slotsPerEpoch: number,
 ): Array<BlockData> {
+  const maxSlotNumber = slotsPerEpoch - 1;
   const nextSlot = (epoch: number, slot: ?number) => ({
-    epoch: slot >= 21599 ? epoch + 1 : epoch,
-    slot: (slot == null || slot >= 21599) ? 0 : slot + 1,
+    epoch: slot >= maxSlotNumber ? epoch + 1 : epoch,
+    slot: (slot == null || slot >= maxSlotNumber) ? 0 : slot + 1,
   })
   const result: Array<BlockData> = []
   blocks.reduce(({ epoch, slot }, b: BlockData) => {
