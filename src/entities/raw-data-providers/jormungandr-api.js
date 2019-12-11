@@ -96,7 +96,7 @@ class JormungandrApi implements RawDataProvider {
       },
     }
     const payloadBinary = Buffer.from(payload, 'base64')
-    const resp = await this.post('txs/signed', payloadBinary, config)
+    const resp = await this.post('message', payloadBinary, config)
     return resp
   }
 

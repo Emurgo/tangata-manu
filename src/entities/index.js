@@ -1,6 +1,7 @@
 // @flow
 
 export { default as ByronValidator } from './byron-validator'
+export { default as ShelleyValidator } from './shelley-validator'
 export { CardanoBridgeApi, MockBridgeApi, JormungandrApi } from './raw-data-providers'
 export { ByronDataParser, MockDataParser, ShelleyDataParser } from './raw-data-parsers'
 export { default as CronScheduler } from './cron'

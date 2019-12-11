@@ -13,6 +13,7 @@ import type { Database } from '../../interfaces'
 import DB from './database'
 import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
+import { TX_STATUS } from "../../blockchain/common/tx";
 
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
@@ -23,6 +24,8 @@ const ACCOUNT_OP_TYPE = {
   REGULAR_TX: 0,
   REWARD_DEPOSIT: 1,
 }
+
+const undefinedToNull = x => x === undefined ? null : x
 
 class DBShelley extends DB<TxType> implements Database<TxType> {
   async rollbackTo(blockHeight: number): Promise<void> {
@@ -145,10 +148,10 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       }
       const balance = previousBalance + data.value
       accountsData.push({
-        epoch: tx.epoch,
-        slot: tx.slot,
-        tx_ordinal: tx.txOrdinal,
-        block_num: tx.blockNum,
+        epoch: undefinedToNull(tx.epoch),
+        slot: undefinedToNull(tx.slot),
+        tx_ordinal: undefinedToNull(tx.txOrdinal),
+        block_num: undefinedToNull(tx.blockNum),
         operation_id: tx.id,
         operation_type: ACCOUNT_OP_TYPE.REGULAR_TX,
         account,
@@ -258,7 +261,9 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     const { certificate, id } = tx
     const txDbData = await this.getTxDBData(tx, txUtxos)
     await super.storeTxImpl(tx, txUtxos, upsert, txDbData)
-    await this.storeAccountsChanges(tx)
+    if (txDbData.txDbFields.tx_state === TX_STATUS.TX_SUCCESS_STATUS) {
+      await this.storeAccountsChanges(tx)
+    }
 
     const groupAddresses = this.getGroupAddressesData(txDbData)
     if (!_.isEmpty(groupAddresses)) {

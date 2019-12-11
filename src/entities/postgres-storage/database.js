@@ -17,6 +17,7 @@ export type TxDbDataType = {
   txDbFields: {
     block_num: ?number,
     block_hash: ?string,
+    tx_state: string,
   },
   inputAddresses:Array<string>,
   outputAddresses:Array<string>,

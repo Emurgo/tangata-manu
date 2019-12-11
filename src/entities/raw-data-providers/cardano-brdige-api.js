@@ -66,8 +66,8 @@ class CardanoBridgeApi implements RawDataProvider {
     return resp
   }
 
-  async postSignedTx(payload: string) {
-    const resp = await this.post('txs/signed', payload)
+  async postSignedTx(signedTx: string) {
+    const resp = await this.post('txs/signed', JSON.stringify({ signedTx }))
     return resp
   }
 
