@@ -1,6 +1,6 @@
 // @flow
 
-import { zip as zipArrays, chain as lodashChain } from 'lodash'
+import { chain as lodashChain, zip as zipArrays } from 'lodash'
 
 import type { Logger } from 'bunyan'
 
@@ -14,6 +14,12 @@ import { JormungandrApi } from '../entities/raw-data-providers'
 import { shelleyUtils } from '../blockchain/shelley'
 
 import SERVICE_IDENTIFIER from '../constants/identifiers'
+
+const zipArraysAsKeyValues = (arr1, arr2) =>
+  lodashChain(zipArrays(arr1, arr2))
+    .keyBy(0)
+    .mapValues(1)
+    .value()
 
 class AccountInfoController implements IController {
   logger: Logger
@@ -36,9 +42,6 @@ class AccountInfoController implements IController {
       resp.send(respBody)
       next()
     }
-    let statusText
-    let status
-    let respBody
     const addresses = req.body.addresses
     if (!Array.isArray(addresses) || addresses.length > 50) {
       return doResp(400, 'BadParam',
@@ -60,17 +63,8 @@ class AccountInfoController implements IController {
     })
     const resolved = await Promise.all(promises)
     this.logger.debug('Resolved account state promises: ', addresses, resolved)
-    status = 200
-    statusText = '@ok'
-    respBody = lodashChain(zipArrays(addresses, resolved))
-      .keyBy(0)
-      .mapValues(1)
-      .value()
-    resp.status(status)
-    // eslint-disable-next-line no-param-reassign
-    resp.statusText = statusText
-    resp.send(respBody)
-    next()
+    const respBody = zipArraysAsKeyValues(addresses, resolved)
+    doResp(200, '@ok', respBody)
   }
 }
 
