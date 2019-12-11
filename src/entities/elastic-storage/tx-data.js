@@ -29,7 +29,11 @@ class TxData extends ElasticData {
 
   txTrackedState: { [string]: any }
 
-  addressStates: { [string]: any }
+  addressStates: Array<{ [string]: any }>
+
+  poolStates: Array<{ [string]: any }>
+
+  delegationStates: Array<{ [string]: any }>
 
   constructor(
     tx: TxType,
@@ -137,6 +141,17 @@ class TxData extends ElasticData {
 
     this.addressStates = txAddressStates
     this.newAddresses = newAddresses
+
+    if (tx.certificate) {
+      const cert = tx.certificate
+      if (cert.type === 'PoolRegistration') {
+        const { pool_id, owners, start_validity } = cert
+        this.poolStates = [{ type: 'new', pool_id, owners, start_validity }]
+      } else if (cert.type === 'StakeDelegation') {
+        const { pool_id, account, isOwnerStake } = cert
+        // TODO insert (pool existing state + account delegation) into delegation states
+      }
+    }
   }
 
   static fromGenesisUtxo(utxo: any, networkStartTime: number) {
@@ -191,7 +206,8 @@ class TxData extends ElasticData {
       ...(this.tx.isGenesis ? {} : {
         supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
       }),
-      ...(certificate ? { certificates: [certificate] } : {})
+      ...(certificate ? { certificates: [certificate] } : {}),
+      ...(this.poolStates ? { pools: this.poolStates } : {})
     }
   }
 }

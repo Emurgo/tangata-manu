@@ -38,7 +38,7 @@ const ELASTIC_TEMPLATES = {
         pools: {
           type: 'nested',
         },
-        pool_delegation: {
+        delegation: {
           type: 'nested',
         },
         certificates: {
@@ -561,7 +561,7 @@ function padEmptySlots(
   const result: Array<BlockData> = []
   blocks.reduce(({ epoch, slot }, b: BlockData) => {
     const [blockEpoch, blockSlot] = [b.block.getEpoch(), b.block.getSlot()]
-    if (blockEpoch < epoch || (blockSlot === epoch && blockSlot < slot)) {
+    if (blockEpoch < epoch || (blockEpoch === epoch && blockSlot < slot)) {
       throw new Error(`Got a block for storing younger than next expected slot.
          Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`,
       )
