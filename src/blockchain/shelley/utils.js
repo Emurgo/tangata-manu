@@ -1,8 +1,9 @@
 // @flow
 
+import type { PoolRegistrationType, PoolRetirementType, StakeDelegationType } from './certificate'
 import { CERT_TYPE } from './certificate'
-import type { StakeDelegationType, PoolRegistrationType, PoolRetirementType } from './certificate'
 import type { ShelleyTxType } from './tx'
+import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs';
 
 const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
@@ -196,6 +197,96 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   return ret
 }
 
+const getAccountIdFromAddress = (accountAddressHex: string) => {
+  const wasm = global.jschainlibs
+  let address
+  try {
+    address = wasm.Address.from_bytes(Buffer.from(accountAddressHex, 'hex'))
+  } catch (e) {
+    return {
+      type: 'unknown',
+      comment: 'failed to parse as an address',
+    }
+  }
+  const kind = address.get_kind()
+  if (kind === AddressKind.Account) {
+    const accountAddress = address.to_account_address()
+    const accountKey = accountAddress.get_account_key();
+    const result = {
+      type: 'account',
+      accountId: Buffer.from(accountKey.as_bytes()).toString('hex'),
+    }
+    accountKey.free()
+    accountAddress.free()
+    return result
+  }
+  address.free()
+  return {
+    type: 'unknown',
+    comment: 'unsupported kind (no account id)',
+  }
+}
+
+const splitGroupAddress = (groupAddressHex: string) => {
+  const wasm = global.jschainlibs
+  let address
+  try {
+    address = wasm.Address.from_bytes(Buffer.from(groupAddressHex, 'hex'))
+  } catch (e) {
+    const prefix = groupAddressHex.substring(0, 3)
+    // TODO: find a better way to distinguish legacy funds?
+    if (prefix !== 'Ddz' && prefix !== 'Ae2') {
+      throw new Error(`Group Metadata could not parse address: ${groupAddressHex}`)
+    }
+    return {
+      type: 'unknown',
+      comment: 'failed to parse as an address'
+    }
+  }
+  let result = null
+  const kind = address.get_kind()
+  if (kind === AddressKind.Group) {
+    const groupAddress = address.to_group_address()
+    if (groupAddress) {
+      const spendingKey = groupAddress.get_spending_key()
+      const accountKey = groupAddress.get_account_key()
+      const discrim = address.get_discrimination()
+      const singleAddress = wasm.Address.single_from_public_key(spendingKey, discrim)
+      const accountAddress = wasm.Address.account_from_public_key(accountKey, discrim)
+      const metadata = {
+        type: 'group',
+        groupAddress: groupAddressHex,
+        utxoAddress: Buffer.from(singleAddress.as_bytes()).toString('hex'),
+        accountAddress: Buffer.from(accountAddress.as_bytes()).toString('hex'),
+      }
+      singleAddress.free()
+      accountAddress.free()
+      spendingKey.free()
+      accountKey.free()
+      groupAddress.free()
+      result = metadata
+    }
+  } else if (kind === AddressKind.Single) {
+    result = {
+      type: 'utxo',
+      utxoAddress: Buffer.from(address.as_bytes()).toString('hex'),
+    }
+  } else if (kind === AddressKind.Account) {
+    result = {
+      type: 'account',
+      accountAddress: Buffer.from(address.as_bytes()).toString('hex'),
+    }
+  } else {
+    // Unsupported type
+    result = {
+      type: 'unknown',
+      comment: 'unsupported kind'
+    }
+  }
+  address.free()
+  return result
+}
+
 const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
   return fragmentToObj(wasm.Fragment.from_bytes(tx), networkDiscrimination, extraData)
@@ -204,4 +295,6 @@ const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {t
 export default {
   rawTxToObj,
   fragmentToObj,
+  splitGroupAddress,
+  getAccountIdFromAddress,
 }
