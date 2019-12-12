@@ -1,0 +1,30 @@
+FROM ubuntu:focal
+ARG NPM_REGISTRY
+ARG PROXYCHAINS_PROXY_LINE
+ARG NODE_VERSION=11
+ARG NODE_APT_REPO=eoan
+ARG PG_APT_REPO=eoan
+ARG YARN_VERSION=1.12.3
+
+RUN /bin/bash -c ' \
+    set -x; apt-get update -qq && apt-get install -y curl gnupg sudo && \
+    curl -s https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - && \
+    echo "deb http://apt.postgresql.org/pub/repos/apt/ ${PG_APT_REPO}-pgdg main 9.6 10 11 12 13" | tee /etc/apt/sources.list.d/postgresql.list && \
+    curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add - && \
+    echo "deb https://deb.nodesource.com/node_${NODE_VERSION}.x ${NODE_APT_REPO} main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update -qq && \
+    apt-get install -y postgresql-client-10 gettext-base netcat-openbsd proxychains4 nodejs gettext'
+
+# this copy invalidates build cache in case setup function changed
+COPY ./docker-assets/bin/rust-setup.functions /docker-assets/bin/rust-setup.functions
+RUN /bin/bash -c 'source /docker-assets/bin/rust-setup.functions && \
+    rust-setup && \
+    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh'
+
+COPY ./docker-assets/bin/npm-registry-setup.functions /docker-assets/bin/npm-registry-setup.functions
+RUN /bin/bash -c 'source /docker-assets/bin/npm-registry-setup.functions && \
+    npm-registry-setup && \
+    ${PROXYCHAIN_CMD} npm install -g yarn@${YARN_VERSION} && \
+    npm-registry-cleanup'
+
+COPY ./docker-assets /docker-assets

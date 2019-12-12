@@ -1,0 +1,7 @@
+function rust-setup() {
+
+  # install rustup
+  curl https://sh.rustup.rs -sSf | sh -s -- -y
+  ln -s $HOME/.cargo/bin/* /usr/local/bin/
+
+}
