@@ -1,0 +1,31 @@
+#!/bin/bash
+
+function npm-registry-setup() {
+
+  if [ ! -z "${PROXYCHAINS_PROXY_LINE}" ]
+  then
+    PROXY_HOST=$(echo ${PROXYCHAINS_PROXY_LINE} | sed 's|.*@\(.*\):\(.*\)|\1|g') 
+    PROXY_RESOLVED_HOST=$(getent hosts ${PROXY_HOST} | awk '{print $1}') 
+    export PROXY_LINE=$(echo ${PROXYCHAINS_PROXY_LINE} | sed "s|${PROXY_HOST}|${PROXY_RESOLVED_HOST}|g")
+    envsubst < /docker-assets/etc/proxychains.conf.tpl > /etc/proxychains.conf
+    export PROXYCHAIN_CMD="proxychains -q"
+  fi
+  if [ ! -z "${NPM_REGISTRY}" ]
+  then
+    npm set ${NPM_REGISTRY} &> /dev/null
+    yarn config set registry ${NPM_REGISTRY} &> /dev/null
+    echo always-auth=true >> ~/.npmrc
+    find -name yarn.lock | xargs sed -i "s|https://registry.yarnpkg.com|${NPM_REGISTRY}|g"
+  fi
+
+}
+
+function npm-registry-cleanup() {
+
+  rm -f ~/.npmrc
+  rm -f /etc/proxychains.conf
+  if [ ! -z "${NPM_REGISTRY}" ]
+  then
+    find -name yarn.lock | xargs sed -i "s|${NPM_REGISTRY}|https://registry.yarnpkg.com|g"
+  fi
+}

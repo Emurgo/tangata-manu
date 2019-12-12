@@ -1,0 +1,66 @@
+#!/bin/bash
+
+if [ ! -z "${DEBUG}" ]
+then
+  set -x
+fi
+
+function bridge-healthcheck() {
+
+  curl -s -o /dev/null -w "%{http_code}" ${CARDANO_BRIDGE_URL}/${CARDANO_NETWORK}/status
+
+}
+
+function jormungandr-healthcheck() {
+
+  curl -s -o /dev/null -w "%{http_code}" ${CARDANO_JORMUNGANDR_URL}/api/v0/node/stats
+
+}
+
+function db-healthcheck() {
+
+  if `echo ${TANGATA_STORAGE_PROCESSOR} | grep -q postgres`
+  then
+    nc -zv -w 1 ${PGHOST} ${PGPORT} &> /dev/null && echo "200"
+  fi
+
+  if `echo ${TANGATA_STORAGE_PROCESSOR} | grep -q elastic`
+  then
+    curl -s -o /dev/null -w "%{http_code}" ${ELASTICSEARCH_URI}/_cluster/health
+  fi
+
+}
+
+
+if [ ! -z "$CARDANO_JORMUNGANDR_URL" ]
+then
+  echo "Waiting for jormungandr to respond..."
+  CHECK_FUNCTION=jormungandr-healthcheck
+else
+  echo "Waiting for cardano-http-bridge to respond..."
+  CHECK_FUNCTION=bridge-healthcheck
+fi
+while [ "$($CHECK_FUNCTION)" != "200" ]
+do
+  echo -n "."
+  sleep 1
+done
+
+echo "Waiting for database to respond..."
+while [ "$(db-healthcheck)" != "200" ]
+do
+  echo -n "."
+  sleep 1
+done
+
+export NODE_OPTIONS=${NODE_OPTIONS:---max-old-space-size=8192}
+export NODE_ENV=${IMPORTER_NODE_ENV}
+yarn run ${IMPORTER_YARN_MIGRATE_CMD:-migrate up}
+
+if [ -z "$OUTPUT_DEBUG" ]
+then
+  test -d /var/log/importer || mkdir -p /var/log/importer
+  yarn run ${IMPORTER_YARN_RUN_CMD:-start} 2>&1 | tee -a /var/log/importer/DEBUG.log | grep "imported block"
+else
+  yarn run ${IMPORTER_YARN_RUN_CMD:-start}
+fi

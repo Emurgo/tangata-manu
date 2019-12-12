@@ -363,7 +363,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   async bulkUpload(body: Array<mixed>) {
     const resp = await this.client.bulk({
-      refresh: 'true',
+      refresh: 'wait_for',
       body,
     })
     this.logger.debug('bulkUpload', { ...resp, body: { ...resp.body, items: undefined } })
