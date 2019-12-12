@@ -1,6 +1,10 @@
 {
   "defaultNetwork": "TANGATA_DEFAULT_NETWORK",
   "storageProcessor": "TANGATA_STORAGE_PROCESSOR",
+  "cardanoBridge": {
+    "baseUrl": "CARDANO_BRIDGE_UR",
+    "template": "CARDANO_NETWORK"
+  },
   "db": {
     "user": "PGUSER",
     "host": "PGHOST",
