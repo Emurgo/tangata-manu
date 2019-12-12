@@ -145,8 +145,12 @@ class TxData extends ElasticData {
     if (tx.certificate) {
       const cert = tx.certificate
       if (cert.type === 'PoolRegistration') {
-        const { pool_id, owners, start_validity } = cert
-        this.poolStates = [{ pool_id, owners, start_validity, type: 'new', cert_num_per_pool: 1 }]
+        const { pool_id, owners, start_validity, operators, rewardAccount } = cert
+        this.poolStates = [{
+          pool_id, owners, operators, rewardAccount, start_validity,
+          type: 'new',
+          cert_num_per_pool: 1,
+        }]
       } else if (cert.type === 'StakeDelegation') {
         const { pool_id, account, isOwnerStake } = cert
         // TODO insert (pool existing state + account delegation) into delegation states
