@@ -1,5 +1,5 @@
+# dev build with extra debugging tools, used to include app depends
 ARG BASE_IMAGE=emurgornd/tangata-manu:base-master
-
 FROM ${BASE_IMAGE} AS dev-build
 ARG NPM_REGISTRY
 ARG PROXYCHAINS_PROXY_LINE
@@ -14,8 +14,7 @@ RUN /bin/bash -c 'source /docker-assets/bin/npm-registry-setup.functions && \
     ${PROXYCHAIN_CMD} yarn install && \
     npm-registry-cleanup'
 
-
-# minimal build
+# minimal image for production use case
 FROM node:12-alpine AS prod-build
 VOLUME ["/var/log/importer"]
 ENV WORKDIR /usr/src/app
