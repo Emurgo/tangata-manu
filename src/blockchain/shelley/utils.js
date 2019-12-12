@@ -154,6 +154,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
       case wasm.CertificateKind.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
         const poolId = deleg.delegation_type().get_full()
+        const accountIdentifier = deleg.account();
         const parsedCert: StakeDelegationType = {
           payload: {
             payloadKind: 'StakeDelegation',
@@ -163,10 +164,11 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
-          account: deleg.account().to_hex(),
+          account: accountToOptionalAddress(accountIdentifier.to_account_single(), networkDiscrimination),
           isOwnerStake: false,
         }
         common.certificate = parsedCert
+        free(accountIdentifier, poolId, deleg)
         break
       }
       case wasm.CertificateKind.PoolRetirement: {

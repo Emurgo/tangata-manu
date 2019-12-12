@@ -10,15 +10,17 @@ import BigNumber from 'bignumber.js'
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
 import type { AccountInputType, Block, TxInputType, TxType } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
+import type { ShelleyTxType } from '../../blockchain/shelley/tx';
+
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import type { UtxoType } from './utxo-data'
-
 import BlockData from './block-data'
 import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
 import { shelleyUtils } from '../../blockchain/shelley';
+import { CERT_TYPE } from "../../blockchain/shelley/certificate";
 
 const INDEX_LEADERS = 'leader'
 const INDEX_SLOT = 'slot'
@@ -433,10 +435,17 @@ class ElasticStorageProcessor implements StorageProcessor {
     // Plus all the UTxOs produced in the processed blocks
     const utxosForInputsAndOutputs = [...storedUTxOs, ...blockOutputsToStore]
 
-    this.logger.debug('storeBlocksData.processingAddressStates')
+    const chunkTxs: Array<TxType|ShelleyTxType> = blocks.flatMap(b => b.getTxs())
+
     // Filter all the unique addresses being used in either inputs or outputs
+    this.logger.debug('storeBlocksData.processingAddressStates')
+
+    // All utxo input/output addresses (they are taken from resolved data,
+    // because utxo-input address is not straightforward to obtain
     const utxoAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address));
-    const accountAddresses = blocks.flatMap(b => b.getTxs()).flatMap((tx: TxType) => {
+
+    // Account inputs/output addresses. They are straightforward
+    const accountAddresses = chunkTxs.flatMap((tx: TxType) => {
       const inputAccountAddresses = tx.inputs
         .filter(x => x.type === 'account')
         .map((x: AccountInputType) => x.account_id)
@@ -445,11 +454,25 @@ class ElasticStorageProcessor implements StorageProcessor {
         .map(x => x.address)
       return [...inputAccountAddresses, ...outputAccountAddresses]
     })
+
+    // For all group addresses (they are UTxO) we extract the related account address
     const groupAccounts = utxoAddresses.map(addr => {
       const { accountAddress } = shelleyUtils.splitGroupAddress(addr)
       return accountAddress
     }).filter(Boolean)
-    const uniqueBlockAddresses = _.uniq([...utxoAddresses, ...accountAddresses, ...groupAccounts])
+
+    // For all delegation certificates we extract the related account address
+    const delegationCertificateAccounts = chunkTxs.flatMap(tx =>
+      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation ? [tx.certificate.account] : [])
+
+    // All the different extracted addresses are combined in a single set
+    // For each one we need to query the previous known state because it will be used in some way
+    const uniqueBlockAddresses = _.uniq([
+      ...utxoAddresses,
+      ...accountAddresses,
+      ...groupAccounts,
+      ...delegationCertificateAccounts,
+    ])
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
     const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(

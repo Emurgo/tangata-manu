@@ -13,6 +13,7 @@ import InputData from './input-data'
 import AccountInputData from "./account-input-data";
 import AccountOutputData from "./account-output-data";
 import { shelleyUtils } from "../../blockchain/shelley";
+import { CERT_TYPE } from "../../blockchain/shelley/certificate";
 
 class TxData extends ElasticData {
   tx: TxType
@@ -145,20 +146,34 @@ class TxData extends ElasticData {
       }
     }
 
+    if (tx.certificate) {
+      const cert = tx.certificate
+      if (cert.type === CERT_TYPE.StakeDelegation) {
+        const { pool_id, account, isOwnerStake } = cert
+        const accountDiff = txAddressDiff[account] || {}
+        txAddressDiff[account] = {
+          ...accountDiff,
+          isAddressAccount: true,
+          newDelegatedPool: pool_id,
+        }
+      }
+    }
+
     // Apply the aggregated diff to the address state
-    const txAddressStates = []
     let newAddresses = 0
     for (const address of Object.keys(txAddressDiff)) {
       const {
         isAddressAccount,
-        addressBalanceDiff,
-        accountDelegationDiff,
+        addressBalanceDiff = 0,
+        accountDelegationDiff = 0,
         isAddressInput,
         isAddressOutput,
+        newDelegatedPool,
       } = txAddressDiff[address]
       const {
         balance_after_this_tx = 0,
         delegation_after_this_tx = 0,
+        delegated_pool_after_this_tx = null,
         tx_num_after_this_tx = 0,
         received_tx_num_after_this_tx = 0,
         sent_tx_num_after_this_tx = 0,
@@ -174,36 +189,46 @@ class TxData extends ElasticData {
         address,
         is_account: isAddressAccount,
         balance_after_this_tx: balance_after_this_tx + addressBalanceDiff,
-        ...(isAddressAccount ? { delegation_after_this_tx: delegation_after_this_tx + accountDelegationDiff } : {}),
-        tx_num_after_this_tx: tx_num_after_this_tx + 1,
+        ...(isAddressAccount ? {
+          delegation_after_this_tx: delegation_after_this_tx + accountDelegationDiff,
+          delegated_pool_after_this_tx: newDelegatedPool || delegated_pool_after_this_tx,
+        } : {}),
+        tx_num_after_this_tx: tx_num_after_this_tx + (isAddressInput || isAddressOutput ? 1 : 0),
         sent_tx_num_after_this_tx: sent_tx_num_after_this_tx + (isAddressInput ? 1 : 0),
         received_tx_num_after_this_tx: received_tx_num_after_this_tx + (isAddressOutput ? 1 : 0),
         state_ordinal: state_ordinal + 1,
+        ...(isNewAddress ? { new_address: true } : {}),
       }
       addressStates[address] = newState
-      txAddressStates.push({
-        ...newState,
-        ...(isNewAddress ? { new_address: true } : {}),
-      })
     }
-
-    this.addressStates = txAddressStates
-    this.newAddresses = newAddresses
 
     if (tx.certificate) {
       const cert = tx.certificate
-      if (cert.type === 'PoolRegistration') {
+      if (cert.type === CERT_TYPE.PoolRegistration) {
         const { pool_id, owners, start_validity, operators, rewardAccount } = cert
         this.poolStates = [{
           pool_id, owners, operators, rewardAccount, start_validity,
           type: 'new',
           cert_num_per_pool: 1,
         }]
-      } else if (cert.type === 'StakeDelegation') {
+      } else if (cert.type === CERT_TYPE.StakeDelegation) {
         const { pool_id, account, isOwnerStake } = cert
-        // TODO insert (pool existing state + account delegation) into delegation states
+        // this.delegationStates = [{
+        //   pool_id,
+        //   // TODO
+        // }]
       }
     }
+
+    const txAddressStates = []
+    for (const address of Object.keys(txAddressDiff)) {
+      txAddressStates.push({
+        ...addressStates[address],
+      })
+    }
+
+    this.addressStates = txAddressStates
+    this.newAddresses = newAddresses
   }
 
   static fromGenesisUtxo(utxo: any, networkStartTime: number) {
