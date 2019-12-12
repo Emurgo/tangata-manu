@@ -1,6 +1,7 @@
 {
   "defaultNetwork": "TANGATA_DEFAULT_NETWORK",
   "storageProcessor": "TANGATA_STORAGE_PROCESSOR",
+  "defaultBridgeUrl": "CARDANO_BRIDGE_URL",
   "cardanoBridge": {
     "baseUrl": "CARDANO_BRIDGE_URL",
     "template": "CARDANO_NETWORK"
