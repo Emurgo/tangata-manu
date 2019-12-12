@@ -49,6 +49,14 @@ class UtxoData extends ElasticData {
     return this.utxo.amount
   }
 
+  isInput() {
+    return false
+  }
+
+  isAccount() {
+    return false
+  }
+
   toPlainObject() {
     return {
       id: this.getId(),

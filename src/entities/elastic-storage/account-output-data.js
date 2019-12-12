@@ -2,12 +2,13 @@
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type {AccountInputType, TxInputType, TxType} from '../../blockchain/common'
+import type {TxOutputType} from "../../blockchain/common/tx";
 
-const ACCOUNT_INPUT_TYPE = 'account_input'
+const ACCOUNT_OUTPUT_TYPE = 'account_output'
 
-class AccountInputData extends ElasticData {
+class AccountOutputData extends ElasticData {
 
-  input: AccountInputType
+  output: TxOutputType
 
   type: string
 
@@ -19,10 +20,13 @@ class AccountInputData extends ElasticData {
 
   ioOrdinal: number
 
-  constructor(input: AccountInputType, tx: TxType, index: number) {
+  constructor(output: TxOutputType, tx: TxType, index: number) {
     super()
-    this.input = input
-    this.type = ACCOUNT_INPUT_TYPE
+    if (output.type !== 'account') {
+      throw new Error(`AccountOutputType expects output of type 'account', but got: ${output}`)
+    }
+    this.output = output
+    this.type = ACCOUNT_OUTPUT_TYPE
     this.id = `${this.type}:${tx.id}:${index}`
     this.blockHash = tx.blockHash
     this.txOrdinal = tx.txOrdinal
@@ -34,15 +38,15 @@ class AccountInputData extends ElasticData {
   }
 
   getRelatedAddress(): string {
-    return this.input.account_id
+    return this.output.address
   }
 
   getAmount(): number {
-    return this.input.value
+    return this.output.value
   }
 
   isInput() {
-    return true
+    return false
   }
 
   isAccount() {
@@ -57,10 +61,10 @@ class AccountInputData extends ElasticData {
       branch: 0,
       tx_ordinal: this.txOrdinal,
       io_ordinal: this.ioOrdinal,
-      address: this.input.account_id,
-      value: coinFormat(Number(this.input.value)),
+      address: this.output.address,
+      value: coinFormat(Number(this.output.value)),
     }
   }
 }
 
-export default AccountInputData
+export default AccountOutputData

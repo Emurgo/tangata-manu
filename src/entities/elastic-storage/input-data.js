@@ -16,6 +16,10 @@ class InputData extends UtxoData {
     })
     this.type = INPUT_TYPE
   }
+
+  isInput() {
+    return true
+  }
 }
 
 export default InputData

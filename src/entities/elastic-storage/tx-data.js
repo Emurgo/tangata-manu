@@ -11,6 +11,7 @@ import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
 import AccountInputData from "./account-input-data";
+import AccountOutputData from "./account-output-data";
 
 class TxData extends ElasticData {
   tx: TxType
@@ -56,13 +57,18 @@ class TxData extends ElasticData {
       return new InputData(inp, idx, inputUtxo, tx)
     })
 
-    this.resolvedOutputs = tx.outputs.map((utxo, idx) => new UtxoData({
-      receiver: utxo.address,
-      amount: utxo.value,
-      tx_index: idx,
-      block_hash: tx.blockHash,
-      tx_hash: tx.id,
-    }))
+    this.resolvedOutputs = tx.outputs.map((out, idx) => {
+      if (out.type === 'account') {
+        return new AccountOutputData(out, tx, idx)
+      }
+      return new UtxoData({
+        receiver: out.address,
+        amount: out.value,
+        tx_index: idx,
+        block_hash: tx.blockHash,
+        tx_hash: tx.id,
+      })
+    })
 
     const prevSupply: BigNumber = txTrackedState.supply_after_this_tx
 
@@ -94,10 +100,13 @@ class TxData extends ElasticData {
     for (const io of [...this.resolvedInputs, ...this.resolvedOutputs]) {
       const receiver = io.getRelatedAddress()
       const amount = io.getAmount()
-      const isInput = io.type === 'input'
+      const isInput = io.isInput()
+      const isAccount = io.isAccount()
       const balanceDiff = isInput ? -amount : amount
+      const delegationDiff = isAccount ? balanceDiff : null
       const {
         addressBalanceDiff = 0,
+        accountDelegationDiff = 0,
         isAddressInput = false,
         isAddressOutput = false,
       } = txAddressDiff[receiver] || {}
@@ -105,6 +114,9 @@ class TxData extends ElasticData {
         addressBalanceDiff: addressBalanceDiff + balanceDiff,
         isAddressInput: isAddressInput || isInput,
         isAddressOutput: isAddressOutput || !isInput,
+        ...(isAccount ? {
+          accountDelegationDiff: accountDelegationDiff + delegationDiff
+        } : {}),
       }
     }
 
