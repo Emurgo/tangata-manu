@@ -1,4 +1,15 @@
 {
   "defaultNetwork": "TANGATA_DEFAULT_NETWORK",
-  "storageProcessor": "TANGATA_STORAGE_PROCESSOR"
+  "storageProcessor": "TANGATA_STORAGE_PROCESSOR",
+  "db": {
+    "user": "PGUSER",
+    "host": "PGHOST",
+    "database": "PGDATABASE",
+    "password": "PGPASSWORD",
+    "port": "PGPORT"
+  },
+  "elastic": {
+    "node": "ELASTICSEARCH_URI",
+    "indexPrefix": "ELASTICSEARCH_INDEX"
+  }
 }
