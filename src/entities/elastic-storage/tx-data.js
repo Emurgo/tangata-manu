@@ -12,6 +12,7 @@ import UtxoData from './utxo-data'
 import InputData from './input-data'
 import AccountInputData from "./account-input-data";
 import AccountOutputData from "./account-output-data";
+import { shelleyUtils } from "../../blockchain/shelley";
 
 class TxData extends ElasticData {
   tx: TxType
@@ -103,7 +104,6 @@ class TxData extends ElasticData {
       const isInput = io.isInput()
       const isAccount = io.isAccount()
       const balanceDiff = isInput ? -amount : amount
-      const delegationDiff = isAccount ? balanceDiff : null
       const {
         addressBalanceDiff = 0,
         accountDelegationDiff = 0,
@@ -111,12 +111,37 @@ class TxData extends ElasticData {
         isAddressOutput = false,
       } = txAddressDiff[receiver] || {}
       txAddressDiff[receiver] = {
+        isAddressAccount: isAccount,
         addressBalanceDiff: addressBalanceDiff + balanceDiff,
         isAddressInput: isAddressInput || isInput,
         isAddressOutput: isAddressOutput || !isInput,
         ...(isAccount ? {
-          accountDelegationDiff: accountDelegationDiff + delegationDiff
+          // If account balance itself is changed - delegation sum changes accordingly
+          accountDelegationDiff: accountDelegationDiff + balanceDiff
         } : {}),
+      }
+      if (!isAccount) {
+        const { type, accountAddress } = shelleyUtils.splitGroupAddress(receiver)
+        if (type === 'group' && accountAddress) {
+          // Group address also changes state for its linked accont
+          const {
+            addressBalanceDiff = 0,
+            accountDelegationDiff = 0,
+            isAddressInput = false,
+            isAddressOutput = false,
+          } = txAddressDiff[accountAddress] || {}
+          txAddressDiff[accountAddress] = {
+            isAddressAccount: true,
+            // account balance does not change
+            addressBalanceDiff: addressBalanceDiff,
+            // account itself is not used as either input or output in this particular case
+            // but it might have been additionally used in the same transaction, so we are preserving the flags
+            isAddressInput: isAddressInput,
+            isAddressOutput: isAddressOutput,
+            // Delegation sum per account changes with the same value
+            accountDelegationDiff: accountDelegationDiff + balanceDiff,
+          }
+        }
       }
     }
 
@@ -124,12 +149,20 @@ class TxData extends ElasticData {
     const txAddressStates = []
     let newAddresses = 0
     for (const address of Object.keys(txAddressDiff)) {
-      const { addressBalanceDiff, isAddressInput, isAddressOutput } = txAddressDiff[address]
+      const {
+        isAddressAccount,
+        addressBalanceDiff,
+        accountDelegationDiff,
+        isAddressInput,
+        isAddressOutput,
+      } = txAddressDiff[address]
       const {
         balance_after_this_tx = 0,
+        delegation_after_this_tx = 0,
         tx_num_after_this_tx = 0,
         received_tx_num_after_this_tx = 0,
         sent_tx_num_after_this_tx = 0,
+        state_ordinal = 0,
         isNewAddress = false,
       } = addressStates[address] || {
         isNewAddress: true,
@@ -139,10 +172,13 @@ class TxData extends ElasticData {
       }
       const newState = {
         address,
+        is_account: isAddressAccount,
         balance_after_this_tx: balance_after_this_tx + addressBalanceDiff,
+        ...(isAddressAccount ? { delegation_after_this_tx: delegation_after_this_tx + accountDelegationDiff } : {}),
         tx_num_after_this_tx: tx_num_after_this_tx + 1,
         sent_tx_num_after_this_tx: sent_tx_num_after_this_tx + (isAddressInput ? 1 : 0),
         received_tx_num_after_this_tx: received_tx_num_after_this_tx + (isAddressOutput ? 1 : 0),
+        state_ordinal: state_ordinal + 1,
       }
       addressStates[address] = newState
       txAddressStates.push({
@@ -211,6 +247,9 @@ class TxData extends ElasticData {
       addresses: this.addressStates.map(s => ({
         ...s,
         balance_after_this_tx: coinFormat(s.balance_after_this_tx),
+        ...(s.delegation_after_this_tx ? {
+          delegation_after_this_tx: coinFormat(s.delegation_after_this_tx),
+        } : {}),
       })),
       outputs: this.getOutputsData(),
       inputs: this.getInputsData(),

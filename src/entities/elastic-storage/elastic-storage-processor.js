@@ -442,7 +442,7 @@ class ElasticStorageProcessor implements StorageProcessor {
         .map((x: AccountInputType) => x.account_id)
       const outputAccountAddresses = tx.outputs
         .filter(x => x.type === 'account')
-        .map(x => x.receiver)
+        .map(x => x.address)
       return [...inputAccountAddresses, ...outputAccountAddresses]
     })
     const groupAccounts = utxoAddresses.map(addr => {
