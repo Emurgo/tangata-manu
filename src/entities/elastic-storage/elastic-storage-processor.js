@@ -150,7 +150,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   genesisLeaders: Array<GenesisLeaderType>
 
-  elasticAddrStatesCache: any
+  elasticAddrStatesCache: Array<any>
 
   constructor(
     logger: Logger,
@@ -161,7 +161,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.elasticConfig = elasticConfig
     this.client = new Client({ node: elasticConfig.node })
     this.networkStartTime = networkConfig.startTime()
-    this.elasticAddrStatesCache = {}
+    this.elasticAddrStatesCache = []
   }
 
   indexFor(name: string) {
@@ -375,11 +375,14 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   isNewestStates(addressStates: { [string]: any }): boolean {
     for (const [addr, state] of Object.entries(addressStates)) {
-      if (this.elasticAddrStatesCache[addr]) {
-        this.logger.debug(`${addr} is used in several chunks successively`)
-        if (state.tx_num_after_this_tx <= this.elasticAddrStatesCache[addr].tx_num_after_this_tx) {
-          this.logger.debug(`Elastic return old state for: ${addr}`)
-          return false
+      // Iterate over each available cache layer from latest and check if address is present
+      for (const stateLayer of this.elasticAddrStatesCache) {
+        if (stateLayer[addr]) {
+          this.logger.debug(`${addr} is used in several chunks close to each other`)
+          if (state.tx_num_after_this_tx <= stateLayer[addr].tx_num_after_this_tx) {
+            this.logger.debug(`Elastic returns old state for: ${addr}`)
+            return false
+          }
         }
       }
     }
@@ -438,16 +441,23 @@ class ElasticStorageProcessor implements StorageProcessor {
     const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
 
 
+    let attempts = 0
     let addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
-    if (!this.isNewestStates(addressStates)) {
+    while (!this.isNewestStates(addressStates)) {
       await sleep(5000)
       addressStates = await this.getAddressStates(uniqueBlockAddresses)
-      if (!this.isNewestStates(addressStates)) {
-        throw new Error(`Elastic return obsolete data for address states. ${addressStates}`)
+      if (attempts > 5) {
+        throw new Error(`Elastic returns obsolete data for address states (tried ${attempts} times with 5 second interval). ${addressStates}`)
       }
+      attempts += 1
     }
 
-    this.elasticAddrStatesCache = { ...addressStates }
+    // Insert new layer at the start of the states cache
+    this.elasticAddrStatesCache.unshift({ ...addressStates })
+    if (this.elasticAddrStatesCache.length > 5) {
+      // If cache contains too many layers - drop last one
+      this.elasticAddrStatesCache.pop()
+    }
 
     const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
 
