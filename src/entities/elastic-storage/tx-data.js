@@ -43,6 +43,7 @@ class TxData extends ElasticData {
     inputsUtxos: {} = {},
     txTrackedState: { [string]: any } = {},
     addressStates: { [string]: any } = {},
+    poolDelegationStates: { [string]: any } = {},
   ) {
     super()
     this.tx = tx
@@ -213,10 +214,19 @@ class TxData extends ElasticData {
         }]
       } else if (cert.type === CERT_TYPE.StakeDelegation) {
         const { pool_id, account, isOwnerStake } = cert
-        // this.delegationStates = [{
-        //   pool_id,
-        //   // TODO
-        // }]
+        const accountState = addressStates[account];
+        const accountBalance = accountState.balance_after_this_tx || 0
+        if (pool_id && accountState && accountBalance > 0) {
+          const {
+            delegation_after_this_tx = 0,
+            state_ordinal = 0,
+          } = poolDelegationStates[pool_id] || {}
+          this.delegationStates = [{
+            pool_id,
+            delegation_after_this_tx: delegation_after_this_tx + accountBalance,
+            state_ordinal: state_ordinal + 1,
+          }]
+        }
       }
     }
 
@@ -287,7 +297,11 @@ class TxData extends ElasticData {
         supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
       }),
       ...(certificate ? { certificates: [certificate] } : {}),
-      ...(this.poolStates ? { pools: this.poolStates } : {})
+      ...(this.poolStates ? { pools: this.poolStates } : {}),
+      delegation: (this.delegationStates || []).map(s => ({
+        ...s,
+        delegation_after_this_tx: coinFormat(s.delegation_after_this_tx),
+      })),
     }
   }
 }

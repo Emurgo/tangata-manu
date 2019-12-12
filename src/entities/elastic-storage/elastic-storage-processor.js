@@ -31,20 +31,21 @@ const INDEX_POINTER_ALL = '*'
 
 
 const ELASTIC_TEMPLATES = {
-  seiza_tx: {
+  seiza_tx_addresses: {
     index_patterns: ['seiza*.tx'],
     mappings: {
       properties: {
         addresses: {
           type: 'nested',
         },
-        pools: {
-          type: 'nested',
-        },
+      },
+    },
+  },
+  seiza_tx_delegation: {
+    index_patterns: ['seiza*.tx'],
+    mappings: {
+      properties: {
         delegation: {
-          type: 'nested',
-        },
-        certificates: {
           type: 'nested',
         },
       },
@@ -89,9 +90,10 @@ const getBlocksForSlotIdx = (
   storedUTxOs: Array<UtxoType>,
   txTrackedState: { [string]: any },
   addressStates: { [string]: any },
+  poolDelegationStates: { [string]: any },
 ): Array<BlockData> => {
   const blocksData = blocks.map(
-    block => new BlockData(block, storedUTxOs, txTrackedState, addressStates))
+    block => new BlockData(block, storedUTxOs, txTrackedState, addressStates, poolDelegationStates))
   return blocksData
 }
 
@@ -133,7 +135,49 @@ const createAddressStateQuery = (uniqueBlockAddresses) => ({
                     size: 1,
                     sort: [
                       {
-                        'addresses.tx_num_after_this_tx': {
+                        'addresses.state_ordinal': {
+                          order: 'desc',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+})
+
+
+const createPoolDelegationStateQuery = (uniqueBlockPools) => ({
+  size: 0,
+  aggs: {
+    tmp_nest: {
+      nested: {
+        path: 'delegation',
+      },
+      aggs: {
+        tmp_filter: {
+          filter: {
+            terms: {
+              'delegation.pool_id.keyword': uniqueBlockPools,
+            },
+          },
+          aggs: {
+            tmp_group_by: {
+              terms: {
+                field: 'delegation.pool_id.keyword',
+              },
+              aggs: {
+                tmp_select_latest: {
+                  top_hits: {
+                    size: 1,
+                    sort: [
+                      {
+                        'delegation.state_ordinal': {
                           order: 'desc',
                         },
                       },
@@ -475,8 +519,28 @@ class ElasticStorageProcessor implements StorageProcessor {
     ])
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
+    // Extract delegated pool IDs from all resolved address states
+    const relatedAddressPools = Object.values(addressStates)
+      .map(s => s.delegated_pool_after_this_tx)
+      .filter(Boolean)
+
+    // For all delegation certificates we extract the pool ID
+    const delegationCertificatePools = chunkTxs.flatMap(tx =>
+      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation ? [tx.certificate.pool_id] : [])
+
+    const uniqueBlockPools = _.uniq([
+      ...relatedAddressPools,
+      ...delegationCertificatePools,
+    ])
+    const poolDelegationStates: { [string]: any } = await this.getPoolDelegationStates(uniqueBlockPools)
+
     const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
-      blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+      blocks,
+      utxosForInputsAndOutputs,
+      txTrackedState,
+      addressStates,
+      poolDelegationStates,
+    )
 
     const blockInputsToStore = mappedBlocks
       .flatMap((b: BlockData) => b.getResolvedTxs())
@@ -562,11 +626,47 @@ class ElasticStorageProcessor implements StorageProcessor {
     try {
       const states = buckets.map(buck => {
         const source = buck.tmp_select_latest.hits.hits[0]._source
-        return { ...source, balance_after_this_tx: Number(source.balance_after_this_tx.full) }
+        return {
+          ...source,
+          balance_after_this_tx: Number(source.balance_after_this_tx.full),
+          ...(source.delegation_after_this_tx ? {
+            delegation_after_this_tx: Number(source.delegation_after_this_tx.full),
+          }: {}),
+        }
       })
       return _.keyBy(states, 'address')
     } catch (e) {
-      this.logger.error('Failed while processing this response:', JSON.stringify(res, null, 2))
+      this.logger.error(
+        'Failed while processing this response:', JSON.stringify(res, null, 2),
+        'Error: ', JSON.stringify(e, null, 2))
+      throw e
+    }
+  }
+
+  async getPoolDelegationStates(uniqueBlockPools: Array<string>): { [string]: any } {
+    const res = await this.client.search({
+      index: this.indexFor(INDEX_TX),
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+      body: createPoolDelegationStateQuery(uniqueBlockPools),
+    })
+    if (res.body.hits.total.value === 0) {
+      return {}
+    }
+    const { buckets } = res.body.aggregations.tmp_nest.tmp_filter.tmp_group_by
+    try {
+      const states = buckets.map(buck => {
+        const source = buck.tmp_select_latest.hits.hits[0]._source
+        return {
+          ...source,
+          delegation_after_this_tx: Number(source.delegation_after_this_tx.full),
+        }
+      })
+      return _.keyBy(states, 'pool_id')
+    } catch (e) {
+      this.logger.error(
+        'Failed while processing this response:', JSON.stringify(res, null, 2),
+        'Error: ', JSON.stringify(e, null, 2))
       throw e
     }
   }

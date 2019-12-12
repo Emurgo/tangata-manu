@@ -30,6 +30,7 @@ class BlockData extends ElasticData {
     storedUTxOs: Array<UtxoType> = [],
     txTrackedState: { [string]: any } = {},
     addressStates: { [string]: any } = {},
+    poolDelegationStates: { [string]: any } = {},
   ) {
     super()
     this.block = block
@@ -44,7 +45,13 @@ class BlockData extends ElasticData {
       this.inputsData = _.flatMap(txs, 'inputs')
         .flatMap(inp => this.allUtxos[utils.getUtxoId(inp)])
 
-      this.resolvedTxs = txs.map(tx => new TxData(tx, this.allUtxos, txTrackedState, addressStates))
+      this.resolvedTxs = txs.map(tx => new TxData(
+        tx,
+        this.allUtxos,
+        txTrackedState,
+        addressStates,
+        poolDelegationStates,
+      ))
 
       this.txsData = this.resolvedTxs.map(tx => ({
         epoch: block.getEpoch(),
