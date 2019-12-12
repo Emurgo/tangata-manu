@@ -8,7 +8,7 @@ import { Client } from '@elastic/elasticsearch'
 
 import BigNumber from 'bignumber.js'
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
-import type {Block, TxInputType} from '../../blockchain/common'
+import type { AccountInputType, Block, TxInputType, TxType } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
@@ -18,6 +18,7 @@ import BlockData from './block-data'
 import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
+import { shelleyUtils } from '../../blockchain/shelley';
 
 const INDEX_LEADERS = 'leader'
 const INDEX_SLOT = 'slot'
@@ -434,7 +435,21 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     this.logger.debug('storeBlocksData.processingAddressStates')
     // Filter all the unique addresses being used in either inputs or outputs
-    const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
+    const utxoAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address));
+    const accountAddresses = blocks.flatMap(b => b.getTxs()).flatMap((tx: TxType) => {
+      const inputAccountAddresses = tx.inputs
+        .filter(x => x.type === 'account')
+        .map((x: AccountInputType) => x.account_id)
+      const outputAccountAddresses = tx.outputs
+        .filter(x => x.type === 'account')
+        .map(x => x.receiver)
+      return [...inputAccountAddresses, ...outputAccountAddresses]
+    })
+    const groupAccounts = utxoAddresses.map(addr => {
+      const { accountAddress } = shelleyUtils.splitGroupAddress(addr)
+      return accountAddress
+    }).filter(Boolean)
+    const uniqueBlockAddresses = _.uniq([...utxoAddresses, ...accountAddresses, ...groupAccounts])
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
     const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
