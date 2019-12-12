@@ -5,6 +5,31 @@ import { CERT_TYPE } from './certificate'
 import type { ShelleyTxType } from './tx'
 import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs';
 
+function keysToStrings(keys, stringEncoding = 'hex'): Array<string> {
+  const result: Array<string> = []
+  for (let i = 0; i < keys.size(); i += 1) {
+    const keyBytes = Buffer.from(keys.get(i).as_bytes())
+    result.push(keyBytes.toString(stringEncoding))
+  }
+  return result
+}
+
+function accountToOptionalAddress(account, discrimination, stringEncoding = 'hex'): string {
+  if (!account) {
+    return null
+  }
+  const addressBytes = account.to_address(discrimination).as_bytes()
+  return Buffer.from(addressBytes).toString(stringEncoding)
+}
+
+function free(...args) {
+  for (const a of args) {
+    if (a && a.free) {
+      a.free()
+    }
+  }
+}
+
 const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
 
@@ -101,12 +126,11 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     switch (cert.get_type()) {
       case wasm.CertificateKind.PoolRegistration: {
         const reg = cert.get_pool_registration()
-        const pool_keys = reg.owners()
-        const pool_owners = []
-        for (let i = 0; i < pool_keys.size(); i += 1) {
-          const keyBytes = Buffer.from(pool_keys.get(i).as_bytes())
-          pool_owners.push(keyBytes.toString('hex'))
-        }
+        const reg_owners = reg.owners();
+        const reg_operators = reg.operators();
+        const rewardAccount = reg.reward_account();
+        const rewards = reg.rewards()
+        const keys = reg.keys()
         const parsedCert: PoolRegistrationType = {
           payload: {
             payloadKind: 'PoolRegistration',
@@ -117,9 +141,14 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           pool_id: reg.id().to_string(),
           // we should be able to do this considering js max int would be 285,616,414 years
           start_validity: parseInt(reg.start_validity().to_string(), 10),
-          owners: pool_owners,
+          owners: keysToStrings(reg_owners),
+          operators: keysToStrings(reg_operators),
+          rewardAccount: accountToOptionalAddress(rewardAccount, networkDiscrimination),
+          // rewards: JSON.stringify(rewards),
+          // keys: JSON.stringify(keys),
         }
         common.certificate = parsedCert
+        free(reg_owners, reg_operators, rewards, rewardAccount, keys)
         break
       }
       case wasm.CertificateKind.StakeDelegation: {
