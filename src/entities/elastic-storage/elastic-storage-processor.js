@@ -453,7 +453,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
 
     // Insert new layer at the start of the states cache
-    this.elasticAddrStatesCache.unshift({ ...addressStates })
+    this.elasticAddrStatesCache.unshift(_.cloneDeep(addressStates))
     if (this.elasticAddrStatesCache.length > 5) {
       // If cache contains too many layers - drop last one
       this.elasticAddrStatesCache.pop()
