@@ -133,13 +133,7 @@ const createAddressStateQuery = (uniqueBlockAddresses) => ({
                 tmp_select_latest: {
                   top_hits: {
                     size: 1,
-                    sort: [
-                      {
-                        'addresses.state_ordinal': {
-                          order: 'desc',
-                        },
-                      },
-                    ],
+                    ...qSort(['addresses.state_ordinal', 'desc']),
                   },
                 },
               },
@@ -175,13 +169,7 @@ const createPoolDelegationStateQuery = (uniqueBlockPools) => ({
                 tmp_select_latest: {
                   top_hits: {
                     size: 1,
-                    sort: [
-                      {
-                        'delegation.state_ordinal': {
-                          order: 'desc',
-                        },
-                      },
-                    ],
+                    ...qSort(['delegation.state_ordinal', 'desc']),
                   },
                 },
               },
