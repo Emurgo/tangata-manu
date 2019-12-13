@@ -18,6 +18,7 @@
     }
   },
   "checkTipSeconds": 15,
+  "checkGitHubSeconds": 60,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
   "defaultNetwork": "jormun-testnet",
