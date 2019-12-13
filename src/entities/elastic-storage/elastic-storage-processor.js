@@ -459,14 +459,16 @@ class ElasticStorageProcessor implements StorageProcessor {
       this.elasticAddrStatesCache.pop()
     }
 
-    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
+      blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
 
     const blockInputsToStore = mappedBlocks
       .flatMap((b: BlockData) => b.getResolvedTxs())
       .flatMap((tx: TxData) => tx.getInputsData())
 
     const tip: BlockInfoType = await this.getBestBlockNum()
-    const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
+    const paddedBlocks: Array<BlockData> = padEmptySlots(
+      mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
 
     const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
@@ -494,8 +496,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       getData: (o) => o,
     })
 
-    const uploadResp = await this.bulkUpload([...txiosBody, ...blocksBody, ...txsBody])
-    this.logger.debug(uploadResp)
+    await this.bulkUpload([...txiosBody, ...blocksBody, ...txsBody])
 
     // Commit every 10th chunk
     if (chunk % 10 === 0) {
@@ -535,7 +536,6 @@ class ElasticStorageProcessor implements StorageProcessor {
       index: this.indexFor(INDEX_TX),
       allowNoIndices: true,
       ignoreUnavailable: true,
-      //request_cache: false,
       body: createAddressStateQuery(uniqueBlockAddresses),
     })
     const { buckets } = res.body.aggregations.tmp_nest.tmp_filter.tmp_group_by
