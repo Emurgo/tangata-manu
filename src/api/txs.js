@@ -129,7 +129,7 @@ class TxController implements IController {
         status: TX_STATUS.TX_FAILED_STATUS,
       }
       this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
-      await this.db.storeTx(failedTx, [], true)
+      await this.db.storeTx(failedTx)
     }
   }
 }
