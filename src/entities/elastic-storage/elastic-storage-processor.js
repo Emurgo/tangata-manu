@@ -51,6 +51,26 @@ const ELASTIC_TEMPLATES = {
       },
     },
   },
+  seiza_tx_pools: {
+    index_patterns: ['seiza*.tx'],
+    mappings: {
+      properties: {
+        pools: {
+          type: 'nested',
+        },
+      },
+    },
+  },
+  seiza_tx_certificates: {
+    index_patterns: ['seiza*.tx'],
+    mappings: {
+      properties: {
+        certificates: {
+          type: 'nested',
+        },
+      },
+    },
+  },
 }
 
 type ElasticConfigType = {

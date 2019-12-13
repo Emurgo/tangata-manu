@@ -243,9 +243,17 @@ class TxData extends ElasticData {
     if (tx.certificate) {
       const cert = tx.certificate
       if (cert.type === CERT_TYPE.PoolRegistration) {
-        const { pool_id, owners, start_validity, operators, rewardAccount } = cert
+        const {
+          pool_id,
+          start_validity,
+          owners,
+          operators,
+          rewardAccount,
+          rewards,
+          keys,
+        } = cert
         this.poolStates = [{
-          pool_id, owners, operators, rewardAccount, start_validity,
+          pool_id, owners, operators, rewardAccount, rewards, start_validity, keys,
           type: 'new',
           cert_num_per_pool: 1,
         }]

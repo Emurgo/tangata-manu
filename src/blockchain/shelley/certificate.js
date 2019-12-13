@@ -24,6 +24,17 @@ export type PoolRegistrationType = {
   pool_id: PoolIdType,
   start_validity: number,
   owners: Array<string>,
+  operators: Array<string>,
+  rewardAccount: string|null,
+  rewards: {
+    fixed: number,
+    ratio: [number, number],
+    limit: number|null,
+  },
+  keys: {
+    kes_beck32: string,
+    vrf_beck32: string,
+  }
 }
 
 export type PoolRetirementType = {
