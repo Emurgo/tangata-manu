@@ -36,7 +36,7 @@ class TxData extends ElasticData {
 
   poolStates: Array<{ [string]: any }>
 
-  delegationStates: Array<{ [string]: any }>
+  delegationStates: Array<{ [string]: any }> = []
 
   constructor(
     tx: TxType,
@@ -157,6 +157,32 @@ class TxData extends ElasticData {
           isAddressAccount: true,
           newDelegatedPool: pool_id,
         }
+        // For currently delegated pool - reduce the delegation sum
+        const {
+          balance_after_this_tx,
+          delegated_pool_after_this_tx,
+        } = addressStates[account] || {}
+        // If account is already delegating to ANOTHER pool
+        if (delegated_pool_after_this_tx) {
+          if (delegated_pool_after_this_tx === pool_id) {
+            // New certificate delegates to the same pool as before
+            // In that case - no pool delegation state changed here
+            // And we are marking the cert as repeat
+            cert.isRepeat = true
+          } else {
+            const {
+              delegation_after_this_tx = 0,
+              state_ordinal = 0,
+            } = poolDelegationStates[delegated_pool_after_this_tx] || {}
+            const newState = {
+              pool_id: delegated_pool_after_this_tx,
+              delegation_after_this_tx: delegation_after_this_tx - balance_after_this_tx,
+              state_ordinal: state_ordinal + 1,
+            }
+            poolDelegationStates[delegated_pool_after_this_tx] = newState
+            this.delegationStates.push(newState)
+          }
+        }
       }
     }
 
@@ -212,11 +238,11 @@ class TxData extends ElasticData {
           type: 'new',
           cert_num_per_pool: 1,
         }]
-      } else if (cert.type === CERT_TYPE.StakeDelegation) {
+      } else if (cert.type === CERT_TYPE.StakeDelegation && !cert.isRepeat) {
         const { pool_id, account, isOwnerStake } = cert
         const accountState = addressStates[account];
-        const accountBalance = accountState.balance_after_this_tx || 0
-        if (pool_id && accountState && accountBalance > 0) {
+        const { balance_after_this_tx = 0 } = accountState
+        if (pool_id && accountState && balance_after_this_tx > 0) {
           const {
             delegation_after_this_tx = 0,
             state_ordinal = 0,
@@ -227,7 +253,7 @@ class TxData extends ElasticData {
             state_ordinal: state_ordinal + 1,
           }
           poolDelegationStates[pool_id] = newState
-          this.delegationStates = [newState]
+          this.delegationStates.push(newState)
         }
       }
     }
@@ -300,7 +326,7 @@ class TxData extends ElasticData {
       }),
       ...(certificate ? { certificates: [certificate] } : {}),
       ...(this.poolStates ? { pools: this.poolStates } : {}),
-      delegation: (this.delegationStates || []).map(s => ({
+      delegation: this.delegationStates.map(s => ({
         ...s,
         delegation_after_this_tx: coinFormat(s.delegation_after_this_tx),
       })),
