@@ -153,8 +153,8 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
             limit: rewards.max_limit() ? parseInt(rewards.max_limit().to_str()) : null,
           },
           keys: {
-            kes_beck32: keys.kes_pubkey().to_bech32(),
-            vrf_beck32: keys.vrf_pubkey().to_bech32(),
+            kes_bech32: keys.kes_pubkey().to_bech32(),
+            vrf_bech32: keys.vrf_pubkey().to_bech32(),
           },
         }
         common.certificate = parsedCert

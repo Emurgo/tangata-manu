@@ -32,8 +32,8 @@ export type PoolRegistrationType = {
     limit: number|null,
   },
   keys: {
-    kes_beck32: string,
-    vrf_beck32: string,
+    kes_bech32: string,
+    vrf_bech32: string,
   }
 }
 
