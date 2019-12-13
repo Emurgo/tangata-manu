@@ -122,12 +122,15 @@ class TxController implements IController {
   }
 
   async storeTxAsFailed(tx: TxType) {
-    const failedTx = {
-      ...tx,
-      status: TX_STATUS.TX_FAILED_STATUS,
+    const existingStatus = this.db.getTxStatus(tx.id)
+    if (!existingStatus || existingStatus === TX_STATUS.TX_PENDING_STATUS) {
+      const failedTx = {
+        ...tx,
+        status: TX_STATUS.TX_FAILED_STATUS,
+      }
+      this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
+      await this.db.storeTx(failedTx, [], true)
     }
-    this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
-    await this.db.storeTx(failedTx, [], false)
   }
 }
 
