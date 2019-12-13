@@ -255,7 +255,7 @@ class TxData extends ElasticData {
         this.poolStates = [{
           pool_id, owners, operators, rewardAccount, rewards, start_validity, keys,
           type: 'new',
-          cert_num_per_pool: 1,
+          state_ordinal: 1,
         }]
       }
     }
