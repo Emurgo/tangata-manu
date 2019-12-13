@@ -144,8 +144,18 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           owners: keysToStrings(reg_owners),
           operators: keysToStrings(reg_operators),
           rewardAccount: accountToOptionalAddress(rewardAccount, networkDiscrimination),
-          // rewards: JSON.stringify(rewards),
-          // keys: JSON.stringify(keys),
+          rewards: {
+            fixed: parseInt(rewards.fixed().to_str()),
+            ratio: [
+              parseInt(rewards.ratio_numerator().to_str()),
+              parseInt(rewards.ratio_denominator().to_str()),
+            ],
+            limit: rewards.max_limit() ? parseInt(rewards.max_limit().to_str()) : null,
+          },
+          keys: {
+            kes_beck32: keys.kes_pubkey().to_bech32(),
+            vrf_beck32: keys.vrf_pubkey().to_bech32(),
+          },
         }
         common.certificate = parsedCert
         free(reg_owners, reg_operators, rewards, rewardAccount, keys)
