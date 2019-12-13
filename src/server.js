@@ -67,7 +67,11 @@ const startServer = async () => {
     await new Promise(resolve => setTimeout(resolve, 5000))
     process.exit(1)
   }, async err => {
-    logger.error('Scheduler.startAsync exited with an error:', JSON.stringify(err, null, 2))
+    try {
+      logger.error('Scheduler.startAsync exited with an error:', JSON.stringify(err, null, 2))
+    } catch (e) {
+      logger.error('Scheduler.startAsync exited with an error (and also failed to stringify the error):', err, e)
+    }
     await new Promise(resolve => setTimeout(resolve, 5000))
     process.exit(1)
   })
