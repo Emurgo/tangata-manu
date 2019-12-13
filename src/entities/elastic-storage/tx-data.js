@@ -221,11 +221,13 @@ class TxData extends ElasticData {
             delegation_after_this_tx = 0,
             state_ordinal = 0,
           } = poolDelegationStates[pool_id] || {}
-          this.delegationStates = [{
+          const newState = {
             pool_id,
             delegation_after_this_tx: delegation_after_this_tx + accountBalance,
             state_ordinal: state_ordinal + 1,
-          }]
+          }
+          poolDelegationStates[pool_id] = newState
+          this.delegationStates = [newState]
         }
       }
     }
