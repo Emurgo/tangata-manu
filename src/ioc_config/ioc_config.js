@@ -8,6 +8,8 @@ import { EagerBinder } from 'inversify-config-injection'
 import {
   CronScheduler,
   GenesisProvider,
+  GitHubLoader,
+  GitHubApi,
 } from '../entities'
 import {
   Scheduler,
@@ -35,6 +37,9 @@ const initIoC = async () => {
 
   container.bind<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER).to(CronScheduler).inSingletonScope()
   container.bind<Genesis>(SERVICE_IDENTIFIER.GENESIS).to(GenesisProvider).inSingletonScope()
+
+  container.bind<Scheduler>(SERVICE_IDENTIFIER.GITHUB_LOADER).to(GitHubLoader).inSingletonScope()
+  container.bind<Scheduler>(SERVICE_IDENTIFIER.GITHUB_API).to(GitHubApi).inSingletonScope()
 
   initStorageProcessor(container)
   const storageName = container.getNamed('storageProcessor')

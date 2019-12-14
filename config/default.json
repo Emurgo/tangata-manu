@@ -19,6 +19,8 @@
   },
   "checkTipSeconds": 15,
   "checkGitHubSeconds": 60,
+  "gitHubRootUrl": "https://api.github.com",
+  "gitHubRepo": "cardano-foundation/incentivized-testnet-stakepool-registry",
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
   "defaultNetwork": "jormun-testnet",

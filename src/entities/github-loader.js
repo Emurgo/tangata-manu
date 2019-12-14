@@ -8,6 +8,7 @@ import type {
   StorageProcessor,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
+import GitHubApi from "./github-api";
 
 const ERROR_META = {
 }
@@ -16,6 +17,8 @@ class GitHubLoader implements Scheduler {
 
   storageProcessor: StorageProcessor
 
+  gitHubApi: GitHubApi
+
   logger: Logger
 
   checkGitHubMillis: number
@@ -23,16 +26,20 @@ class GitHubLoader implements Scheduler {
   constructor(
     checkGitHubSeconds: number,
     storageProcessor: StorageProcessor,
+    gitHubApi: GitHubApi,
     logger: Logger,
   ) {
     this.storageProcessor = storageProcessor
+    this.gitHubApi = gitHubApi
     this.checkGitHubMillis = checkGitHubSeconds * 1000
     logger.debug('Checking GitHub every', checkGitHubSeconds, 'seconds')
     this.logger = logger
   }
 
   async checkGitHub() {
-    this.logger('>>>> Checking GitHub <<<<')
+    this.logger.debug('>>>> Checking GitHub <<<<')
+    const prs = await this.gitHubApi.getClosedPullRequests(1)
+    this.logger.debug(`PRs:`, prs.length)
   }
 
   async startAsync() {
@@ -69,6 +76,7 @@ helpers.annotate(GitHubLoader,
   [
     'checkGitHubSeconds',
     SERVICE_IDENTIFIER.STORAGE_PROCESSOR,
+    SERVICE_IDENTIFIER.GITHUB_API,
     SERVICE_IDENTIFIER.LOGGER,
   ])
 
