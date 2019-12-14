@@ -13,6 +13,10 @@ import GitHubApi from "./github-api";
 const ERROR_META = {
 }
 
+const GITHUB_PR_PAGE_LIMIT = 30
+
+const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
+
 class GitHubLoader implements Scheduler {
 
   storageProcessor: StorageProcessor
@@ -36,21 +40,63 @@ class GitHubLoader implements Scheduler {
     this.logger = logger
   }
 
-  async checkGitHub() {
-    this.logger.debug('>>>> Checking GitHub <<<<')
-    const prs = await this.gitHubApi.getClosedPullRequests(1)
-    this.logger.debug(`PRs:`, prs.length)
+  async checkGitHub({
+    pullRequestPage = 1,
+    pullRequestUpdatedAtTimestamp = null,
+  }: {
+    pullRequestPage: number,
+    pullRequestUpdatedAtTimestamp: number,
+  }) {
+    this.logger.debug('[GitHubLoader] Checking GitHub Pull Requests')
+    let latestUpdatedAtTimestamp = pullRequestUpdatedAtTimestamp
+    for (let prPage = pullRequestPage; /* NO SIMPLE EXIT CONDITION */; prPage += 1) {
+      const prs = await this.gitHubApi.getClosedPullRequests(prPage)
+      for (const pr of prs) {
+        const {
+          number: pullRequestNumber,
+          title: pullRequestTitle,
+          updated_at: pullRequestUpdatedAt,
+          merged_at: pullRequestMergedAt,
+          html_url: pullRequestHtmlUrl,
+        } = pr
+        const updatedAtTimestamp = Date.parse(pullRequestUpdatedAt)
+        if (!pullRequestMergedAt || updatedAtTimestamp < pullRequestUpdatedAtTimestamp) {
+          // Ignore declined PRs
+          // Also skip any PRs on the same page that were already processed before
+          continue
+        }
+        const pullRequestMergedAtTimestamp = Date.parse(pullRequestMergedAt)
+        latestUpdatedAtTimestamp = updatedAtTimestamp
+        const prMeta = {
+          pullRequestNumber,
+          pullRequestTitle,
+          pullRequestUpdatedAt,
+          pullRequestUpdatedAtTimestamp: updatedAtTimestamp,
+          pullRequestMergedAt,
+          pullRequestMergedAtTimestamp,
+          pullRequestHtmlUrl,
+        }
+        this.logger.debug('Found PR: ', prMeta)
+      }
+      if (prs.length < GITHUB_PR_PAGE_LIMIT) {
+        // Finishing iteration, because last page is reached
+        return {
+          pullRequestPage: prPage,
+          pullRequestUpdatedAtTimestamp: latestUpdatedAtTimestamp,
+        }
+      }
+    }
   }
 
   async startAsync() {
     this.logger.info('GitHub loader async: starting chain syncing loop')
     const currentMillis = () => new Date().getTime()
-    const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
+    let iterationState = {}
     for (;;) {
       const millisStart = currentMillis()
       let errorSleep = 0
       try {
-        await this.checkGitHub()
+        iterationState = await this.checkGitHub(iterationState)
       } catch (e) {
         const meta = ERROR_META[e.name]
         if (meta) {
@@ -62,7 +108,7 @@ class GitHubLoader implements Scheduler {
       }
       const millisEnd = currentMillis()
       const millisPassed = millisEnd - millisStart
-      this.logger.debug(`GitHub loader async: loop finished (millisPassed=${millisPassed})`)
+      this.logger.debug(`GitHub loader async: loop finished (millisPassed=${millisPassed}, iterationState=${JSON.stringify(iterationState)})`)
       const millisSleep = errorSleep || (this.checkGitHubMillis - millisPassed)
       if (millisSleep > 0) {
         this.logger.debug('GitHub loader async: sleeping for', millisSleep)

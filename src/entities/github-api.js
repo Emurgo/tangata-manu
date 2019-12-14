@@ -15,16 +15,24 @@ class GitHubApi implements RawDataProvider {
 
   #gitHubRepo: string
 
+  #gitHubAuthUser: string
+
+  #gitHubAuthToken: string
+
   logger: Logger
 
   constructor(
     logger: Logger,
     gitHubRootUrl: string,
     gitHubRepo: string,
+    gitHubAuthUser: string,
+    gitHubAuthToken: string,
   ) {
     this.logger = logger
     this.#gitHubRootUrl = gitHubRootUrl
     this.#gitHubRepo = gitHubRepo
+    this.#gitHubAuthUser = gitHubAuthUser
+    this.#gitHubAuthToken = gitHubAuthToken
   }
 
   repoPath(path: string): string {
@@ -40,6 +48,12 @@ class GitHubApi implements RawDataProvider {
         {
           responseType: 'json',
           ...opts,
+          ...(this.#gitHubAuthUser ? {
+            auth: {
+              username: this.#gitHubAuthUser,
+              password: this.#gitHubAuthToken,
+            }
+          }: {})
         })
       return resp
     } catch (e) {
@@ -65,6 +79,8 @@ helpers.annotate(GitHubApi, [
   SERVICE_IDENTIFIER.LOGGER,
   'gitHubRootUrl',
   'gitHubRepo',
+  'gitHubAuthUser',
+  'gitHubAuthToken',
 ])
 
 export default GitHubApi
