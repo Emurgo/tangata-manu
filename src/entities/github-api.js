@@ -1,12 +1,12 @@
 // @flow
 
 import urljoin from 'url-join'
-import axios from 'axios'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import SERVICE_IDENTIFIER from "../constants/identifiers";
 import { Logger } from "bunyan";
+import axios from "axios";
 
 
 class GitHubApi implements RawDataProvider {
@@ -39,9 +39,8 @@ class GitHubApi implements RawDataProvider {
     return urljoin('repos', this.#gitHubRepo, path)
   }
 
-  async get(path: string, options?: {}) {
+  async getImpl(endpointUrl: string, options?: {}) {
     const opts = options || {}
-    const endpointUrl = urljoin(this.#gitHubRootUrl, path)
     this.logger.debug(`Calling GitHub @ ${endpointUrl}`)
     try {
       const resp = await axios(endpointUrl,
@@ -66,10 +65,22 @@ class GitHubApi implements RawDataProvider {
     }
   }
 
+  async get(path: string, options?: {}) {
+    return this.getImpl(urljoin(this.#gitHubRootUrl, path), options)
+  }
+
   async getClosedPullRequests(page: number) {
     const resp = await this.get(this.repoPath(`pulls?state=closed&sort=updated&direction=asc&base=master&page=${page}`))
     if (resp.status !== 200) {
       throw new Error(`Failed to query pull requests: ${resp.status} (${resp.statusText})`)
+    }
+    return resp.data
+  }
+
+  async listPullRequestFiles(prNumber: number) {
+    const resp = await this.get(this.repoPath(`pulls/${prNumber}/files`))
+    if (resp.status !== 200) {
+      throw new Error(`Failed to query pull request files: ${resp.status} (${resp.statusText})`)
     }
     return resp.data
   }

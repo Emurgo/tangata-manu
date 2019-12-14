@@ -1,5 +1,7 @@
 // @flow
 
+import _ from 'lodash'
+
 import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
@@ -51,6 +53,7 @@ class GitHubLoader implements Scheduler {
     let latestUpdatedAtTimestamp = pullRequestUpdatedAtTimestamp
     for (let prPage = pullRequestPage; /* NO SIMPLE EXIT CONDITION */; prPage += 1) {
       const prs = await this.gitHubApi.getClosedPullRequests(prPage)
+      const pagePromises = []
       for (const pr of prs) {
         const {
           number: pullRequestNumber,
@@ -76,7 +79,65 @@ class GitHubLoader implements Scheduler {
           pullRequestMergedAtTimestamp,
           pullRequestHtmlUrl,
         }
-        this.logger.debug('Found PR: ', prMeta)
+        const promise = this.gitHubApi.listPullRequestFiles(pullRequestNumber).then(async fileDescriptors => {
+          if (fileDescriptors.length === 0) {
+            return null
+          }
+          const mappedDescriptors = fileDescriptors.map(d => {
+            const {
+              filename: name,
+              blob_url: blobUrl,
+              raw_url: rawUrl,
+            } = d
+            const match = name.match(/registry\/([^.]*)\.(json|sig)/)
+            if (!match) {
+              this.logger.warn(`[GitHubLoader] A pull-request file does not match the expected pattern: ${name}`, prMeta)
+            }
+            return { name, blobUrl, rawUrl, key: match[1], ext: match[2] }
+          })
+          const groupedDescriptors = _.groupBy(mappedDescriptors, 'key')
+          const filePromises = Object.entries(groupedDescriptors).flatMap(([ key, descriptors ]) => {
+            if (descriptors.length !== 2) {
+              this.logger.warn(`[GitHubLoader] Unexpected number of file descriptors for the same key: ${key}`, {
+                descriptors,
+                prMeta,
+              })
+              return null
+            }
+            const unexpectedExts = _.difference(_.map(descriptors, 'ext'), ['json', 'sig'])
+            if (unexpectedExts.length > 0) {
+              this.logger.warn(`[GitHubLoader] Unexpected file extensions for key: ${key}`, {
+                descriptors,
+                prMeta,
+              })
+              return null
+            }
+            const filePromises = descriptors.map(d => this.gitHubApi.getImpl(d.rawUrl).then(res => {
+              if (res.status !== 200) {
+                this.logger.error(`[GitHubLoader] Failed to load raw files body: pr=${pullRequestNumber}, file=${d.rawUrl}`, res)
+                return null
+              }
+              return { ...d, body: res.data }
+            }, err => {
+              this.logger.error(`[GitHubLoader] Failed to load raw files body: pr=${pullRequestNumber}, file=${d.rawUrl}`, err)
+            }))
+            return filePromises
+          }).filter(Boolean);
+          const resolvedFiles = (await Promise.all(filePromises)).filter(Boolean)
+          return _.chain(resolvedFiles)
+            .groupBy('key')
+            .mapValues(files => ({ prMeta, files: _.keyBy(files, 'ext') }))
+            .value()
+        }, err => {
+          this.logger.error(`[GitHubLoader] Failed to query list of files for PR number ${pullRequestNumber}:`, err)
+        })
+        pagePromises.push(promise)
+      }
+      const pageResults = _.flatten((await Promise.all(pagePromises)).filter(Boolean))
+      const page = _.assign({}, ...pageResults)
+      this.logger.debug(`[GitHubLoader] Loaded ${Object.keys(page).length} entries from page ${prPage}`)
+      for (const e of Object.entries(page)) {
+        this.logger.debug(`>>>`, JSON.stringify(e, null, 2))
       }
       if (prs.length < GITHUB_PR_PAGE_LIMIT) {
         // Finishing iteration, because last page is reached
