@@ -25,7 +25,7 @@
   "gitHubAuthToken": null,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
-  "defaultNetwork": "jormun-testnet",
+  "defaultNetwork": "itn-rewards-v1",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {
     "testnet2": {
@@ -47,6 +47,14 @@
       "startTime": 1575477497,
       "slotsPerEpoch": 5000,
       "slotDurationSeconds": 10,
+      "protocol": "shelley",
+      "networkDiscrimination": "test"
+    },
+    "itn-rewards-v1": {
+      "genesis": "8e4d2a343f3dcf9330ad9035b3e8d168e6728904262f2c434a4f8f934ec7b676",
+      "startTime": 1576264417,
+      "slotsPerEpoch": 43200,
+      "slotDurationSeconds": 2,
       "protocol": "shelley",
       "networkDiscrimination": "test"
     }

@@ -136,7 +136,7 @@ export default class ShelleyBlock implements Block {
       } else if (fragment.is_initial()) {
         console.log(`#${index} = INITIAL FRAG`)
       } else if (fragment.is_old_utxo_declaration()) {
-        console.log(`#${index} = OLD UTXO`)
+        // console.log(`#${index} = OLD UTXO`)
         // done before since the line after consumes the fragment
         const fragmentId = Buffer.from(fragment.id().as_bytes()).toString('hex')
         const oldUtxos = fragment.get_old_utxo_declaration()
