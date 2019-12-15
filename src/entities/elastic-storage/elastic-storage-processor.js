@@ -576,6 +576,9 @@ class ElasticStorageProcessor implements StorageProcessor {
       getId: (o) => o.hash,
       getData: o => ({
         ...o,
+        ...(isGenesisBlock ?  {
+          tx: undefined,
+        } : {}),
         _chunk: chunk,
       }),
     })
