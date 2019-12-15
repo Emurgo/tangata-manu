@@ -15,9 +15,11 @@ import DB from './database'
 import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
 import { TX_STATUS } from "../../blockchain/common/tx";
+import type { PoolRegistrationType, PoolRetirementType, PoolUpdateType } from "../../blockchain/shelley";
 
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
+const POOL_CERTIFICATES_TBL = 'pool_certificates'
 const ACCOUNTS_TBL = 'accounts'
 const ACCOUNT_INP_TYPE = 'account'
 
@@ -57,6 +59,29 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
         pool: certificate.pool_id,
         cert_id: `cert:${tx.id}${tx.certOrdinal}`,
         account: certificate.account,
+      })
+      .toString()
+    this.logger.debug('storeStakeDelegationCertTx: ', sql)
+    await this.getConn().query(sql)
+  }
+
+  async storePoolCertTx(tx: TxType): Promise<void> {
+    const cert: PoolRegistrationType|PoolUpdateType|PoolRetirementType = tx.certificate
+    const sql = Q.sql.insert()
+      .into(POOL_CERTIFICATES_TBL)
+      .setFields({
+        epoch: tx.epoch,
+        slot: tx.slot,
+        tx_ordinal: tx.txOrdinal,
+        cert_ordinal: tx.certOrdinal,
+        block_num: tx.blockNum,
+        tx_hash: tx.id,
+        cert_id: `cert:${tx.id}${tx.certOrdinal}`,
+        pool: cert.pool_id,
+        certificate_kind: cert.payload.payloadKind,
+        certificate_kind_id: cert.payload.payloadKindId,
+        payload: cert.payload.payloadHex,
+        parsed: JSON.stringify(cert),
       })
       .toString()
     this.logger.debug('storeStakeDelegationCertTx: ', sql)
@@ -232,9 +257,14 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     if (!_.isEmpty(groupAddresses)) {
       await this.storeGroupAddresses(groupAddresses)
     }
-    if (certificate
-      && (certificate.type === CERT_TYPE.StakeDelegation)) {
-      await this.storeStakeDelegationCertTx(tx)
+    if (certificate) {
+      if (certificate.type === CERT_TYPE.StakeDelegation) {
+        await this.storeStakeDelegationCertTx(tx)
+      } else if(certificate.type === CERT_TYPE.PoolRegistration
+              || certificate.type === CERT_TYPE.PoolUpdate
+              || certificate.type === CERT_TYPE.PoolRetirement) {
+        await this.storePoolCertTx(tx)
+      }
     }
   }
 }

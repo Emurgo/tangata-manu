@@ -194,7 +194,7 @@ class CronScheduler implements Scheduler {
       (blockHeight <= tipStatus.height) && (i < MAX_BLOCKS_PER_LOOP);
       blockHeight++, i++) {
       this.logger.info(`requesting block at height ${blockHeight}`)
-      let status
+      let status = null
       if (this.networkProtocol === NETWORK_PROTOCOL.BYRON) {
         status = await this.processBlockHeight(blockHeight)
       } else {
@@ -208,10 +208,24 @@ class CronScheduler implements Scheduler {
         if (lastBlockHash === null) {
           nextBlockId = this.#genesisHash
         } else {
-          nextBlockId = await this.#dataProvider.getNextBlockId(lastBlockHash)
+          const  { result, errorStatus } = await this.#dataProvider.getNextBlockId(lastBlockHash)
+          if (result) {
+            nextBlockId = result
+          } else {
+            if (errorStatus === 404) {
+              this.logger.debug(`nextBlockId returned 404. Rolling back`)
+              status = STATUS_ROLLBACK_REQUIRED
+            } else {
+              const msg = `nextBlockId returned error status  ${errorStatus}`;
+              this.logger.debug(msg)
+              throw new Error(msg)
+            }
+          }
         }
-        this.logger.debug(`nextBlockId: ${nextBlockId}`)
-        status = await this.processBlockById(nextBlockId)
+        if (!status) {
+          this.logger.debug(`nextBlockId: ${nextBlockId}`)
+          status = await this.processBlockById(nextBlockId)
+        }
       }
 
       if (status === STATUS_ROLLBACK_REQUIRED) {
