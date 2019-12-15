@@ -60,8 +60,10 @@ class JormungandrApi implements RawDataProvider {
           responseType: 'arraybuffer',
           ...opts,
         })
+      this.logger.debug(`jormungandr: response status = ${resp.status}`)
       return resp
     } catch (e) {
+      this.logger.warn(`jormungandr: request error code: ${e.code} (${Object.keys(e)})`, e)
       if (e.code === 'ECONNREFUSED') {
         const error = new Error('jormungandr is not accessible (ECONNREFUSED)')
         error.name = 'NODE_INACCESSIBLE'
