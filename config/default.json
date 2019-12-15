@@ -18,7 +18,7 @@
     }
   },
   "checkTipSeconds": 15,
-  "checkGitHubSeconds": 60,
+  "checkGitHubSeconds": 600,
   "gitHubRepo": "cardano-foundation/incentivized-testnet-stakepool-registry",
   "gitHubAuthUser": null,
   "gitHubAuthToken": null,
