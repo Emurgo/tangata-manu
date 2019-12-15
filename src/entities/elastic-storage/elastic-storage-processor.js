@@ -9,7 +9,7 @@ import { Client } from '@elastic/elasticsearch'
 import BigNumber from 'bignumber.js'
 import type { StorageProcessor, NetworkConfig } from '../../interfaces'
 import type { AccountInputType, Block, TxInputType, TxType } from '../../blockchain/common'
-import type { BlockInfoType, GenesisLeaderType } from '../../interfaces/storage-processor'
+import type { BlockInfoType, GenesisLeaderType, PoolOwnerInfoEntry } from '../../interfaces/storage-processor'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx';
 
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
@@ -733,7 +733,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>) {
     const time = new Date().toISOString()
     const entriesBody = formatBulkUploadBody(entries, {
-      index: this.indexFor(INDEX_SLOT),
+      index: this.indexFor(INDEX_POOL_OWNER_INFO),
       getId: (o: PoolOwnerInfoEntry) => `${o.owner}:${time}`,
       getData: (o: PoolOwnerInfoEntry) => ({
         ...o,
