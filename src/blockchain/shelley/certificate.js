@@ -13,6 +13,7 @@ export const CERT_TYPE = {
 type CertificateCommonType = {
   payload: {
     payloadKind: string,
+    payloadKindId: number,
     // hex-encoded raw binary payload of the certificate
     payloadHex: string,
   },
