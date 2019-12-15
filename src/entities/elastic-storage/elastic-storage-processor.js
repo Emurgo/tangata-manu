@@ -439,6 +439,10 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async storeBlocksData(blocks: Array<Block>) {
+    const isGenesisBlock = blocks.length === 1  && blocks[0].isGenesisBlock();
+    if (isGenesisBlock) {
+      this.logger.info('storeBlocksData.GENESIS detected')
+    }
     const storedUTxOs = []
     const blockOutputsToStore = []
     const txInputsIds = []
@@ -587,7 +591,6 @@ class ElasticStorageProcessor implements StorageProcessor {
       }),
     })
 
-
     const txsData = blocksData.flatMap(b => b.tx);
     this.logger.debug(`storeBlocksData.constructing bulk for ${txsData.length} txs`)
     const txsBody = formatBulkUploadBody(txsData, {
@@ -596,14 +599,14 @@ class ElasticStorageProcessor implements StorageProcessor {
       getData: (o) => o,
     })
 
-    const bulkData = [...txiosBody, ...blocksBody, ...txsBody];
+    const bulkData = [...blocksBody, ...txsBody, ...txiosBody];
     this.logger.debug(`storeBlocksData.total bulk is ${bulkData.length} documents`)
     const bulkChunks = _.chunk(bulkData, 1000)
     for (let i = 0; i < bulkChunks.length; i += 1) {
       this.logger.debug(`storeBlocksData.bulkUpload chunk ${i+1} out of ${bulkChunks.length}`)
       try {
         await this.bulkUpload(bulkChunks[i])
-        await sleep(1000)
+        await sleep(100)
       } catch (e) {
         this.logger.error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length})`, e)
         throw new Error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length}) : ${e}`)
@@ -611,7 +614,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
 
     // Commit every 10th chunk
-    if (chunk % 10 === 0) {
+    if (chunk % 10 === 0 || isGenesisBlock) {
       await sleep(5000)
       await this.storeChunk({
         chunk,

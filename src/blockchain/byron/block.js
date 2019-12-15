@@ -80,6 +80,10 @@ export default class ByronBlock implements Block {
     return this.prevHash
   }
 
+  isGenesisBlock() {
+    return false
+  }
+
   getEpoch(): EpochIdType {
     return this.epoch
   }

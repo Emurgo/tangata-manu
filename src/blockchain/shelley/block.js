@@ -57,6 +57,10 @@ export default class ShelleyBlock implements Block {
     return this.prevHash
   }
 
+  isGenesisBlock() {
+    return this.prevHash === '0000000000000000000000000000000000000000000000000000000000000000'
+  }
+
   getEpoch(): EpochIdType {
     return this.epoch
   }
