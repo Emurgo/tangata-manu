@@ -226,7 +226,7 @@ class CronScheduler implements Scheduler {
     const blockRaw = await this.#dataProvider.getBlock(id)
     this.logger.debug('blockRaw acquired.')
     const block = await this.#dataProvider.parseBlock(blockRaw)
-    this.logger.debug(`block parsed: ${JSON.stringify(block)}`)
+    // this.logger.debug(`block parsed: ${JSON.stringify(block)}`)
     const status = await this.processBlock(block, true)
     return status
   }
