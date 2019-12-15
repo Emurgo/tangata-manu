@@ -533,7 +533,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       this.logger.debug('storeNewFailedSnapshot: No failed txs added to snapshot..')
       return
     }
-    const dbFields = failedSet.map(txHash => ({
+    const dbFields = _.uniq(failedSet).map(txHash => ({
       tx_hash: txHash,
       block_hash: block.getHash(),
       block_num: block.getHeight(),
