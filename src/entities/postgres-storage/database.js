@@ -468,6 +468,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       const utxoInputs = tx.inputs.filter(inp => inp.type === 'utxo')
         .map(({ txHash, index }) => {
           const utxo: UtxoInputType = {
+            type: 'utxo',
             txId: txHash,
             idx: index,
           }
