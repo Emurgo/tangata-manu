@@ -9,9 +9,12 @@ import { Logger } from "bunyan";
 import axios from "axios";
 
 
-class GitHubApi implements RawDataProvider {
+const GITHUB_ROOTS = {
+  API: 'https://api.github.com',
+  PLAIN: 'https://github.com',
+}
 
-  #gitHubRootUrl: string
+class GitHubApi implements RawDataProvider {
 
   #gitHubRepo: string
 
@@ -23,13 +26,11 @@ class GitHubApi implements RawDataProvider {
 
   constructor(
     logger: Logger,
-    gitHubRootUrl: string,
     gitHubRepo: string,
     gitHubAuthUser: string,
     gitHubAuthToken: string,
   ) {
     this.logger = logger
-    this.#gitHubRootUrl = gitHubRootUrl
     this.#gitHubRepo = gitHubRepo
     this.#gitHubAuthUser = gitHubAuthUser
     this.#gitHubAuthToken = gitHubAuthToken
@@ -65,22 +66,21 @@ class GitHubApi implements RawDataProvider {
     }
   }
 
-  async get(path: string, options?: {}) {
-    return this.getImpl(urljoin(this.#gitHubRootUrl, path), options)
+  async getPlain(path: string, options?: {}) {
+    return this.getImpl(urljoin(GITHUB_ROOTS.PLAIN, path), options)
   }
 
-  async getClosedPullRequests(page: number) {
-    const resp = await this.get(this.repoPath(`pulls?state=closed&sort=updated&direction=asc&base=master&page=${page}`))
-    if (resp.status !== 200) {
-      throw new Error(`Failed to query pull requests: ${resp.status} (${resp.statusText})`)
-    }
-    return resp.data
+  async getApi(path: string, options?: {}) {
+    return this.getImpl(urljoin(GITHUB_ROOTS.API, path), options)
   }
 
-  async listPullRequestFiles(prNumber: number) {
-    const resp = await this.get(this.repoPath(`pulls/${prNumber}/files`))
+  async getMasterZip(options?: {}) {
+    const resp = await this.getPlain(urljoin(this.#gitHubRepo, 'archive/master.zip'), {
+      responseType: 'arraybuffer',
+      ...(options || {})
+    })
     if (resp.status !== 200) {
-      throw new Error(`Failed to query pull request files: ${resp.status} (${resp.statusText})`)
+      throw new Error(`Failed to download master zip: ${resp.status} (${resp.statusText})`)
     }
     return resp.data
   }
@@ -88,7 +88,6 @@ class GitHubApi implements RawDataProvider {
 
 helpers.annotate(GitHubApi, [
   SERVICE_IDENTIFIER.LOGGER,
-  'gitHubRootUrl',
   'gitHubRepo',
   'gitHubAuthUser',
   'gitHubAuthToken',

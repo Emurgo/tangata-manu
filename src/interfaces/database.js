@@ -19,6 +19,9 @@ export interface Database<TxType> {
   rollBackUtxoBackup(blockHeight: number): Promise<void>;
   rollBackBlockHistory(blockHeight: number): Promise<void>;
   txsForInputsExists(inputs: Array<TxInputType>): Promise<boolean>;
+
+  storePoolOwnersInfo(inputs: Array<TxInputType>): Promise<boolean>;
+  getLatestPoolOwnerHashes(): Promise<{}>;
 }
 
 export interface DBConnection {

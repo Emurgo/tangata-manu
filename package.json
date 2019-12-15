@@ -52,6 +52,7 @@
     "@babel/plugin-transform-modules-commonjs": "^7.6.0",
     "@babel/polyfill": "^7.2.5",
     "@elastic/elasticsearch": "^7.3.0",
+    "adm-zip": "0.4.13",
     "async": "^2.6.2",
     "axios": "^0.18.0",
     "babel-plugin-dynamic-import-node": "2.3.0",
