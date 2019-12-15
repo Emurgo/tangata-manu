@@ -12,8 +12,9 @@ import type {
   StorageProcessor,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
-import GitHubApi from "./github-api";
-import type { PoolOwnerInfoEntry } from "../interfaces/storage-processor";
+import GitHubApi from './github-api';
+import type { PoolOwnerInfoEntry } from '../interfaces/storage-processor';
+import { shelleyUtils } from '../blockchain/shelley';
 
 const ERROR_META = {
 }
@@ -67,12 +68,13 @@ class GitHubLoader implements Scheduler {
       }
     }).pickBy(Boolean).value()
     const entries = Object.entries(grouped).map(([owner, { json, sig, hash }]) => {
-      if (existingKeysWithHashes[owner] === hash) {
+      const ownerHex = shelleyUtils.publicKeyBechToHex(owner)
+      if (existingKeysWithHashes[ownerHex] === hash) {
         // Owner record matches, ignore
         return null
       }
       const entry: PoolOwnerInfoEntry = {
-        owner,
+        owner: ownerHex,
         hash,
         info: json,
         sig,

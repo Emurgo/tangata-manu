@@ -149,6 +149,7 @@ const createAddressStateQuery = (uniqueBlockAddresses) => ({
             tmp_group_by: {
               terms: {
                 field: 'addresses.address.keyword',
+                size: 10000000,
               },
               aggs: {
                 tmp_select_latest: {
@@ -185,6 +186,7 @@ const createPoolDelegationStateQuery = (uniqueBlockPools) => ({
             tmp_group_by: {
               terms: {
                 field: 'delegation.pool_id.keyword',
+                size: 10000000,
               },
               aggs: {
                 tmp_select_latest: {

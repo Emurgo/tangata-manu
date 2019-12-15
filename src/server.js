@@ -50,6 +50,7 @@ const startServer = async () => {
   const container = await initIoC()
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
+  const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
 
   await storageProcessor.onLaunch()
 
@@ -72,24 +73,26 @@ const startServer = async () => {
     process.exit(1)
   })
 
-  const gitHubLoader = container.get<Scheduler>(SERVICE_IDENTIFIER.GITHUB_LOADER)
-  function runGitHubLoader(counter = 0) {
-    if (counter > 10) {
-      logger.warn(`GitHubLoader.startAsync : restarted too many times (${counter}). Shutting it down.`)
-      return
+  if (networkConfig.networkProtocol() === NETWORK_PROTOCOL.SHELLEY) {
+    const gitHubLoader = container.get<Scheduler>(SERVICE_IDENTIFIER.GITHUB_LOADER)
+    function runGitHubLoader(counter = 0) {
+      if (counter > 10) {
+        logger.warn(`GitHubLoader.startAsync : restarted too many times (${counter}). Shutting it down.`)
+        return
+      }
+      logger.debug(`GitHubLoader.startAsync : starting (counter=${counter})`)
+      gitHubLoader.startAsync().then(res => {
+        logger.error(`GitHubLoader.startAsync exited successfully. This is unexpected to happen by itself! (result=${res})`)
+        logger.debug(`GitHubLoader.startAsync : Restarting`)
+        runGitHubLoader(counter + 1)
+      }, err => {
+        logger.error(`GitHubLoader.startAsync exited with an error:`, err)
+        logger.debug(`GitHubLoader.startAsync : Restarting`)
+        runGitHubLoader(counter + 1)
+      })
     }
-    logger.debug(`GitHubLoader.startAsync : starting (counter=${counter})`)
-    gitHubLoader.startAsync().then(res => {
-      logger.error(`GitHubLoader.startAsync exited successfully. This is unexpected to happen by itself! (result=${res})`)
-      logger.debug(`GitHubLoader.startAsync : Restarting`)
-      runGitHubLoader(counter + 1)
-    }, err => {
-      logger.error(`GitHubLoader.startAsync exited with an error:`, err)
-      logger.debug(`GitHubLoader.startAsync : Restarting`)
-      runGitHubLoader(counter + 1)
-    })
+    runGitHubLoader()
   }
-  runGitHubLoader()
 
   const storageName = container.getNamed('storageProcessor')
   const serverConfig = container.getNamed('server')

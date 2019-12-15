@@ -4,6 +4,7 @@ import type { PoolRegistrationType, PoolRetirementType, StakeDelegationType } fr
 import { CERT_TYPE } from './certificate'
 import type { ShelleyTxType } from './tx'
 import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs';
+import { PublicKey } from 'js-chain-libs/js_chain_libs';
 
 function keysToStrings(keys, stringEncoding = 'hex'): Array<string> {
   const result: Array<string> = []
@@ -323,6 +324,13 @@ const splitGroupAddress = (groupAddressHex: string) => {
   return result
 }
 
+const publicKeyBechToHex = (bech: string): string => {
+  const pk = PublicKey.from_bech32(bech)
+  const hex = Buffer.from(pk.as_bytes()).toString('hex')
+  free(pk)
+  return hex
+}
+
 const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
   return fragmentToObj(wasm.Fragment.from_bytes(tx), networkDiscrimination, extraData)
@@ -333,4 +341,5 @@ export default {
   fragmentToObj,
   splitGroupAddress,
   getAccountIdFromAddress,
+  publicKeyBechToHex,
 }
