@@ -465,8 +465,10 @@ class ElasticStorageProcessor implements StorageProcessor {
         txInputsIds.push(..._.flatten(_.map(txs, 'inputs'))
           .filter((x: TxInputType) => x.type === 'utxo')
           .map(getTxInputUtxoId))
-        this.logger.debug('storeBlocksData', block)
-        blockOutputsToStore.push(...getBlockUtxos(block))
+        // this.logger.debug('storeBlocksData', block)
+        for (const u of getBlockUtxos(block)) {
+          blockOutputsToStore.push(u)
+        }
         blockTxs.push(...txs)
       }
     }
