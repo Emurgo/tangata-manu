@@ -43,30 +43,30 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     isGenesis: undefined,
     certificate: undefined,
   }
-  if (fragment.is_initial()) {
-    console.log('\n\n\n\nINITIAL\n\n\n\n')
-  }
-  if (fragment.is_owner_stake_delegation()) {
-    console.log('\n\n\nOWNER STAKE DELEGATION\n\n\n\n')
-  }
-  if (fragment.is_stake_delegation()) {
-    console.log('\n\n\n\nSTAKE DELEGATION\n\n\n\n')
-  }
-  if (fragment.is_pool_registration()) {
-    console.log('\n\n\n\nPOOL REGISTRATION\n\n\n\n')
-  }
-  if (fragment.is_pool_retirement()) {
-    console.log('\n\n\n\nPOOL MANAGEMENT\n\n\n\n')
-  }
-  if (fragment.is_old_utxo_declaration()) {
-    console.log('\n\n\n\nOLD UTXO\n\n\n\n')
-  }
-  if (fragment.is_update_proposal()) {
-    console.log('\n\n\n\nUPDATE PROPOSAL\n\n\n\n')
-  }
-  if (fragment.is_update_vote()) {
-    console.log('\n\n\n\nUPDATE VOTE\n\n\n\n')
-  }
+  // if (fragment.is_initial()) {
+  //   console.log('\n\n\n\nINITIAL\n\n\n\n')
+  // }
+  // if (fragment.is_owner_stake_delegation()) {
+  //   console.log('\n\n\nOWNER STAKE DELEGATION\n\n\n\n')
+  // }
+  // if (fragment.is_stake_delegation()) {
+  //   console.log('\n\n\n\nSTAKE DELEGATION\n\n\n\n')
+  // }
+  // if (fragment.is_pool_registration()) {
+  //   console.log('\n\n\n\nPOOL REGISTRATION\n\n\n\n')
+  // }
+  // if (fragment.is_pool_retirement()) {
+  //   console.log('\n\n\n\nPOOL MANAGEMENT\n\n\n\n')
+  // }
+  // if (fragment.is_old_utxo_declaration()) {
+  //   console.log('\n\n\n\nOLD UTXO\n\n\n\n')
+  // }
+  // if (fragment.is_update_proposal()) {
+  //   console.log('\n\n\n\nUPDATE PROPOSAL\n\n\n\n')
+  // }
+  // if (fragment.is_update_vote()) {
+  //   console.log('\n\n\n\nUPDATE VOTE\n\n\n\n')
+  // }
   const tx = fragment.get_transaction()
   const inputs = tx.inputs()
   const inputs_parsed = []
@@ -274,11 +274,6 @@ const splitGroupAddress = (groupAddressHex: string) => {
   try {
     address = wasm.Address.from_bytes(Buffer.from(groupAddressHex, 'hex'))
   } catch (e) {
-    const prefix = groupAddressHex.substring(0, 3)
-    // TODO: find a better way to distinguish legacy funds?
-    if (prefix !== 'Ddz' && prefix !== 'Ae2') {
-      throw new Error(`Group Metadata could not parse address: ${groupAddressHex}`)
-    }
     return {
       type: 'unknown',
       comment: 'failed to parse as an address'

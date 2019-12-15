@@ -186,7 +186,6 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
   getGroupAddressesData(txDbData: TxDbDataType) {
     const { inputAddresses, outputAddresses } = txDbData
     const allAddresses = _.uniq([...inputAddresses, ...outputAddresses])
-    this.logger.debug(`metadataCreator.allAddresses = ${allAddresses}`)
     return allAddresses.map(shelleyUtils.splitGroupAddress).filter(x => x.groupAddress)
   }
 
