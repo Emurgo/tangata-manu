@@ -54,23 +54,27 @@ class JormungandrApi implements RawDataProvider {
     const opts = options || {}
     const endpointUrl = urljoin(this.#networkBaseUrl, path)
     this.logger.debug(`jormungandr: endpointUrl = ${endpointUrl}`)
+    let resp
     try {
-      const resp = await axios(endpointUrl,
+      resp = await axios(endpointUrl,
         {
           responseType: 'arraybuffer',
           ...opts,
         })
-      this.logger.debug(`jormungandr: response status = ${resp.status}`)
-      return resp
     } catch (e) {
-      this.logger.warn(`jormungandr: request error code: ${e.code} (${Object.keys(e)})`, e)
       if (e.code === 'ECONNREFUSED') {
         const error = new Error('jormungandr is not accessible (ECONNREFUSED)')
         error.name = 'NODE_INACCESSIBLE'
         throw error
       }
-      throw e
+      if (e.response) {
+        resp = e.response
+      } else {
+        throw e
+      }
     }
+    this.logger.debug(`jormungandr: response status = ${resp.status}`)
+    return resp
   }
 
   async post(path: string, payload: Buffer, options?: {}) {
@@ -131,10 +135,14 @@ class JormungandrApi implements RawDataProvider {
   async getNextBlockId(id: string): Promise<string> {
     this.logger.debug(`getNextBlockId(${id})`)
     const resp = await this.get(`block/${id}/next_id`)
-    const { data } = resp
-    const hex = data.toString('hex')
-    this.logger.debug(` = ${hex}`)
-    return hex
+    if (resp.status === 200) {
+      const { data } = resp
+      const hex = data.toString('hex')
+      this.logger.debug(` = ${hex}`)
+      return { result: hex }
+    } else {
+      return { errorStatus: resp.status }
+    }
   }
 
   async getGenesis(hash: string): Promise<Object> {
