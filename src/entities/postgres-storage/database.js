@@ -465,8 +465,9 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     const validTxs = []
     const invalidTxs = []
     for (const tx of txs) {
-      const utxosForInputsExists = await this.utxosForInputsExists(tx.inputs)
-      if (utxosForInputsExists) {
+      const utxoInputs = tx.inputs.filter(inp => inp.type === 'utxo');
+      const isValidTx = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
+      if (isValidTx) {
         validTxs.push(tx.hash)
       } else {
         this.logger.info(`tx ${tx} inputs already spent`)
