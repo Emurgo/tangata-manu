@@ -7,7 +7,7 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
 import BigNumber from 'bignumber.js'
-import type { StorageProcessor, NetworkConfig } from '../../interfaces'
+import type { NetworkConfig, StorageProcessor } from '../../interfaces'
 import type { AccountInputType, Block, TxInputType, TxType } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType, PoolOwnerInfoEntry } from '../../interfaces/storage-processor'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx';
@@ -15,8 +15,8 @@ import type { ShelleyTxType } from '../../blockchain/shelley/tx';
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import type { UtxoType } from './utxo-data'
-import BlockData from './block-data'
 import UtxoData, { getTxInputUtxoId } from './utxo-data'
+import BlockData from './block-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
 import { shelleyUtils } from '../../blockchain/shelley';
@@ -201,6 +201,27 @@ const createPoolDelegationStateQuery = (uniqueBlockPools) => ({
     },
   },
 })
+
+const POOL_OWNER_INFO_KEYS_AND_HASHES = {
+  size: 0,
+  aggs: {
+    tmp_group_by: {
+      terms: {
+        field: "owner.keyword",
+        size: 10000000,
+      },
+      aggs: {
+        tmp_select_latest: {
+          top_hits: {
+            size: 1,
+            _source: ["owner", "hash"],
+            ...qSort(['time', 'desc']),
+          }
+        }
+      }
+    }
+  }
+}
 
 
 class ElasticStorageProcessor implements StorageProcessor {
@@ -652,12 +673,13 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
+  async indexExists(index: string): boolean {
+    return (await this.client.indices.exists({ index })).body
+  }
+
   async getAddressStates(uniqueBlockAddresses: Array<string>): { [string]: any } {
     const index = this.indexFor(INDEX_TX);
-    const indexExists = (await this.client.indices.exists({
-      index,
-    })).body
-    if (!indexExists) {
+    if (!await this.indexExists(index)) {
       return {}
     }
     const res = await this.client.search({
@@ -685,17 +707,14 @@ class ElasticStorageProcessor implements StorageProcessor {
     } catch (e) {
       this.logger.error(
         'Failed while processing this response:', JSON.stringify(res, null, 2),
-        'Error: ', JSON.stringify(e, null, 2))
+        'Error: ', e)
       throw e
     }
   }
 
   async getPoolDelegationStates(uniqueBlockPools: Array<string>): { [string]: any } {
     const index = this.indexFor(INDEX_TX);
-    const indexExists = (await this.client.indices.exists({
-      index,
-    })).body
-    if (!indexExists) {
+    if (!await this.indexExists(index)) {
       return {}
     }
     const res = await this.client.search({
@@ -720,14 +739,38 @@ class ElasticStorageProcessor implements StorageProcessor {
     } catch (e) {
       this.logger.error(
         'Failed while processing this response:', JSON.stringify(res, null, 2),
-        'Error: ', JSON.stringify(e, null, 2))
+        'Error: ', e)
       throw e
     }
   }
 
   async getLatestPoolOwnerHashes() {
-    // TODO: implement
-    return {};
+    const index = this.indexFor(INDEX_POOL_OWNER_INFO);
+    if (!await this.indexExists(index)) {
+      return {}
+    }
+    const res = await this.client.search({
+      index,
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+      body: POOL_OWNER_INFO_KEYS_AND_HASHES,
+    })
+    if (res.body.hits.total.value === 0) {
+      return {}
+    }
+    const { buckets } = res.body.aggregations.tmp_group_by
+    try {
+      const pairs = buckets.map(buck => {
+        const { owner, hash } = buck.tmp_select_latest.hits.hits[0]._source
+        return { [owner]: hash }
+      })
+      return _.assign({}, ...pairs)
+    } catch (e) {
+      this.logger.error(
+        'Failed while processing this response:', JSON.stringify(res, null, 2),
+        'Error: ', e)
+      throw e
+    }
   }
 
   async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>) {
