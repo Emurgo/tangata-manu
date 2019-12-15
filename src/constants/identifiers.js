@@ -11,6 +11,8 @@ const SERVICE_IDENTIFIER = {
   GENESIS: Symbol.for('Genesis'),
   STORAGE_PROCESSOR: Symbol.for('StorageProcessor'),
   VALIDATOR: Symbol.for('Validator'),
+  GITHUB_LOADER: Symbol.for('GitHubLoader'),
+  GITHUB_API: Symbol.for('GitHubAPI'),
 }
 
 export default SERVICE_IDENTIFIER

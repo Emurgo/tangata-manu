@@ -622,6 +622,14 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       await this.backupAndRemoveUtxos(requiredUtxoIds, block.getHeight())
     }
   }
+
+  storePoolOwnersInfo(inputs: Array<TxInputType>): Promise<boolean> {
+    throw new Error('NOT SUPPORTED')
+  }
+
+  getLatestPoolOwnerHashes(): Promise<{}> {
+    throw new Error('NOT SUPPORTED')
+  }
 }
 
 

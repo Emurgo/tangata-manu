@@ -27,6 +27,7 @@ const INDEX_SLOT = 'slot'
 const INDEX_TX = 'tx'
 const INDEX_TXIO = 'txio'
 const INDEX_CHUNK = 'chunk'
+const INDEX_POOL_OWNER_INFO = 'pool-owner-info'
 const INDEX_POINTER_ALL = '*'
 
 
@@ -722,6 +723,24 @@ class ElasticStorageProcessor implements StorageProcessor {
         'Error: ', JSON.stringify(e, null, 2))
       throw e
     }
+  }
+
+  async getLatestPoolOwnerHashes() {
+    // TODO: implement
+    return {};
+  }
+
+  async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>) {
+    const time = new Date().toISOString()
+    const entriesBody = formatBulkUploadBody(entries, {
+      index: this.indexFor(INDEX_SLOT),
+      getId: (o: PoolOwnerInfoEntry) => `${o.owner}:${time}`,
+      getData: (o: PoolOwnerInfoEntry) => ({
+        ...o,
+        time,
+      }),
+    })
+    await this.bulkUpload(entriesBody)
   }
 }
 
