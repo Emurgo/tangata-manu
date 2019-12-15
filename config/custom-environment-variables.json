@@ -4,5 +4,20 @@
   "defaultBridgeUrl": "TANGATA_BRIDGE_URL",
   "server": {
     "port": "TANGATA_API_SERVER_PORT"
+  },
+  "cardanoBridge": {
+    "baseUrl": "CARDANO_BRIDGE_URL",
+    "template": "CARDANO_NETWORK"
+  },
+  "db": {
+    "user": "PGUSER",
+    "host": "PGHOST",
+    "database": "PGDATABASE",
+    "password": "PGPASSWORD",
+    "port": "PGPORT"
+  },
+  "elastic": {
+    "node": "ELASTICSEARCH_URI",
+    "indexPrefix": "ELASTICSEARCH_INDEX"
   }
 }
