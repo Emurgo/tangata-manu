@@ -527,6 +527,8 @@ class ElasticStorageProcessor implements StorageProcessor {
       ...groupAccounts,
       ...delegationCertificateAccounts,
     ])
+
+    this.logger.debug(`storeBlocksData.getAddressStates for ${uniqueBlockAddresses.length} addresses`)
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
     // Extract delegated pool IDs from all resolved address states
@@ -542,6 +544,8 @@ class ElasticStorageProcessor implements StorageProcessor {
       ...relatedAddressPools,
       ...delegationCertificatePools,
     ])
+
+    this.logger.debug(`storeBlocksData.getPoolDelegationStates for ${uniqueBlockPools.length} pools`)
     const poolDelegationStates: { [string]: any } = await this.getPoolDelegationStates(uniqueBlockPools)
 
     const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
@@ -562,6 +566,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
+    this.logger.debug(`storeBlocksData.constructing bulk for ${blocksData.length} slots`)
     const blocksBody = formatBulkUploadBody(blocksData, {
       index: this.indexFor(INDEX_SLOT),
       getId: (o) => o.hash,
@@ -572,6 +577,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     })
 
     const blockTxioToStore = [...blockInputsToStore, ...blockOutputsToStore]
+    this.logger.debug(`storeBlocksData.constructing bulk for ${blockTxioToStore.length} txio`)
     const txiosBody = formatBulkUploadBody(blockTxioToStore, {
       index: this.indexFor(INDEX_TXIO),
       getId: (o) => o.id,
@@ -580,12 +586,29 @@ class ElasticStorageProcessor implements StorageProcessor {
         _chunk: chunk,
       }),
     })
-    const txsBody = formatBulkUploadBody(blocksData.flatMap(b => b.tx), {
+
+
+    const txsData = blocksData.flatMap(b => b.tx);
+    this.logger.debug(`storeBlocksData.constructing bulk for ${txsData.length} txs`)
+    const txsBody = formatBulkUploadBody(txsData, {
       index: this.indexFor(INDEX_TX),
       getId: (o) => o.hash,
       getData: (o) => o,
     })
-    await this.bulkUpload([...txiosBody, ...blocksBody, ...txsBody])
+
+    const bulkData = [...txiosBody, ...blocksBody, ...txsBody];
+    this.logger.debug(`storeBlocksData.total bulk is ${bulkData.length} documents`)
+    const bulkChunks = _.chunk(bulkData, 1000)
+    for (let i = 0; i < bulkChunks.length; i += 1) {
+      this.logger.debug(`storeBlocksData.bulkUpload chunk ${i+1} out of ${bulkChunks.length}`)
+      try {
+        await this.bulkUpload(bulkChunks[i])
+        await sleep(1000)
+      } catch (e) {
+        this.logger.error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length})`, e)
+        throw new Error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length}) : ${e}`)
+      }
+    }
 
     // Commit every 10th chunk
     if (chunk % 10 === 0) {
@@ -623,8 +646,15 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async getAddressStates(uniqueBlockAddresses: Array<string>): { [string]: any } {
+    const index = this.indexFor(INDEX_TX);
+    const indexExists = (await this.client.indices.exists({
+      index,
+    })).body
+    if (!indexExists) {
+      return {}
+    }
     const res = await this.client.search({
-      index: this.indexFor(INDEX_TX),
+      index,
       allowNoIndices: true,
       ignoreUnavailable: true,
       body: createAddressStateQuery(uniqueBlockAddresses),
@@ -654,8 +684,15 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async getPoolDelegationStates(uniqueBlockPools: Array<string>): { [string]: any } {
+    const index = this.indexFor(INDEX_TX);
+    const indexExists = (await this.client.indices.exists({
+      index,
+    })).body
+    if (!indexExists) {
+      return {}
+    }
     const res = await this.client.search({
-      index: this.indexFor(INDEX_TX),
+      index,
       allowNoIndices: true,
       ignoreUnavailable: true,
       body: createPoolDelegationStateQuery(uniqueBlockPools),
