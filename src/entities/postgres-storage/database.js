@@ -482,7 +482,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
         invalidTxs.push(tx.hash)
       }
     }
-    return [validTxs, invalidTxs]
+    return [_.uniq(validTxs), _.uniq(invalidTxs)]
   }
 
   async groupPendingTxsForSnapshot(
