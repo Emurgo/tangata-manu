@@ -6,7 +6,7 @@ import _ from 'lodash'
 import type { DBConnection, Logger } from '../../interfaces'
 import type { BlockInfoType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
-import type { TxInputType, TxType as ByronTxType } from '../../blockchain/common'
+import type {TxInputType, TxType as ByronTxType, UtxoInputType} from '../../blockchain/common'
 import { Block, TX_STATUS, utils } from '../../blockchain/common'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 import Q from './db-queries'
@@ -80,7 +80,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     }
   }
 
-  async utxosForInputsExists(inputs: Array<TxInputType>): Promise<boolean> {
+  async utxosForInputsExists(inputs: Array<UtxoInputType>): Promise<boolean> {
     const utxoIds = inputs.map(utils.getUtxoId)
     const conn = this.getConn()
     const sql = Q.sql.select()
@@ -465,7 +465,14 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     const validTxs = []
     const invalidTxs = []
     for (const tx of txs) {
-      const utxoInputs = tx.inputs.filter(inp => inp.type === 'utxo');
+      const utxoInputs = tx.inputs.filter(inp => inp.type === 'utxo')
+        .map(({ txHash, index }) => {
+          const utxo: UtxoInputType = {
+            txId: txHash,
+            idx: index,
+          }
+          return utxo
+        })
       const isValidTx = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
       if (isValidTx) {
         validTxs.push(tx.hash)
