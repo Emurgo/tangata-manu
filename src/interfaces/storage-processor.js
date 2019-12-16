@@ -17,6 +17,14 @@ export type GenesisLeaderType = {
   ordinal: number
 }
 
+export type PoolOwnerInfoEntry = {
+  owner: string,
+  hash: string,
+  info: any,
+  sig: string,
+  meta: any,
+}
+
 export interface StorageProcessor {
 
   genesisLoaded(): Promise<boolean>;
@@ -31,5 +39,12 @@ export interface StorageProcessor {
 
   storeBlocksData(blocks: Array<Block>): Promise<void>;
 
-  rollbackTo(height: number): Promise<void>
+  rollbackTo(height: number): Promise<void>;
+
+  storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>): Promise<void>;
+
+  /**
+   * Returns a map from owner keys to latest info hashes
+   */
+  getLatestPoolOwnerHashes(): Promise<{ [owner: string]: string }>;
 }

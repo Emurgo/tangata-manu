@@ -97,6 +97,14 @@ class PostgresStorageProcessor implements StorageProcessor {
   async getOutputsForTxHashes(txHashes: Array<string>) {
     return this.db.getOutputsForTxHashes(txHashes)
   }
+
+  async storePoolOwnersInfo(entries) {
+    return this.db.storePoolOwnersInfo(entries)
+  }
+
+  async getLatestPoolOwnerHashes() {
+    return this.db.getLatestPoolOwnerHashes();
+  }
 }
 
 helpers.annotate(PostgresStorageProcessor,

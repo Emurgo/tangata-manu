@@ -18,6 +18,10 @@
     }
   },
   "checkTipSeconds": 15,
+  "checkGitHubSeconds": 600,
+  "gitHubRepo": "cardano-foundation/incentivized-testnet-stakepool-registry",
+  "gitHubAuthUser": null,
+  "gitHubAuthToken": null,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
   "defaultNetwork": "itn-rewards-v1",
