@@ -16,10 +16,11 @@ import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
 import { TX_STATUS } from "../../blockchain/common/tx";
 import type { PoolRegistrationType, PoolRetirementType, PoolUpdateType } from "../../blockchain/shelley";
-
+import type { PoolOwnerInfoEntry } from "../../interfaces/storage-processor";
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
 const POOL_CERTIFICATES_TBL = 'pool_certificates'
+const POOL_OWNERS_INFO_TBL = 'pool_owners_info'
 const ACCOUNTS_TBL = 'accounts'
 const ACCOUNT_INP_TYPE = 'account'
 
@@ -271,6 +272,41 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     if (!_.isEmpty(groupAddresses)) {
       await this.storeGroupAddresses(groupAddresses)
     }
+  }
+
+  async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>): Promise<boolean> {
+    const date = new Date().toISOString()
+    const sql = Q.sql.insert({
+        replaceSingleQuotes: true
+      })
+      .into(POOL_OWNERS_INFO_TBL)
+      .setFieldsRows(entries.map(e => ({
+        owner: e.owner,
+        hash: e.hash,
+        time: date,
+        info: JSON.stringify(e.info),
+        sig: e.sig,
+        meta: JSON.stringify(e.meta)
+      })))
+      .toString()
+    this.logger.debug('storePoolOwnersInfo: ', sql)
+    await this.getConn().query(sql)
+  }
+
+  async getLatestPoolOwnerHashes(): Promise<{}> {
+    const sql = Q.sql.select()
+      .from(POOL_OWNERS_INFO_TBL)
+      .distinct('owner')
+      .field('owner')
+      .field('hash')
+      .order('owner')
+      .order('id', false)
+      .toString()
+    this.logger.debug('getLatestPoolOwnerHashes: ', sql)
+    const res = await this.getConn().query(sql)
+    return res.rows && res.rows.length > 0 ?
+      _.chain(res.rows).keyBy('owner').mapValues('hash').value()
+      : {}
   }
 }
 

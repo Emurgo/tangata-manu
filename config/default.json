@@ -18,6 +18,10 @@
     }
   },
   "checkTipSeconds": 15,
+  "checkGitHubSeconds": 600,
+  "gitHubRepo": "cardano-foundation/incentivized-testnet-stakepool-registry",
+  "gitHubAuthUser": null,
+  "gitHubAuthToken": null,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
   "defaultNetwork": "itn-rewards-v1",
@@ -45,7 +49,7 @@
       "protocol": "shelley",
       "networkDiscrimination": "test"
     },
-    "jormun-testnet-18447": {
+    "jormun-0-8-2-testnet": {
       "genesis": "6ab6eb91752987f546d679a10cc478fdf564273fdc4126843c3c2bbf795b12c2",
       "startTime": 1576239808,
       "slotsPerEpoch": 5000,
