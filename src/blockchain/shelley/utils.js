@@ -218,9 +218,6 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           account: consumeAccountToOptionalAddress(accountIdentifier.to_account_single(), networkDiscrimination),
           isOwnerStake: false,
         }
-        if (poolId) {
-          poolId.free()
-        }
         common.certificate = parsedCert
         free(accountIdentifier, poolId, delegationType, deleg)
         break

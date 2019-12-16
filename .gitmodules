@@ -4,3 +4,4 @@
 [submodule "js-chain-libs"]
 	path = js-chain-libs
 	url = https://github.com/Emurgo/js-chain-libs.git
+	ignore = dirty

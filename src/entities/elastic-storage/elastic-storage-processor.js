@@ -19,8 +19,8 @@ import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import BlockData from './block-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
-import { shelleyUtils } from '../../blockchain/shelley';
-import { CERT_TYPE } from "../../blockchain/shelley/certificate";
+import { shelleyUtils } from '../../blockchain/shelley'
+import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 const INDEX_LEADERS = 'leader'
 const INDEX_SLOT = 'slot'
