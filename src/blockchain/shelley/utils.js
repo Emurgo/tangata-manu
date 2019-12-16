@@ -6,23 +6,6 @@ import type { ShelleyTxType } from './tx'
 import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs';
 import { PublicKey } from 'js-chain-libs/js_chain_libs';
 
-function keysToStrings(keys, stringEncoding = 'hex'): Array<string> {
-  const result: Array<string> = []
-  for (let i = 0; i < keys.size(); i += 1) {
-    const keyBytes = Buffer.from(keys.get(i).as_bytes())
-    result.push(keyBytes.toString(stringEncoding))
-  }
-  return result
-}
-
-function accountToOptionalAddress(account, discrimination, stringEncoding = 'hex'): string {
-  if (!account) {
-    return null
-  }
-  const addressBytes = account.to_address(discrimination).as_bytes()
-  return Buffer.from(addressBytes).toString(stringEncoding)
-}
-
 function free(...args) {
   for (const a of args) {
     if (a && a.free) {
@@ -31,22 +14,54 @@ function free(...args) {
   }
 }
 
+function consumeAccountToOptionalAddress(account, discrimination, stringEncoding = 'hex'): string {
+  if (!account) {
+    return null
+  }
+  const address = account.to_address(discrimination);
+  const result = Buffer.from(address.as_bytes()).toString(stringEncoding);
+  free(address, account)
+  return result
+}
+
+function consumeKeysToStrings(keys, stringEncoding = 'hex'): Array<string> {
+  const result: Array<string> = []
+  for (let i = 0; i < keys.size(); i += 1) {
+    const key = keys.get(i);
+    const keyBytes = Buffer.from(key.as_bytes())
+    result.push(keyBytes.toString(stringEncoding))
+    free(key)
+  }
+  free(keys)
+  return result
+}
+
 // frees input rust-wasm Value and parses it into a js number
-const consumeValueToNumber = (value: any): number => {
+const consumeOptionalValueToNumber = (value: any): number => {
   // TODO: Values are returned as strings under the rationale that js strings
   // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
   // than this (but bigger than a 32-bit int) this should be safe. We should try and
   // see if this can be changed in js-chain-libs and use that there instead.
+  if (!value) {
+    return null
+  }
   const n = parseInt(value.to_str(), 10)
-  value.free()
+  free(value)
   return n
 }
 
 // frees any generic rust-wasm id (anything with as_bytes()) and creates a hex string buffer from it
 const consumeIdToHex = (id: any): string => {
   const hex = Buffer.from(id.as_bytes()).toString('hex')
-  id.free()
+  free(id)
   return hex
+}
+
+// frees any generic rust-wasm id (anything with as_bytes()) and creates a hex string buffer from it
+const consumeKeyToBech32 = (key: any): string => {
+  const result = key.to_bech32()
+  free(key)
+  return result
 }
 
 const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
@@ -107,7 +122,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
       inputs_parsed.push({
         type: 'account',
         account_id: accountAddrHex,
-        value: consumeValueToNumber(input.value()),
+        value: consumeOptionalValueToNumber(input.value()),
       })
       account.free()
       accountIdentifier.free()
@@ -137,7 +152,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     outputs_parsed.push({
       type: outputType,
       address: consumeIdToHex(output.address()),
-      value: consumeValueToNumber(output.value()),
+      value: consumeOptionalValueToNumber(output.value()),
     })
     addr.free()
     output.free()
@@ -149,9 +164,9 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     switch (cert.get_type()) {
       case wasm.CertificateKind.PoolRegistration: {
         const reg = cert.get_pool_registration()
-        const reg_owners = reg.owners();
-        const reg_operators = reg.operators();
-        const rewardAccount = reg.reward_account();
+        const reg_owners = consumeKeysToStrings(reg.owners())
+        const reg_operators = consumeKeysToStrings(reg.operators())
+        const rewardAccountAddress = consumeAccountToOptionalAddress(reg.reward_account(), networkDiscrimination)
         const rewards = reg.rewards()
         const keys = reg.keys()
         const poolId = reg.id()
@@ -166,28 +181,24 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           pool_id: poolId.to_string(),
           // we should be able to do this considering js max int would be 285,616,414 years
           start_validity: parseInt(reg.start_validity().to_string(), 10),
-          owners: keysToStrings(reg_owners),
-          operators: keysToStrings(reg_operators),
-          rewardAccount: accountToOptionalAddress(rewardAccount, networkDiscrimination),
+          owners: reg_owners,
+          operators: reg_operators,
+          rewardAccount: rewardAccountAddress,
           rewards: {
-            fixed: parseInt(rewards.fixed().to_str()),
+            fixed: consumeOptionalValueToNumber(rewards.fixed()),
             ratio: [
-              parseInt(rewards.ratio_numerator().to_str()),
-              parseInt(rewards.ratio_denominator().to_str()),
+              consumeOptionalValueToNumber(rewards.ratio_numerator()),
+              consumeOptionalValueToNumber(rewards.ratio_denominator()),
             ],
-            limit: rewards.max_limit() ? parseInt(rewards.max_limit().to_str()) : null,
+            limit: consumeOptionalValueToNumber(rewards.max_limit()),
           },
           keys: {
-            kes_bech32: keys.kes_pubkey().to_bech32(),
-            vrf_bech32: keys.vrf_pubkey().to_bech32(),
+            kes_bech32: consumeKeyToBech32(keys.kes_pubkey()),
+            vrf_bech32: consumeKeyToBech32(keys.vrf_pubkey()),
           },
         }
-        startValidity.free()
-        poolId.free()
-        pool_keys.free()
-        reg.free()
         common.certificate = parsedCert
-        free(reg_owners, reg_operators, rewards, rewardAccount, keys)
+        free(startValidity, poolId, rewards, keys, reg)
         break
       }
       case wasm.CertificateKind.StakeDelegation: {
@@ -204,17 +215,14 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
-          account: accountToOptionalAddress(accountIdentifier.to_account_single(), networkDiscrimination),
+          account: consumeAccountToOptionalAddress(accountIdentifier.to_account_single(), networkDiscrimination),
           isOwnerStake: false,
         }
         if (poolId) {
           poolId.free()
         }
-        account.free()
-        delegationType.free()
-        deleg.free()
         common.certificate = parsedCert
-        free(accountIdentifier, poolId, deleg)
+        free(accountIdentifier, poolId, delegationType, deleg)
         break
       }
       case wasm.CertificateKind.PoolRetirement: {
@@ -389,7 +397,7 @@ export default {
   fragmentToObj,
   splitGroupAddress,
   getAccountIdFromAddress,
-  consumeValueToNumber,
-  consumeIdToHex
+  consumeValueToNumber: consumeOptionalValueToNumber,
+  consumeIdToHex,
   publicKeyBechToHex,
 }
