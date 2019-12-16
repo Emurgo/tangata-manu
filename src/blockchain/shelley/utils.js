@@ -5,7 +5,7 @@ import { CERT_TYPE } from './certificate'
 import type { ShelleyTxType } from './tx'
 import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs';
 
-// frees input value and parses it into a js number
+// frees input rust-wasm Value and parses it into a js number
 const consumeValueToNumber = (value: any): number => {
   // TODO: Values are returned as strings under the rationale that js strings
   // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
@@ -16,6 +16,7 @@ const consumeValueToNumber = (value: any): number => {
   return n
 }
 
+// frees any generic rust-wasm id (anything with as_bytes()) and creates a hex string buffer from it
 const consumeIdToHex = (id: any): string => {
   const hex = Buffer.from(id.as_bytes()).toString('hex')
   id.free()
@@ -92,7 +93,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
   const outputs_parsed = []
   for (let output_index = 0; output_index < outputs.size(); output_index += 1) {
     const output = outputs.get(output_index)
-    let addr = output.address()
+    const addr = output.address()
     let outputType = 'utxo'
     switch (addr.get_kind()) {
       case wasm.AddressKind.Account:
