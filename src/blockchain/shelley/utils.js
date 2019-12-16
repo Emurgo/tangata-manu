@@ -5,11 +5,28 @@ import { CERT_TYPE } from './certificate'
 import type { ShelleyTxType } from './tx'
 import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs';
 
+// frees input value and parses it into a js number
+const consumeValueToNumber = (value: any): number => {
+  // TODO: Values are returned as strings under the rationale that js strings
+  // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
+  // than this (but bigger than a 32-bit int) this should be safe. We should try and
+  // see if this can be changed in js-chain-libs and use that there instead.
+  const n = parseInt(value.to_str(), 10)
+  value.free()
+  return n
+}
+
+const consumeIdToHex = (id: any): string => {
+  const hex = Buffer.from(id.as_bytes()).toString('hex')
+  id.free()
+  return hex
+}
+
 const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
 
   const common = {
-    id: Buffer.from(fragment.id().as_bytes()).toString('hex'),
+    id: consumeIdToHex(fragment.id()),
     txBody: Buffer.from(fragment.as_bytes()).toString('hex'),
     blockNum: undefined,
     blockHash: undefined,
@@ -52,30 +69,32 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
       const utxo = input.get_utxo_pointer()
       inputs_parsed.push({
         type: 'utxo',
-        txId: Buffer.from(utxo.fragment_id().as_bytes()).toString('hex'),
+        txId: consumeIdToHex(utxo.fragment_id()),
         idx: utxo.output_index(),
       })
+      utxo.free()
     } else {
-      const account = input.get_account_identifier()
-      const addr = account.to_account_single().to_address(networkDiscrimination)
-      const accountAddrHex = Buffer.from(addr.as_bytes()).toString('hex')
-      // TODO: Values are returned as strings under the rationale that js strings
-      // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
-      // than this (but bigger than a 32-bit int) this should be safe. We should try and
-      // see if this can be changed in js-chain-libs and use that there instead.
+      const accountIdentifier = input.get_account_identifier()
+      const account = accountIdentifier.to_account_single()
+      const accountAddrHex = consumeIdToHex(account.to_address(networkDiscrimination))
       inputs_parsed.push({
         type: 'account',
         account_id: accountAddrHex,
-        value: parseInt(input.value().to_str(), 10),
+        value: consumeValueToNumber(input.value()),
       })
+      account.free()
+      accountIdentifier.free()
     }
+    input.free()
   }
+  inputs.free()
   const outputs = tx.outputs()
   const outputs_parsed = []
   for (let output_index = 0; output_index < outputs.size(); output_index += 1) {
     const output = outputs.get(output_index)
+    let addr = output.address()
     let outputType = 'utxo'
-    switch (output.address().get_kind()) {
+    switch (addr.get_kind()) {
       case wasm.AddressKind.Account:
       case wasm.AddressKind.Multisig:
         // should multisig be just account, or will we need more info later?
@@ -90,11 +109,13 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     }
     outputs_parsed.push({
       type: outputType,
-      address: Buffer.from(output.address().as_bytes()).toString('hex'),
-      // See comment for input values
-      value: parseInt(output.value().to_str(), 10),
+      address: consumeIdToHex(output.address()),
+      value: consumeValueToNumber(output.value()),
     })
+    addr.free()
+    output.free()
   }
+  outputs.free()
   const cert = tx.certificate !== undefined ? tx.certificate() : null
   if (cert) {
     const payload = Buffer.from(cert.as_bytes()).toString('hex')
@@ -104,9 +125,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const pool_keys = reg.owners()
         const pool_owners = []
         for (let i = 0; i < pool_keys.size(); i += 1) {
-          const keyBytes = Buffer.from(pool_keys.get(i).as_bytes())
-          pool_owners.push(keyBytes.toString('hex'))
+          pool_owners.push(consumeIdToHex(pool_keys.get(i)))
         }
+        const poolId = reg.id()
+        const startValidity = reg.start_validity()
         const parsedCert: PoolRegistrationType = {
           payload: {
             payloadKind: 'PoolRegistration',
@@ -114,17 +136,23 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
             payloadHex: payload,
           },
           type: CERT_TYPE.PoolRegistration,
-          pool_id: reg.id().to_string(),
+          pool_id: poolId.to_string(),
           // we should be able to do this considering js max int would be 285,616,414 years
-          start_validity: parseInt(reg.start_validity().to_string(), 10),
+          start_validity: parseInt(startValidity.to_string(), 10),
           owners: pool_owners,
         }
+        startValidity.free()
+        poolId.free()
+        pool_keys.free()
+        reg.free()
         common.certificate = parsedCert
         break
       }
       case wasm.CertificateKind.StakeDelegation: {
         const deleg = cert.get_stake_delegation()
-        const poolId = deleg.delegation_type().get_full()
+        const delegationType = deleg.delegation_type()
+        const poolId = delegationType.get_full()
+        const account = deleg.account()
         const parsedCert: StakeDelegationType = {
           payload: {
             payloadKind: 'StakeDelegation',
@@ -134,14 +162,21 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
-          account: deleg.account().to_hex(),
+          account: account.to_hex(),
           isOwnerStake: false,
         }
+        if (poolId) {
+          poolId.free()
+        }
+        account.free()
+        delegationType.free()
+        deleg.free()
         common.certificate = parsedCert
         break
       }
       case wasm.CertificateKind.PoolRetirement: {
         const retire = cert.get_pool_retirement()
+        const retirementTime = retire.retirement_time()
         const parsedCert: PoolRetirementType = {
           payload: {
             payloadKind: 'PoolRetirement',
@@ -151,8 +186,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           type: CERT_TYPE.PoolRetirement,
           pool_id: retire.pool_id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
-          retirement_time: parseInt(retire.retirement_time().to_string(), 10),
+          retirement_time: parseInt(retirement_time.to_string(), 10),
         }
+        retirementTime.free()
+        retire.free()
         common.certificate = parsedCert
         break
       }
@@ -164,7 +201,8 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           throw new Error(`Malformed OwnerStakeDelegation. Expected 1 account input, found: ${JSON.stringify(inputs_parsed)}`)
         }
         const deleg = cert.get_owner_stake_delegation()
-        const poolId = deleg.delegation_type().get_full()
+        const delegationType = deleg.delegation_type()
+        const poolId = delegationType.get_full()
         const parsedCert: StakeDelegationType = {
           payload: {
             payloadKind: 'OwnerStakeDelegation',
@@ -177,6 +215,11 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           account: inputs_parsed[0].account_id,
           isOwnerStake: true,
         }
+        if (poolId) {
+          poolId.free()
+        }
+        delegationType.free()
+        deleg.free()
         common.certificate = parsedCert
         break
       }
@@ -194,6 +237,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     ...extraData,
   }
   console.log(`parsed a tx: \n${JSON.stringify(ret)}\n`)
+  tx.free()
   return ret
 }
 
@@ -289,7 +333,10 @@ const splitGroupAddress = (groupAddressHex: string) => {
 
 const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
-  return fragmentToObj(wasm.Fragment.from_bytes(tx), networkDiscrimination, extraData)
+  const fragment = wasm.Fragment.from_bytes(tx)
+  const obj = fragmentToObj(fragment, networkDiscrimination, extraData)
+  fragment.free()
+  return obj
 }
 
 export default {
@@ -297,4 +344,6 @@ export default {
   fragmentToObj,
   splitGroupAddress,
   getAccountIdFromAddress,
+  consumeValueToNumber,
+  consumeIdToHex
 }
