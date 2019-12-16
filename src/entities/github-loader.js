@@ -56,8 +56,16 @@ class GitHubLoader implements Scheduler {
         return match ? { key: match[1], ext: match[2], text: zip.readAsText(e) } : null
       })
       .filter(Boolean)
-    const grouped = _.chain(mapped).groupBy('key').mapValues(vs => {
-      const { json, sig } = _.chain(vs).keyBy('ext').mapValues('text').value()
+    const grouped = _.chain(mapped).groupBy('key').mapValues((vs, key) => {
+      const { json: jsonEntry, sig: sigEntry } = _.keyBy(vs, 'ext')
+      if (!jsonEntry) {
+        this.logger.warn(`[GitHubLoader] No JSON found for key: ${key}! Ignoring`)
+        return null
+      } else if (!sigEntry) {
+        this.logger.warn(`[GitHubLoader] No SIG found for key: ${key} (JSON=${jsonEntry.text})! Ignoring`)
+        return null
+      }
+      const [json, sig] = [jsonEntry.text, sigEntry.text]
       try {
         const hash = blake.blake2bHex(`${json}:${sig}`, null, 32)
         return  { json: JSON.parse(json), sig, hash }
