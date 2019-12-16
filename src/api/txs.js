@@ -116,21 +116,27 @@ class TxController implements IController {
     return txObj
   }
 
-  async storeTxAsPending(tx: TxType) {
-    this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-    await this.db.storeTx(tx)
+  storeTxAsPending(tx: TxType) {
+    return this.db.doInTransaction(async () => {
+      this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
+      await this.db.storeTx(tx)
+      await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_PENDING_STATUS)
+    })
   }
 
-  async storeTxAsFailed(tx: TxType) {
-    const existingStatus = this.db.getTxStatus(tx.id)
-    if (!existingStatus || existingStatus === TX_STATUS.TX_PENDING_STATUS) {
-      const failedTx = {
-        ...tx,
-        status: TX_STATUS.TX_FAILED_STATUS,
+  storeTxAsFailed(tx: TxType) {
+    return this.db.doInTransaction(async () => {
+      const existingStatus = this.db.getTxStatus(tx.id)
+      if (!existingStatus || existingStatus === TX_STATUS.TX_PENDING_STATUS) {
+        const failedTx = {
+          ...tx,
+          status: TX_STATUS.TX_FAILED_STATUS,
+        }
+        this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
+        await this.db.storeTx(failedTx)
+        await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_FAILED_STATUS)
       }
-      this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
-      await this.db.storeTx(failedTx)
-    }
+    })
   }
 }
 

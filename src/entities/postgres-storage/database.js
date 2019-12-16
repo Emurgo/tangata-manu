@@ -493,7 +493,6 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     return [pendingTxs, invalidTxs]
   }
 
-
   async storeNewPendingSnapshot(block: Block, snapshot: Array<string>) {
     if (_.isEmpty(snapshot)) {
       this.logger.debug('storeNewPendingSnapshot: No pending txs added to snapshot..')
@@ -508,6 +507,31 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     const sql = Q.sql.insert().into(SNAPSHOTS_TABLE)
       .setFieldsRows(dbFields).toString()
     this.logger.debug('storeNewPendingSnapshot: ', snapshot, sql)
+    await this.getConn().query(sql)
+  }
+
+  async addNewTxToTransientSnapshots(txHash: string, txStatus: string) {
+    this.logger.debug('addNewTxToPendingSnapshot:', txHash, txStatus)
+    if (!txHash) {
+      this.logger.debug('addNewTxToPendingSnapshot: No tx is provided')
+      return
+    }
+    if (txStatus !== TX_STATUS.TX_PENDING_STATUS && txStatus !== TX_STATUS.TX_FAILED_STATUS) {
+      throw new Error(`[addNewTxToPendingSnapshot] Incorrect tx status: ${txStatus}! 
+       Expected one of: '${TX_STATUS.TX_PENDING_STATUS}' or '${TX_STATUS.TX_FAILED_STATUS}'`)
+    }
+    const { hash, height } = this.getBestBlockNum()
+    const dbFields = [{
+      tx_hash: txHash,
+      block_hash: hash,
+      block_num: height,
+      status: txStatus,
+    }]
+    const sql = Q.sql.insert()
+      .into(SNAPSHOTS_TABLE)
+      .setFieldsRows(dbFields)
+      .toString()
+    this.logger.debug('storeNewPendingSnapshot: ', sql)
     await this.getConn().query(sql)
   }
 
@@ -638,6 +662,19 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 
   getLatestPoolOwnerHashes(): Promise<{}> {
     throw new Error('NOT SUPPORTED')
+  }
+
+  async doInTransaction(callback: Function): Promise<any> {
+    const dbConn = this.getConn()
+    try {
+      await dbConn.query('BEGIN')
+      const result = await callback(dbConn)
+      await dbConn.query('COMMIT')
+      return result
+    } catch (e) {
+      await dbConn.query('ROLLBACK')
+      throw e
+    }
   }
 }
 

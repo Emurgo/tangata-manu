@@ -23,7 +23,7 @@ class PostgresStorageProcessor implements StorageProcessor {
   }
 
   async storeBlocksData(blocks: Array<Block>) {
-    return this.doInTransaction(async () => {
+    return this.db.doInTransaction(async () => {
       await this.db.storeBlocks(blocks)
       for (const block of blocks) {
         const blockHaveTxs = !_.isEmpty(block.getTxs())
@@ -37,21 +37,9 @@ class PostgresStorageProcessor implements StorageProcessor {
   }
 
   async rollbackTo(height: number) {
-    return this.doInTransaction(async () => {
+    return this.db.doInTransaction(async () => {
       await this.db.rollbackTo(height)
     })
-  }
-
-  async doInTransaction(callback) {
-    const dbConn = this.db.getConn()
-    try {
-      await dbConn.query('BEGIN')
-      await callback()
-      await dbConn.query('COMMIT')
-    } catch (e) {
-      await dbConn.query('ROLLBACK')
-      throw e
-    }
   }
 
   async utxosForInputsExists(inputs) {

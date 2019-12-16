@@ -15,6 +15,7 @@ export interface Database<TxType> {
   getTxStatus(txId: string): Promise<string>;
   storeBlocks(blocks: Array<Block>): Promise<void>;
   storeNewSnapshot(block: Block): Promise<void>;
+  addNewTxToTransientSnapshots(txHash: string, txStatus: string): Promise<void>;
   rollBackTransactions(blockHeight: number): Promise<void>;
   rollbackTransientSnapshots(blockHeight: number): Promise<void>;
   rollBackUtxoBackup(blockHeight: number): Promise<void>;
@@ -23,6 +24,8 @@ export interface Database<TxType> {
 
   storePoolOwnersInfo(inputs: Array<TxInputType>): Promise<boolean>;
   getLatestPoolOwnerHashes(): Promise<{}>;
+
+  doInTransaction(callback: Function): Promise<any>;
 }
 
 export interface DBConnection {
