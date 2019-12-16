@@ -35,6 +35,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
   async rollbackTo(blockHeight: number): Promise<void> {
     await super.rollbackTo(blockHeight)
     await this.rollbackDelegationCerts(blockHeight)
+    await this.rollbackPoolCerts(blockHeight)
     await this.rollbackAccounts(blockHeight)
   }
 
@@ -44,6 +45,10 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
 
   async rollbackDelegationCerts(blockHeight: number): Promise<void> {
     await super.removeRecordsAfterBlock(DELEGATION_CERTIFICATES_TBL, blockHeight)
+  }
+
+  async rollbackPoolCerts(blockHeight: number): Promise<void> {
+    await super.removeRecordsAfterBlock(POOL_CERTIFICATES_TBL, blockHeight)
   }
 
   async storeStakeDelegationCertTx(tx: TxType): Promise<void> {
@@ -252,20 +257,20 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     await super.storeTxImpl(tx, txUtxos, upsert, txDbData)
     if (txDbData.txDbFields.tx_state === TX_STATUS.TX_SUCCESS_STATUS) {
       await this.storeAccountsChanges(tx)
+      if (certificate) {
+        if (certificate.type === CERT_TYPE.StakeDelegation) {
+          await this.storeStakeDelegationCertTx(tx)
+        } else if(certificate.type === CERT_TYPE.PoolRegistration
+          || certificate.type === CERT_TYPE.PoolUpdate
+          || certificate.type === CERT_TYPE.PoolRetirement) {
+          await this.storePoolCertTx(tx)
+        }
+      }
     }
 
     const groupAddresses = this.getGroupAddressesData(txDbData)
     if (!_.isEmpty(groupAddresses)) {
       await this.storeGroupAddresses(groupAddresses)
-    }
-    if (certificate) {
-      if (certificate.type === CERT_TYPE.StakeDelegation) {
-        await this.storeStakeDelegationCertTx(tx)
-      } else if(certificate.type === CERT_TYPE.PoolRegistration
-              || certificate.type === CERT_TYPE.PoolUpdate
-              || certificate.type === CERT_TYPE.PoolRetirement) {
-        await this.storePoolCertTx(tx)
-      }
     }
   }
 
