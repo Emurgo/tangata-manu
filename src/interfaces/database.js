@@ -12,6 +12,7 @@ export interface Database<TxType> {
   getConn(): any;
   getOutputsForTxHashes(hashes: Array<string>): Promise<Array<{}>>;
   isTxExists(txId: string): Promise<boolean>;
+  getTxStatus(txId: string): Promise<string>;
   storeBlocks(blocks: Array<Block>): Promise<void>;
   storeNewSnapshot(block: Block): Promise<void>;
   rollBackTransactions(blockHeight: number): Promise<void>;
