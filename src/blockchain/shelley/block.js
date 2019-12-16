@@ -104,8 +104,8 @@ export default class ShelleyBlock implements Block {
     const slotId = block.slot()
     const chainLength = block.chain_length()
     // TODO: should these be hex strings or not?
-    const blockHash = Buffer.from(block.id().as_bytes()).toString('hex')
-    const parentHash = Buffer.from(block.parent_id().as_bytes()).toString('hex')
+    const blockHash = shelleyUtils.consumeIdToHex(block.id())
+    const parentHash = shelleyUtils.consumeIdToHex(block.parent_id())
     // we definitely shouldn't hardcode this (taken from byron parsing, used for tx creation)
     // this is definitely not right as we have different epoch lengths for the networking testnet
     // TODO: parse block0's Initial fragment and store that somewhere
@@ -142,15 +142,16 @@ export default class ShelleyBlock implements Block {
       } else if (fragment.is_old_utxo_declaration()) {
         // console.log(`#${index} = OLD UTXO`)
         // done before since the line after consumes the fragment
-        const fragmentId = Buffer.from(fragment.id().as_bytes()).toString('hex')
+        const fragmentId = shelleyUtils.consumeIdToHex(fragment.id())
         const oldUtxos = fragment.get_old_utxo_declaration()
         const old_utxo_outputs = []
         for (let i = 0; i < oldUtxos.size(); ++i) {
           old_utxo_outputs.push({
             address: oldUtxos.get_address(i),
-            value: parseInt(oldUtxos.get_value(i).to_str(), 10),
+            value: shelleyUtils.consumeValueToNumber(oldUtxos.get_value(i)),
           })
         }
+        oldUtxos.free()
         const tx = {
           id: fragmentId,
           inputs: [],
@@ -162,7 +163,10 @@ export default class ShelleyBlock implements Block {
         // skip updates
         console.log(`#${index} skipped`)
       }
+      fragment.free()
     }
+    fragments.free()
+    block.free()
     return new ShelleyBlock(blockHash, slotId, epochId, chainLength, txs, parentHash)
   }
 }

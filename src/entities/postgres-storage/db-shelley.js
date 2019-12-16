@@ -18,7 +18,6 @@ import { TX_STATUS } from "../../blockchain/common/tx";
 import type { PoolRegistrationType, PoolRetirementType, PoolUpdateType } from "../../blockchain/shelley";
 import type { PoolOwnerInfoEntry } from "../../interfaces/storage-processor";
 
-
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
 const POOL_CERTIFICATES_TBL = 'pool_certificates'
 const POOL_OWNERS_INFO_TBL = 'pool_owners_info'
