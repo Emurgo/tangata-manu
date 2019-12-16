@@ -59,7 +59,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     }
     const conn = this.getConn()
     const query = Q.newUtxosInsert().setFieldsRows(utxos).toString()
-    this.logger.debug('storeUtxos', utxos, query)
+    // this.logger.debug('storeUtxos', utxos, query)
     await conn.query(query)
   }
 
@@ -332,8 +332,8 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       blockNum,
       blockHash,
     } = tx
-    this.logger.debug(`storeTx tx: ${JSON.stringify(tx)}`)
-    this.logger.debug('storeTx:', txUtxos)
+    // this.logger.debug(`storeTx tx: ${JSON.stringify(tx)}`)
+    // this.logger.debug('storeTx:', txUtxos)
     const txStatus = tx.status || TX_STATUS.TX_SUCCESS_STATUS
 
     const { inputAddresses, inputAmounts, inputs } = await this.getTxInputsDbData(tx, txUtxos)
