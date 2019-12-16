@@ -418,6 +418,16 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     return dbRes.rows.length === 1
   }
 
+  async getTxStatus(txId: string): Promise<string> {
+    const sql = Q.sql.select().from('txs')
+      .field('tx_state')
+      .where('hash = ?', txId)
+      .limit(1)
+      .toString()
+    const dbRes = await this.getConn().query(sql)
+    return dbRes.rows.length === 1 ? dbRes.rows[0].tx_state : null
+  }
+
   async selectInputsForPendingTxsOnly(txHashes: Array<string>): Promise<Array<mixed>> {
     if (_.isEmpty(txHashes)) {
       return []
