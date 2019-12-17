@@ -520,7 +520,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       throw new Error(`[addNewTxToPendingSnapshot] Incorrect tx status: ${txStatus}! 
        Expected one of: '${TX_STATUS.TX_PENDING_STATUS}' or '${TX_STATUS.TX_FAILED_STATUS}'`)
     }
-    const { hash, height } = this.getBestBlockNum()
+    const { hash, height } = await this.getBestBlockNum()
     const dbFields = [{
       tx_hash: txHash,
       block_hash: hash,
