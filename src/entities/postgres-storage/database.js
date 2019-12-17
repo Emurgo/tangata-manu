@@ -530,6 +530,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     const sql = Q.sql.insert()
       .into(SNAPSHOTS_TABLE)
       .setFieldsRows(dbFields)
+      .onConflict()
       .toString()
     this.logger.debug('storeNewPendingSnapshot: ', sql)
     await this.getConn().query(sql)
