@@ -83,15 +83,15 @@ class CronScheduler implements Scheduler {
     if (consecutiveRollbackCounter >= 0) {
       if (consecutiveRollbackCounter === 0) {
         // Drop 1 last block for the first rollback attempt, that's 99% of cases
-        return 1
+        return Math.min(1, this.rollbackBlocksCount)
       }
       if (consecutiveRollbackCounter === 1) {
         // Drop 2 last blocks as an extra measure, should cover another 0.999% of cases
-        return 2
+        return Math.min(2, this.rollbackBlocksCount)
       }
       if (consecutiveRollbackCounter > 1 && consecutiveRollbackCounter < 5) {
         // Try dropping 5 blocks for next multiple times, if this doesn't help the rollback is critical
-        return 5
+        return Math.min(5, this.rollbackBlocksCount)
       }
     }
     return this.rollbackBlocksCount
