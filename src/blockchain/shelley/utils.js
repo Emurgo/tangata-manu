@@ -37,7 +37,7 @@ function consumeKeysToStrings(keys, stringEncoding = 'hex'): Array<string> {
 }
 
 // frees input rust-wasm Value and parses it into a js number
-const consumeOptionalValueToNumber = (value: any): number => {
+const consumeOptionalValueToNumber = (value: any): ?number => {
   // TODO: Values are returned as strings under the rationale that js strings
   // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
   // than this (but bigger than a 32-bit int) this should be safe. We should try and
@@ -45,7 +45,8 @@ const consumeOptionalValueToNumber = (value: any): number => {
   if (!value) {
     return null
   }
-  const n = parseInt(value.to_str(), 10)
+  const str = value.to_str ? value.to_str() : value.to_string()
+  const n = parseInt(str, 10)
   free(value)
   return n
 }
@@ -57,7 +58,7 @@ const consumeIdToHex = (id: any): string => {
   return hex
 }
 
-// frees any generic rust-wasm id (anything with as_bytes()) and creates a hex string buffer from it
+// Takes a Rust {PublicKey} type, frees it, and returns bech32 string
 const consumeKeyToBech32 = (key: any): string => {
   const result = key.to_bech32()
   free(key)
