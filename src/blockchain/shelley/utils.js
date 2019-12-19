@@ -45,7 +45,8 @@ const consumeOptionalValueToNumber = (value: any): ?number => {
   if (!value) {
     return null
   }
-  const n = parseInt(value.to_str(), 10)
+  const str = value.to_str ? value.to_str() : value.to_string()
+  const n = parseInt(str, 10)
   free(value)
   return n
 }
@@ -180,7 +181,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           type: CERT_TYPE.PoolRegistration,
           pool_id: poolId.to_string(),
           // we should be able to do this considering js max int would be 285,616,414 years
-          start_validity: consumeOptionalValueToNumber(reg.start_validity()),
+          start_validity: parseInt(reg.start_validity().to_string(), 10),
           owners: reg_owners,
           operators: reg_operators,
           rewardAccount: rewardAccountAddress,
