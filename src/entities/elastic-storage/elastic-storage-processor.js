@@ -77,6 +77,8 @@ const ELASTIC_TEMPLATES = {
 type ElasticConfigType = {
   node: string,
   indexPrefix: string,
+  sleepOnEveryChunkSeconds: number,
+  sleepOnCommitChunkSeconds: number,
 }
 
 type ChunkBodyType = {
@@ -241,6 +243,10 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   slotsPerEpoch: number
 
+  sleepOnEveryChunkSeconds: number
+
+  sleepOnCommitChunkSeconds: number
+
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -251,6 +257,9 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.client = new Client({ node: elasticConfig.node })
     this.networkStartTime = networkConfig.startTime()
     this.slotsPerEpoch = networkConfig.slotsPerEpoch()
+
+    this.sleepOnEveryChunkSeconds = elasticConfig.sleepOnEveryChunkSeconds || 0
+    this.sleepOnCommitChunkSeconds = elasticConfig.sleepOnCommitChunkSeconds || 5
   }
 
   indexFor(name: string) {
@@ -644,15 +653,19 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
 
     // Commit every 10th chunk
-    if (chunk % 10 === 0 || isGenesisBlock) {
-      await sleep(5000)
-      await this.storeChunk({
-        chunk,
-        blocks: blocks.length,
-        txs: blockTxs.length,
-        txios: blockTxioToStore.length,
-      })
-      await sleep(5000)
+    const isCommitChunk = (chunk % 10 === 0) || isGenesisBlock
+    const sleepOnChunkMillis = (isCommitChunk ? this.sleepOnCommitChunkSeconds : this.sleepOnEveryChunkSeconds) * 1000
+    if (sleepOnChunkMillis > 0) {
+      await sleep(sleepOnChunkMillis)
+      if (isCommitChunk) {
+        await this.storeChunk({
+          chunk,
+          blocks: blocks.length,
+          txs: blockTxs.length,
+          txios: blockTxioToStore.length,
+        })
+        await sleep(sleepOnChunkMillis)
+      }
     }
   }
 

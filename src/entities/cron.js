@@ -244,8 +244,9 @@ class CronScheduler implements Scheduler {
           }
         }
         if (!status) {
-          this.logger.debug(`nextBlockId: ${nextBlockId}`)
-          status = await this.processBlockById(nextBlockId)
+          const flushCache = (tipStatus.height - blockHeight) < 100 || (blockHeight % 100 === 0)
+          this.logger.debug(`nextBlockId: ${nextBlockId} (flushing=${flushCache}, bh=${blockHeight}/${tipStatus.height})`)
+          status = await this.processBlockById(nextBlockId, flushCache)
         }
       }
 
@@ -261,12 +262,12 @@ class CronScheduler implements Scheduler {
     }
   }
 
-  async processBlockById(id: string) {
+  async processBlockById(id: string, flushCache: boolean = true) {
     const blockRaw = await this.#dataProvider.getBlock(id)
     this.logger.debug('blockRaw acquired.')
     const block = await this.#dataProvider.parseBlock(blockRaw)
     // this.logger.debug(`block parsed: ${JSON.stringify(block)}`)
-    const status = await this.processBlock(block, true)
+    const status = await this.processBlock(block, flushCache)
     return status
   }
 
