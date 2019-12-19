@@ -19,7 +19,7 @@ import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import BlockData from './block-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
-import { shelleyUtils } from '../../blockchain/shelley'
+import { shelleyUtils } from '../../blockchain/shelley';
 import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 const INDEX_LEADERS = 'leader'
@@ -565,8 +565,11 @@ class ElasticStorageProcessor implements StorageProcessor {
       .filter(Boolean)
 
     // For all delegation certificates we extract the pool ID
-    const delegationCertificatePools = chunkTxs.flatMap(tx =>
-      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation ? [tx.certificate.pool_id] : [])
+    const delegationCertificatePools = chunkTxs.flatMap(tx => (
+      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation
+        ? [tx.certificate.pool_id]
+        : []
+    )).filter(Boolean)
 
     const uniqueBlockPools = _.uniq([
       ...relatedAddressPools,
