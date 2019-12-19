@@ -52,6 +52,8 @@ class CronScheduler implements Scheduler {
 
   networkProtocol: string
 
+  consecutiveRollbackCounter: number = 0
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipSeconds: number,
@@ -67,7 +69,7 @@ class CronScheduler implements Scheduler {
     this.checkTipMillis = checkTipSeconds * 1000
     this.maxBlockBatchSize = maxBlockBatchSize
     logger.debug('Checking tip every', checkTipSeconds, 'seconds')
-    logger.debug('Rollback blocks count', rollbackBlocksCount)
+    logger.debug('Max rollback blocks count', rollbackBlocksCount)
     this.logger = logger
     this.blocksToStore = []
     this.lastBlock = null
@@ -77,15 +79,34 @@ class CronScheduler implements Scheduler {
     logger.debug(`genesisHash = ${this.#genesisHash}`)
   }
 
-  async rollback(atBlockHeight: number) {
-    this.logger.info(`Rollback at height ${atBlockHeight} to ${this.rollbackBlocksCount} blocks back.`)
+  calculateRollbackDepth(consecutiveRollbackCounter: number): number {
+    if (consecutiveRollbackCounter >= 0) {
+      if (consecutiveRollbackCounter === 0) {
+        // Drop 1 last block for the first rollback attempt, that's 99% of cases
+        return Math.min(1, this.rollbackBlocksCount)
+      }
+      if (consecutiveRollbackCounter === 1) {
+        // Drop 2 last blocks as an extra measure, should cover another 0.999% of cases
+        return Math.min(2, this.rollbackBlocksCount)
+      }
+      if (consecutiveRollbackCounter > 1 && consecutiveRollbackCounter < 5) {
+        // Try dropping 5 blocks for next multiple times, if this doesn't help the rollback is critical
+        return Math.min(5, this.rollbackBlocksCount)
+      }
+    }
+    return this.rollbackBlocksCount
+  }
+
+  async rollback(atBlockHeight: number, consecutiveRollbackCounter: number = -1) {
+    const rollbackDepth = this.calculateRollbackDepth(consecutiveRollbackCounter)
+    this.logger.info(`Rollback at height ${atBlockHeight} to ${rollbackDepth} blocks back.`)
     // reset scheduler state
     this.blocksToStore = []
     this.lastBlock = null
 
     // Recover database state to newest actual block.
     const { height } = await this.storageProcessor.getBestBlockNum()
-    const rollBackTo = height - this.rollbackBlocksCount
+    const rollBackTo = height - rollbackDepth
     this.logger.info(`Current DB height at rollback time: ${height}. Rolling back to: ${rollBackTo}`)
     await this.storageProcessor.rollbackTo(rollBackTo)
     const { epoch, hash } = await this.storageProcessor.getBestBlockNum()
@@ -230,8 +251,12 @@ class CronScheduler implements Scheduler {
 
       if (status === STATUS_ROLLBACK_REQUIRED) {
         this.logger.info('Rollback required.')
-        await this.rollback(blockHeight)
+        await this.rollback(blockHeight, this.consecutiveRollbackCounter)
+        // Increment the counter in case next attempt will also cause a rollback
+        this.consecutiveRollbackCounter += 1
         return
+      } else {
+        this.consecutiveRollbackCounter = 0
       }
     }
   }
