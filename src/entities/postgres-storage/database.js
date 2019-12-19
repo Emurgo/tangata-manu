@@ -465,7 +465,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     const validTxs = []
     const invalidTxs = []
     for (const tx of txs) {
-      const utxoInputs = tx.inputs.filter(inp => inp.type === 'utxo')
+      const utxoInputs = (tx.inputs || []).filter(inp => inp.type === 'utxo')
         .map(({ txHash, index }) => {
           const utxo: UtxoInputType = {
             type: 'utxo',

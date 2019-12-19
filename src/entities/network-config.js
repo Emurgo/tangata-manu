@@ -13,6 +13,11 @@ export const NETWORK_PROTOCOL = {
   SHELLEY: 'shelley',
 }
 
+const BYRON_DEFAULTS = {
+  slotsPerEpoch: 21600,
+  slotDurationSeconds: 20,
+}
+
 class NetworkConfigImp implements NetworkConfig {
   #networkName: string
 
@@ -38,8 +43,8 @@ class NetworkConfigImp implements NetworkConfig {
     this.#networkBaseUrl = urljoin(network.bridgeUrl, this.#networkName)
     this.#genesisHash = network.genesis
     this.#startTime = network.startTime
-    this.#slotsPerEpoch = network.slotsPerEpoch
-    this.#slotDurationSeconds = network.slotDurationSeconds
+    this.#slotsPerEpoch = network.slotsPerEpoch || BYRON_DEFAULTS.slotsPerEpoch
+    this.#slotDurationSeconds = network.slotDurationSeconds || BYRON_DEFAULTS.slotDurationSeconds
     this.#networkMagic = network.networkMagic
     this.#networkProtocol = network.protocol
     this.#networkDiscrimination = network.networkDiscrimination

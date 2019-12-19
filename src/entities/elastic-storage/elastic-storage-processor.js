@@ -7,17 +7,20 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import { Client } from '@elastic/elasticsearch'
 
 import BigNumber from 'bignumber.js'
-import type { StorageProcessor, NetworkConfig } from '../../interfaces'
-import type { Block } from '../../blockchain/common'
+import type { NetworkConfig, StorageProcessor } from '../../interfaces'
+import type { AccountInputType, Block, TxInputType, TxType } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType, PoolOwnerInfoEntry } from '../../interfaces/storage-processor'
+import type { ShelleyTxType } from '../../blockchain/shelley/tx';
+
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import type { UtxoType } from './utxo-data'
-
-import BlockData from './block-data'
 import UtxoData, { getTxInputUtxoId } from './utxo-data'
+import BlockData from './block-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
+import { shelleyUtils } from '../../blockchain/shelley';
+import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 const INDEX_LEADERS = 'leader'
 const INDEX_SLOT = 'slot'
@@ -29,11 +32,41 @@ const INDEX_POINTER_ALL = '*'
 
 
 const ELASTIC_TEMPLATES = {
-  seiza_tx: {
+  seiza_tx_addresses: {
     index_patterns: ['seiza*.tx'],
     mappings: {
       properties: {
         addresses: {
+          type: 'nested',
+        },
+      },
+    },
+  },
+  seiza_tx_delegation: {
+    index_patterns: ['seiza*.tx'],
+    mappings: {
+      properties: {
+        delegation: {
+          type: 'nested',
+        },
+      },
+    },
+  },
+  seiza_tx_pools: {
+    index_patterns: ['seiza*.tx'],
+    mappings: {
+      properties: {
+        pools: {
+          type: 'nested',
+        },
+      },
+    },
+  },
+  seiza_tx_certificates: {
+    index_patterns: ['seiza*.tx'],
+    mappings: {
+      properties: {
+        certificates: {
           type: 'nested',
         },
       },
@@ -78,9 +111,10 @@ const getBlocksForSlotIdx = (
   storedUTxOs: Array<UtxoType>,
   txTrackedState: { [string]: any },
   addressStates: { [string]: any },
+  poolDelegationStates: { [string]: any },
 ): Array<BlockData> => {
   const blocksData = blocks.map(
-    block => new BlockData(block, storedUTxOs, txTrackedState, addressStates))
+    block => new BlockData(block, storedUTxOs, txTrackedState, addressStates, poolDelegationStates))
   return blocksData
 }
 
@@ -115,18 +149,50 @@ const createAddressStateQuery = (uniqueBlockAddresses) => ({
             tmp_group_by: {
               terms: {
                 field: 'addresses.address.keyword',
+                size: 10000000,
               },
               aggs: {
                 tmp_select_latest: {
                   top_hits: {
                     size: 1,
-                    sort: [
-                      {
-                        'addresses.tx_num_after_this_tx': {
-                          order: 'desc',
-                        },
-                      },
-                    ],
+                    ...qSort(['addresses.state_ordinal', 'desc']),
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+})
+
+
+const createPoolDelegationStateQuery = (uniqueBlockPools) => ({
+  size: 0,
+  aggs: {
+    tmp_nest: {
+      nested: {
+        path: 'delegation',
+      },
+      aggs: {
+        tmp_filter: {
+          filter: {
+            terms: {
+              'delegation.pool_id.keyword': uniqueBlockPools,
+            },
+          },
+          aggs: {
+            tmp_group_by: {
+              terms: {
+                field: 'delegation.pool_id.keyword',
+                size: 10000000,
+              },
+              aggs: {
+                tmp_select_latest: {
+                  top_hits: {
+                    size: 1,
+                    ...qSort(['delegation.state_ordinal', 'desc']),
                   },
                 },
               },
@@ -159,6 +225,7 @@ const POOL_OWNER_INFO_KEYS_AND_HASHES = {
   }
 }
 
+
 class ElasticStorageProcessor implements StorageProcessor {
   logger: Logger
 
@@ -172,6 +239,8 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   genesisLeaders: Array<GenesisLeaderType>
 
+  slotsPerEpoch: number
+
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -181,6 +250,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.elasticConfig = elasticConfig
     this.client = new Client({ node: elasticConfig.node })
     this.networkStartTime = networkConfig.startTime()
+    this.slotsPerEpoch = networkConfig.slotsPerEpoch()
   }
 
   indexFor(name: string) {
@@ -393,6 +463,10 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async storeBlocksData(blocks: Array<Block>) {
+    const isGenesisBlock = blocks.length === 1  && blocks[0].isGenesisBlock();
+    if (isGenesisBlock) {
+      this.logger.info('storeBlocksData.GENESIS detected')
+    }
     const storedUTxOs = []
     const blockOutputsToStore = []
     const txInputsIds = []
@@ -416,9 +490,13 @@ class ElasticStorageProcessor implements StorageProcessor {
       const txs = block.getTxs()
       if (txs.length > 0) {
         // TODO: imeplement for accounts
-        txInputsIds.push(..._.flatten(_.map(txs, 'inputs')).map(getTxInputUtxoId))
-        this.logger.debug('storeBlocksData', block)
-        blockOutputsToStore.push(...getBlockUtxos(block))
+        txInputsIds.push(..._.flatten(_.map(txs, 'inputs'))
+          .filter((x: TxInputType) => x.type === 'utxo')
+          .map(getTxInputUtxoId))
+        // this.logger.debug('storeBlocksData', block)
+        for (const u of getBlockUtxos(block)) {
+          blockOutputsToStore.push(u)
+        }
         blockTxs.push(...txs)
       }
     }
@@ -439,13 +517,75 @@ class ElasticStorageProcessor implements StorageProcessor {
     // Plus all the UTxOs produced in the processed blocks
     const utxosForInputsAndOutputs = [...storedUTxOs, ...blockOutputsToStore]
 
-    this.logger.debug('storeBlocksData.processingAddressStates')
+    const chunkTxs: Array<TxType|ShelleyTxType> = blocks.flatMap(b => b.getTxs())
+
     // Filter all the unique addresses being used in either inputs or outputs
-    const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
+    this.logger.debug('storeBlocksData.processingAddressStates')
+
+    // All utxo input/output addresses (they are taken from resolved data,
+    // because utxo-input address is not straightforward to obtain
+    const utxoAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address));
+
+    // Account inputs/output addresses. They are straightforward
+    const accountAddresses = chunkTxs.flatMap((tx: TxType) => {
+      const inputAccountAddresses = tx.inputs
+        .filter(x => x.type === 'account')
+        .map((x: AccountInputType) => x.account_id)
+      const outputAccountAddresses = tx.outputs
+        .filter(x => x.type === 'account')
+        .map(x => x.address)
+      return [...inputAccountAddresses, ...outputAccountAddresses]
+    })
+
+    // For all group addresses (they are UTxO) we extract the related account address
+    const groupAccounts = utxoAddresses.map(addr => {
+      const { accountAddress } = shelleyUtils.splitGroupAddress(addr)
+      return accountAddress
+    }).filter(Boolean)
+
+    // For all delegation certificates we extract the related account address
+    const delegationCertificateAccounts = chunkTxs.flatMap(tx =>
+      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation ? [tx.certificate.account] : [])
+
+    // All the different extracted addresses are combined in a single set
+    // For each one we need to query the previous known state because it will be used in some way
+    const uniqueBlockAddresses = _.uniq([
+      ...utxoAddresses,
+      ...accountAddresses,
+      ...groupAccounts,
+      ...delegationCertificateAccounts,
+    ])
+
+    this.logger.debug(`storeBlocksData.getAddressStates for ${uniqueBlockAddresses.length} addresses`)
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
+    // Extract delegated pool IDs from all resolved address states
+    const relatedAddressPools = Object.values(addressStates)
+      .map(s => s.delegated_pool_after_this_tx)
+      .filter(Boolean)
+
+    // For all delegation certificates we extract the pool ID
+    const delegationCertificatePools = chunkTxs.flatMap(tx => (
+      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation
+        ? [tx.certificate.pool_id]
+        : []
+    )).filter(Boolean)
+
+    const uniqueBlockPools = _.uniq([
+      ...relatedAddressPools,
+      ...delegationCertificatePools,
+    ])
+
+    this.logger.debug(`storeBlocksData.getPoolDelegationStates for ${uniqueBlockPools.length} pools`)
+    const poolDelegationStates: { [string]: any } = await this.getPoolDelegationStates(uniqueBlockPools)
+
     const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
-      blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+      blocks,
+      utxosForInputsAndOutputs,
+      txTrackedState,
+      addressStates,
+      poolDelegationStates,
+    )
 
     const blockInputsToStore = mappedBlocks
       .flatMap((b: BlockData) => b.getResolvedTxs())
@@ -453,20 +593,25 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     const tip: BlockInfoType = await this.getBestBlockNum()
     const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks,
-      tip.epoch, tip.slot, this.networkStartTime)
+      tip.epoch, tip.slot, this.networkStartTime, this.slotsPerEpoch)
 
     const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
+    this.logger.debug(`storeBlocksData.constructing bulk for ${blocksData.length} slots`)
     const blocksBody = formatBulkUploadBody(blocksData, {
       index: this.indexFor(INDEX_SLOT),
       getId: (o) => o.hash,
       getData: o => ({
         ...o,
+        ...(isGenesisBlock ?  {
+          tx: undefined,
+        } : {}),
         _chunk: chunk,
       }),
     })
 
     const blockTxioToStore = [...blockInputsToStore, ...blockOutputsToStore]
+    this.logger.debug(`storeBlocksData.constructing bulk for ${blockTxioToStore.length} txio`)
     const txiosBody = formatBulkUploadBody(blockTxioToStore, {
       index: this.indexFor(INDEX_TXIO),
       getId: (o) => o.id,
@@ -475,15 +620,31 @@ class ElasticStorageProcessor implements StorageProcessor {
         _chunk: chunk,
       }),
     })
-    const txsBody = formatBulkUploadBody(blocksData.flatMap(b => b.tx), {
+
+    const txsData = blocksData.flatMap(b => b.tx);
+    this.logger.debug(`storeBlocksData.constructing bulk for ${txsData.length} txs`)
+    const txsBody = formatBulkUploadBody(txsData, {
       index: this.indexFor(INDEX_TX),
       getId: (o) => o.hash,
       getData: (o) => o,
     })
-    await this.bulkUpload([...txiosBody, ...blocksBody, ...txsBody])
+
+    const bulkData = [...blocksBody, ...txsBody, ...txiosBody];
+    this.logger.debug(`storeBlocksData.total bulk is ${bulkData.length} documents`)
+    const bulkChunks = _.chunk(bulkData, 1000)
+    for (let i = 0; i < bulkChunks.length; i += 1) {
+      this.logger.debug(`storeBlocksData.bulkUpload chunk ${i+1} out of ${bulkChunks.length}`)
+      try {
+        await this.bulkUpload(bulkChunks[i])
+        await sleep(100)
+      } catch (e) {
+        this.logger.error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length})`, e)
+        throw new Error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length}) : ${e}`)
+      }
+    }
 
     // Commit every 10th chunk
-    if (chunk % 10 === 0) {
+    if (chunk % 10 === 0 || isGenesisBlock) {
       await sleep(5000)
       await this.storeChunk({
         chunk,
@@ -517,32 +678,80 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
+  async indexExists(index: string): boolean {
+    return (await this.client.indices.exists({ index })).body
+  }
+
   async getAddressStates(uniqueBlockAddresses: Array<string>): { [string]: any } {
+    const index = this.indexFor(INDEX_TX);
+    if (!await this.indexExists(index)) {
+      return {}
+    }
     const res = await this.client.search({
-      index: this.indexFor(INDEX_TX),
+      index,
       allowNoIndices: true,
       ignoreUnavailable: true,
       body: createAddressStateQuery(uniqueBlockAddresses),
     })
+    if (res.body.hits.total.value === 0) {
+      return {}
+    }
     const { buckets } = res.body.aggregations.tmp_nest.tmp_filter.tmp_group_by
     try {
       const states = buckets.map(buck => {
         const source = buck.tmp_select_latest.hits.hits[0]._source
-        return { ...source, balance_after_this_tx: Number(source.balance_after_this_tx.full) }
+        return {
+          ...source,
+          balance_after_this_tx: Number(source.balance_after_this_tx.full),
+          ...(source.delegation_after_this_tx ? {
+            delegation_after_this_tx: Number(source.delegation_after_this_tx.full),
+          }: {}),
+        }
       })
       return _.keyBy(states, 'address')
     } catch (e) {
-      this.logger.error('Failed while processing this response:', JSON.stringify(res, null, 2))
+      this.logger.error(
+        'Failed while processing this response:', JSON.stringify(res, null, 2),
+        'Error: ', e)
+      throw e
+    }
+  }
+
+  async getPoolDelegationStates(uniqueBlockPools: Array<string>): { [string]: any } {
+    const index = this.indexFor(INDEX_TX);
+    if (!await this.indexExists(index)) {
+      return {}
+    }
+    const res = await this.client.search({
+      index,
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+      body: createPoolDelegationStateQuery(uniqueBlockPools),
+    })
+    if (res.body.hits.total.value === 0) {
+      return {}
+    }
+    const { buckets } = res.body.aggregations.tmp_nest.tmp_filter.tmp_group_by
+    try {
+      const states = buckets.map(buck => {
+        const source = buck.tmp_select_latest.hits.hits[0]._source
+        return {
+          ...source,
+          delegation_after_this_tx: Number(source.delegation_after_this_tx.full),
+        }
+      })
+      return _.keyBy(states, 'pool_id')
+    } catch (e) {
+      this.logger.error(
+        'Failed while processing this response:', JSON.stringify(res, null, 2),
+        'Error: ', e)
       throw e
     }
   }
 
   async getLatestPoolOwnerHashes() {
     const index = this.indexFor(INDEX_POOL_OWNER_INFO);
-    const indexExists = (await this.client.indices.exists({
-      index,
-    })).body
-    if (!indexExists) {
+    if (!await this.indexExists(index)) {
       return {}
     }
     const res = await this.client.search({
@@ -572,7 +781,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>) {
     const time = new Date().toISOString()
     const entriesBody = formatBulkUploadBody(entries, {
-      index: this.indexFor(INDEX_SLOT),
+      index: this.indexFor(INDEX_POOL_OWNER_INFO),
       getId: (o: PoolOwnerInfoEntry) => `${o.owner}:${time}`,
       getData: (o: PoolOwnerInfoEntry) => ({
         ...o,
@@ -600,15 +809,17 @@ function padEmptySlots(
   tipEpoch: number,
   tipSlot: ?number,
   networkStartTime: number,
+  slotsPerEpoch: number,
 ): Array<BlockData> {
+  const maxSlotNumber = slotsPerEpoch - 1;
   const nextSlot = (epoch: number, slot: ?number) => ({
-    epoch: slot >= 21599 ? epoch + 1 : epoch,
-    slot: (slot == null || slot >= 21599) ? 0 : slot + 1,
+    epoch: slot >= maxSlotNumber ? epoch + 1 : epoch,
+    slot: (slot == null || slot >= maxSlotNumber) ? 0 : slot + 1,
   })
   const result: Array<BlockData> = []
   blocks.reduce(({ epoch, slot }, b: BlockData) => {
     const [blockEpoch, blockSlot] = [b.block.getEpoch(), b.block.getSlot()]
-    if (blockEpoch < epoch || (blockSlot === epoch && blockSlot < slot)) {
+    if (blockEpoch < epoch || (blockEpoch === epoch && blockSlot < slot)) {
       throw new Error(`Got a block for storing younger than next expected slot.
          Expected: ${epoch}/${slot}, got: ${JSON.stringify(b.block)}`,
       )

@@ -9,6 +9,7 @@ export interface Block {
   serialize(): any;
   getHash(): string;
   getPrevHash(): string;
+  isGenesisBlock(): boolean;
   getEpoch(): EpochIdType;
   // slot, or null if not applicable (ie Byron EBB)
   getSlot(): ?SlotIdType;

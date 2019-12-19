@@ -41,6 +41,22 @@ class UtxoData extends ElasticData {
     return this.utxo.tx_hash
   }
 
+  getRelatedAddress(): string {
+    return this.utxo.receiver
+  }
+
+  getAmount(): number {
+    return this.utxo.amount
+  }
+
+  isInput() {
+    return false
+  }
+
+  isAccount() {
+    return false
+  }
+
   toPlainObject() {
     return {
       id: this.getId(),

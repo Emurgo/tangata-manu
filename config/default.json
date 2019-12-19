@@ -4,6 +4,7 @@
     "node": "http://localhost:9200",
     "indexPrefix": "seiza"
   },
+  "db": {},
   "storageProcessor": "yoroi-postgres",
   "server": {
     "port": 8080,
