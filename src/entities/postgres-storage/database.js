@@ -511,13 +511,13 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   async addNewTxToTransientSnapshots(txHash: string, txStatus: string) {
-    this.logger.debug('addNewTxToPendingSnapshot:', txHash, txStatus)
+    this.logger.debug('addNewTxToTransientSnapshots:', txHash, txStatus)
     if (!txHash) {
-      this.logger.debug('addNewTxToPendingSnapshot: No tx is provided')
+      this.logger.debug('addNewTxToTransientSnapshots: No tx is provided')
       return
     }
     if (txStatus !== TX_STATUS.TX_PENDING_STATUS && txStatus !== TX_STATUS.TX_FAILED_STATUS) {
-      throw new Error(`[addNewTxToPendingSnapshot] Incorrect tx status: ${txStatus}! 
+      throw new Error(`[addNewTxToTransientSnapshots] Incorrect tx status: ${txStatus}! 
        Expected one of: '${TX_STATUS.TX_PENDING_STATUS}' or '${TX_STATUS.TX_FAILED_STATUS}'`)
     }
     const { hash, height } = await this.getBestBlockNum()
@@ -532,7 +532,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       .setFieldsRows(dbFields)
       .onConflict()
       .toString()
-    this.logger.debug('storeNewPendingSnapshot: ', sql)
+    this.logger.debug('addNewTxToTransientSnapshots: ', sql)
     await this.getConn().query(sql)
   }
 
