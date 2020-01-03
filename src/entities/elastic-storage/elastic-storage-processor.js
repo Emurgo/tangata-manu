@@ -29,7 +29,6 @@ const INDEX_SLOT = 'slot'
 const INDEX_TX = 'tx'
 const INDEX_TXIO = 'txio'
 const INDEX_CHUNK = 'chunk'
-const INDEX_POOL_OWNER_INFO = 'pool-owner-info'
 const INDEX_POINTER_ALL = '*'
 
 
@@ -67,7 +66,7 @@ type FormatBulkUploadOptionsType = {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const formatBulkUploadBody = (objs: any,
+export const formatBulkUploadBody = (objs: any,
   options: FormatBulkUploadOptionsType) => objs.flatMap(o => [
   {
     index: {
@@ -175,28 +174,6 @@ const createPoolDelegationStateQuery = (uniqueBlockPools) => ({
     },
   },
 })
-
-const POOL_OWNER_INFO_KEYS_AND_HASHES = {
-  size: 0,
-  aggs: {
-    tmp_group_by: {
-      terms: {
-        field: 'owner.keyword',
-        size: 10000000,
-      },
-      aggs: {
-        tmp_select_latest: {
-          top_hits: {
-            size: 1,
-            _source: ['owner', 'hash'],
-            ...qSort(['time', 'desc']),
-          },
-        },
-      },
-    },
-  },
-}
-
 
 class ElasticStorageProcessor implements StorageProcessor {
   logger: Logger
@@ -728,46 +705,14 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
-  async getLatestPoolOwnerHashes() {
-    const index = this.indexFor(INDEX_POOL_OWNER_INFO)
-    if (!await this.indexExists(index)) {
-      return {}
-    }
-    const res = await this.client.search({
-      index,
-      allowNoIndices: true,
-      ignoreUnavailable: true,
-      body: POOL_OWNER_INFO_KEYS_AND_HASHES,
-    })
-    if (res.body.hits.total.value === 0) {
-      return {}
-    }
-    const { buckets } = res.body.aggregations.tmp_group_by
-    try {
-      const pairs = buckets.map(buck => {
-        const { owner, hash } = buck.tmp_select_latest.hits.hits[0]._source
-        return { [owner]: hash }
-      })
-      return _.assign({}, ...pairs)
-    } catch (e) {
-      this.logger.error(
-        'Failed while processing this response:', JSON.stringify(res, null, 2),
-        'Error: ', e)
-      throw e
-    }
+  async getLatestPoolOwnerHashes(): Promise<{}> {
+    this.logger.debug('getLatestPoolOwnerHashes called')
+    return {}
   }
 
   async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntryType>) {
-    const time = new Date().toISOString()
-    const entriesBody = formatBulkUploadBody(entries, {
-      index: this.indexFor(INDEX_POOL_OWNER_INFO),
-      getId: (o: PoolOwnerInfoEntryType) => `${o.owner}:${time}`,
-      getData: (o: PoolOwnerInfoEntryType) => ({
-        ...o,
-        time,
-      }),
-    })
-    await this.bulkUpload(entriesBody)
+    this.logger.debug('Database.storePoolOwnersInfo not supported.', entries)
+    throw new Error('NOT SUPPORTED')
   }
 }
 
@@ -850,7 +795,7 @@ function padEmptySlots(
  * NOTE: `unmapped_type` is set to `long` for all entries except direct objects
  * and arrays of length 3.
  */
-function qSort(...entries) {
+export const qSort = (...entries) => {
   const mapped = entries.map(e => {
     const res = {}
     let key
