@@ -15,7 +15,8 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 import { NETWORK_PROTOCOL } from '../entities/network-config'
 import {
   PostgresStorageProcessor,
-  ElasticStorageProcessor,
+  ElasticShelleyStorageProcessor,
+  ElasticByronStorageProcessor,
   DBByron,
   DBShelley,
 } from '../entities'
@@ -23,9 +24,7 @@ import {
 export const SEIZA_ELASTIC = 'seiza-elastic'
 export const YOROI_POSTGRES = 'yoroi-postgres'
 
-const initDbProvider = (container: Container): void => {
-  const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
-  const networkProtocol = networkConfig.networkProtocol()
+const initDbProvider = (container: Container, networkProtocol: string): void => {
   if (networkProtocol === NETWORK_PROTOCOL.BYRON) {
     container.bind<Database<ByronTxType>>(SERVICE_IDENTIFIER.DATABASE)
       .to(DBByron)
@@ -40,13 +39,19 @@ const initDbProvider = (container: Container): void => {
 }
 
 const initStorageProcessor = (container: Container): void => {
+  const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
+  const networkProtocol = networkConfig.networkProtocol()
   const storageName = container.getNamed('storageProcessor')
   const storageBind = container.bind<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
   if (storageName === YOROI_POSTGRES) {
-    initDbProvider(container)
+    initDbProvider(container, networkProtocol)
     storageBind.to(PostgresStorageProcessor).inSingletonScope()
   } else if (storageName === SEIZA_ELASTIC) {
-    storageBind.to(ElasticStorageProcessor).inSingletonScope()
+    if (networkProtocol === NETWORK_PROTOCOL.BYRON) {
+      storageBind.to(ElasticByronStorageProcessor).inSingletonScope()
+    } else {
+      storageBind.to(ElasticShelleyStorageProcessor).inSingletonScope()
+    }
   } else {
     throw new Error(`Storage: ${storageName} not supported.`)
   }

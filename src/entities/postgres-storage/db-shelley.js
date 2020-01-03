@@ -14,9 +14,9 @@ import type { Database } from '../../interfaces'
 import DB from './database'
 import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
-import { TX_STATUS } from "../../blockchain/common/tx";
-import type { PoolRegistrationType, PoolRetirementType, PoolUpdateType } from "../../blockchain/shelley";
-import type { PoolOwnerInfoEntry } from "../../interfaces/storage-processor";
+import { TX_STATUS } from '../../blockchain/common/tx'
+import type { PoolRegistrationType, PoolRetirementType, PoolUpdateType } from '../../blockchain/shelley'
+import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
 const POOL_CERTIFICATES_TBL = 'pool_certificates'
@@ -29,7 +29,7 @@ const ACCOUNT_OP_TYPE = {
   REWARD_DEPOSIT: 1,
 }
 
-const undefinedToNull = x => x === undefined ? null : x
+const undefinedToNull = x => (x === undefined ? null : x)
 
 class DBShelley extends DB<TxType> implements Database<TxType> {
   async rollbackTo(blockHeight: number): Promise<void> {
@@ -215,6 +215,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
   }
 
   getGroupAddressesData(txDbData: TxDbDataType) {
+    this.logger.debug('getGroupAddressesData called.')
     const { inputAddresses, outputAddresses } = txDbData
     const allAddresses = _.uniq([...inputAddresses, ...outputAddresses])
     return allAddresses.map(shelleyUtils.splitGroupAddress).filter(x => x.groupAddress)
@@ -237,14 +238,16 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
   }
 
   async getTxDBData(tx: TxType, txUtxos: Array<mixed> = []): Promise<TxDbDataType> {
-    let { txDbFields, inputAddresses, outputAddresses } = await super.getTxDBData(tx, txUtxos)
+    const txDbData = await super.getTxDBData(tx, txUtxos)
+    let { txDbFields } = txDbData
+    const { inputAddresses, outputAddresses } = txDbData
     const { certificate } = tx
     if (certificate && certificate.payload) {
       txDbFields = {
         ...txDbFields,
         certificates: [
-          JSON.stringify(certificate.payload)
-        ]
+          JSON.stringify(certificate.payload),
+        ],
       }
     }
     return { txDbFields, inputAddresses, outputAddresses }
@@ -252,7 +255,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
 
   async storeTx(tx: TxType,
     txUtxos:Array<mixed> = [], upsert: boolean = true): Promise<void> {
-    const { certificate, id } = tx
+    const { certificate } = tx
     const txDbData = await this.getTxDBData(tx, txUtxos)
     await super.storeTxImpl(tx, txUtxos, upsert, txDbData)
     if (txDbData.txDbFields.tx_state === TX_STATUS.TX_SUCCESS_STATUS) {
@@ -260,7 +263,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       if (certificate) {
         if (certificate.type === CERT_TYPE.StakeDelegation) {
           await this.storeStakeDelegationCertTx(tx)
-        } else if(certificate.type === CERT_TYPE.PoolRegistration
+        } else if (certificate.type === CERT_TYPE.PoolRegistration
           || certificate.type === CERT_TYPE.PoolUpdate
           || certificate.type === CERT_TYPE.PoolRetirement) {
           await this.storePoolCertTx(tx)
@@ -274,11 +277,11 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     }
   }
 
-  async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>): Promise<boolean> {
+  async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntryType>): Promise<boolean> {
     const date = new Date().toISOString()
     const sql = Q.sql.insert({
-        replaceSingleQuotes: true
-      })
+      replaceSingleQuotes: true,
+    })
       .into(POOL_OWNERS_INFO_TBL)
       .setFieldsRows(entries.map(e => ({
         owner: e.owner,
@@ -286,7 +289,7 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
         time: date,
         info: JSON.stringify(e.info),
         sig: e.sig,
-        meta: JSON.stringify(e.meta)
+        meta: JSON.stringify(e.meta),
       })))
       .toString()
     this.logger.debug('storePoolOwnersInfo: ', sql)
@@ -304,8 +307,8 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       .toString()
     this.logger.debug('getLatestPoolOwnerHashes: ', sql)
     const res = await this.getConn().query(sql)
-    return res.rows && res.rows.length > 0 ?
-      _.chain(res.rows).keyBy('owner').mapValues('hash').value()
+    return res.rows && res.rows.length > 0
+      ? _.chain(res.rows).keyBy('owner').mapValues('hash').value()
       : {}
   }
 }

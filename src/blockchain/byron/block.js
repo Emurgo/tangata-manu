@@ -35,6 +35,8 @@ export default class ByronBlock implements Block {
 
   slotLeaderPk: ?string
 
+  isGenesis: boolean
+
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
     time, lead, slotLeaderPk, size,
@@ -61,6 +63,7 @@ export default class ByronBlock implements Block {
     this.lead = lead
     this.slotLeaderPk = slotLeaderPk
     this.size = size
+    this.isGenesis = false
   }
 
   serialize() {
@@ -81,7 +84,7 @@ export default class ByronBlock implements Block {
   }
 
   isGenesisBlock() {
-    return false
+    return this.isGenesis
   }
 
   getEpoch(): EpochIdType {

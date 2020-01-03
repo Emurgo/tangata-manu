@@ -8,9 +8,11 @@ import { Client } from '@elastic/elasticsearch'
 
 import BigNumber from 'bignumber.js'
 import type { NetworkConfig, StorageProcessor } from '../../interfaces'
-import type { AccountInputType, Block, TxInputType, TxType } from '../../blockchain/common'
-import type { BlockInfoType, GenesisLeaderType, PoolOwnerInfoEntry } from '../../interfaces/storage-processor'
-import type { ShelleyTxType } from '../../blockchain/shelley/tx';
+import type {
+  AccountInputType, Block, TxInputType, TxType,
+} from '../../blockchain/common'
+import type { BlockInfoType, GenesisLeaderType, PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
+import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
@@ -19,7 +21,7 @@ import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import BlockData from './block-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
-import { shelleyUtils } from '../../blockchain/shelley';
+import { shelleyUtils } from '../../blockchain/shelley'
 import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 const INDEX_LEADERS = 'leader'
@@ -209,20 +211,20 @@ const POOL_OWNER_INFO_KEYS_AND_HASHES = {
   aggs: {
     tmp_group_by: {
       terms: {
-        field: "owner.keyword",
+        field: 'owner.keyword',
         size: 10000000,
       },
       aggs: {
         tmp_select_latest: {
           top_hits: {
             size: 1,
-            _source: ["owner", "hash"],
+            _source: ['owner', 'hash'],
             ...qSort(['time', 'desc']),
-          }
-        }
-      }
-    }
-  }
+          },
+        },
+      },
+    },
+  },
 }
 
 
@@ -463,7 +465,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async storeBlocksData(blocks: Array<Block>) {
-    const isGenesisBlock = blocks.length === 1  && blocks[0].isGenesisBlock();
+    const isGenesisBlock = blocks.length === 1 && blocks[0].isGenesisBlock()
     if (isGenesisBlock) {
       this.logger.info('storeBlocksData.GENESIS detected')
     }
@@ -524,7 +526,7 @@ class ElasticStorageProcessor implements StorageProcessor {
 
     // All utxo input/output addresses (they are taken from resolved data,
     // because utxo-input address is not straightforward to obtain
-    const utxoAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address));
+    const utxoAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
 
     // Account inputs/output addresses. They are straightforward
     const accountAddresses = chunkTxs.flatMap((tx: TxType) => {
@@ -544,8 +546,10 @@ class ElasticStorageProcessor implements StorageProcessor {
     }).filter(Boolean)
 
     // For all delegation certificates we extract the related account address
-    const delegationCertificateAccounts = chunkTxs.flatMap(tx =>
-      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation ? [tx.certificate.account] : [])
+    const delegationCertificateAccounts = chunkTxs.flatMap(tx => (
+      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation
+        ? [tx.certificate.account]
+        : []))
 
     // All the different extracted addresses are combined in a single set
     // For each one we need to query the previous known state because it will be used in some way
@@ -577,7 +581,8 @@ class ElasticStorageProcessor implements StorageProcessor {
     ])
 
     this.logger.debug(`storeBlocksData.getPoolDelegationStates for ${uniqueBlockPools.length} pools`)
-    const poolDelegationStates: { [string]: any } = await this.getPoolDelegationStates(uniqueBlockPools)
+    const poolDelegationStates: { [string]: any } = await this.getPoolDelegationStates(
+      uniqueBlockPools)
 
     const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
       blocks,
@@ -603,7 +608,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       getId: (o) => o.hash,
       getData: o => ({
         ...o,
-        ...(isGenesisBlock ?  {
+        ...(isGenesisBlock ? {
           tx: undefined,
         } : {}),
         _chunk: chunk,
@@ -621,7 +626,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       }),
     })
 
-    const txsData = blocksData.flatMap(b => b.tx);
+    const txsData = blocksData.flatMap(b => b.tx)
     this.logger.debug(`storeBlocksData.constructing bulk for ${txsData.length} txs`)
     const txsBody = formatBulkUploadBody(txsData, {
       index: this.indexFor(INDEX_TX),
@@ -629,17 +634,17 @@ class ElasticStorageProcessor implements StorageProcessor {
       getData: (o) => o,
     })
 
-    const bulkData = [...blocksBody, ...txsBody, ...txiosBody];
+    const bulkData = [...blocksBody, ...txsBody, ...txiosBody]
     this.logger.debug(`storeBlocksData.total bulk is ${bulkData.length} documents`)
     const bulkChunks = _.chunk(bulkData, 1000)
     for (let i = 0; i < bulkChunks.length; i += 1) {
-      this.logger.debug(`storeBlocksData.bulkUpload chunk ${i+1} out of ${bulkChunks.length}`)
+      this.logger.debug(`storeBlocksData.bulkUpload chunk ${i + 1} out of ${bulkChunks.length}`)
       try {
         await this.bulkUpload(bulkChunks[i])
         await sleep(100)
       } catch (e) {
-        this.logger.error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length})`, e)
-        throw new Error(`Failed to bulk-upload blocks data (chunk ${i+1} out of ${bulkChunks.length}) : ${e}`)
+        this.logger.error(`Failed to bulk-upload blocks data (chunk ${i + 1} out of ${bulkChunks.length})`, e)
+        throw new Error(`Failed to bulk-upload blocks data (chunk ${i + 1} out of ${bulkChunks.length}) : ${e}`)
       }
     }
 
@@ -683,7 +688,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async getAddressStates(uniqueBlockAddresses: Array<string>): { [string]: any } {
-    const index = this.indexFor(INDEX_TX);
+    const index = this.indexFor(INDEX_TX)
     if (!await this.indexExists(index)) {
       return {}
     }
@@ -705,7 +710,7 @@ class ElasticStorageProcessor implements StorageProcessor {
           balance_after_this_tx: Number(source.balance_after_this_tx.full),
           ...(source.delegation_after_this_tx ? {
             delegation_after_this_tx: Number(source.delegation_after_this_tx.full),
-          }: {}),
+          } : {}),
         }
       })
       return _.keyBy(states, 'address')
@@ -718,7 +723,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async getPoolDelegationStates(uniqueBlockPools: Array<string>): { [string]: any } {
-    const index = this.indexFor(INDEX_TX);
+    const index = this.indexFor(INDEX_TX)
     if (!await this.indexExists(index)) {
       return {}
     }
@@ -750,7 +755,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async getLatestPoolOwnerHashes() {
-    const index = this.indexFor(INDEX_POOL_OWNER_INFO);
+    const index = this.indexFor(INDEX_POOL_OWNER_INFO)
     if (!await this.indexExists(index)) {
       return {}
     }
@@ -778,12 +783,12 @@ class ElasticStorageProcessor implements StorageProcessor {
     }
   }
 
-  async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>) {
+  async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntryType>) {
     const time = new Date().toISOString()
     const entriesBody = formatBulkUploadBody(entries, {
       index: this.indexFor(INDEX_POOL_OWNER_INFO),
-      getId: (o: PoolOwnerInfoEntry) => `${o.owner}:${time}`,
-      getData: (o: PoolOwnerInfoEntry) => ({
+      getId: (o: PoolOwnerInfoEntryType) => `${o.owner}:${time}`,
+      getData: (o: PoolOwnerInfoEntryType) => ({
         ...o,
         time,
       }),
@@ -811,7 +816,7 @@ function padEmptySlots(
   networkStartTime: number,
   slotsPerEpoch: number,
 ): Array<BlockData> {
-  const maxSlotNumber = slotsPerEpoch - 1;
+  const maxSlotNumber = slotsPerEpoch - 1
   const nextSlot = (epoch: number, slot: ?number) => ({
     epoch: slot >= maxSlotNumber ? epoch + 1 : epoch,
     slot: (slot == null || slot >= maxSlotNumber) ? 0 : slot + 1,

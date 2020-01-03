@@ -7,6 +7,8 @@ import UtxoData from './utxo-data'
 const INPUT_TYPE = 'input'
 
 class InputData extends UtxoData {
+  #isInput: boolean
+
   constructor(input, index: number, inputUtxo, tx: TxType) {
     super({
       tx_hash: tx.id,
@@ -15,10 +17,11 @@ class InputData extends UtxoData {
       receiver: inputUtxo.address,
     })
     this.type = INPUT_TYPE
+    this.#isInput = true
   }
 
   isInput() {
-    return true
+    return this.#isInput
   }
 }
 

@@ -1,3 +1,4 @@
 // @flow
 
-export { default } from './elastic-storage-processor'
+export { default as ElasticByronStorageProcessor } from './elastic-byron'
+export { default as ElasticShelleyStorageProcessor } from './elastic-shelley'

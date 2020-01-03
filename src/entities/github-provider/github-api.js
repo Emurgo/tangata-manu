@@ -4,18 +4,17 @@ import urljoin from 'url-join'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import SERVICE_IDENTIFIER from "../constants/identifiers";
-import { Logger } from "bunyan";
-import axios from "axios";
+import { Logger } from 'bunyan'
+import axios from 'axios'
 
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 const GITHUB_ROOTS = {
   API: 'https://api.github.com',
   PLAIN: 'https://github.com',
 }
 
-class GitHubApi implements RawDataProvider {
-
+class GitHubApi {
   #gitHubRepo: string
 
   #gitHubAuthUser: string
@@ -52,8 +51,8 @@ class GitHubApi implements RawDataProvider {
             auth: {
               username: this.#gitHubAuthUser,
               password: this.#gitHubAuthToken,
-            }
-          }: {})
+            },
+          } : {}),
         })
       return resp
     } catch (e) {
@@ -77,7 +76,7 @@ class GitHubApi implements RawDataProvider {
   async getMasterZip(options?: {}) {
     const resp = await this.getPlain(urljoin(this.#gitHubRepo, 'archive/master.zip'), {
       responseType: 'arraybuffer',
-      ...(options || {})
+      ...(options || {}),
     })
     if (resp.status !== 200) {
       throw new Error(`Failed to download master zip: ${resp.status} (${resp.statusText})`)

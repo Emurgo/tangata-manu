@@ -91,7 +91,7 @@ class PostgresStorageProcessor implements StorageProcessor {
   }
 
   async getLatestPoolOwnerHashes() {
-    return this.db.getLatestPoolOwnerHashes();
+    return this.db.getLatestPoolOwnerHashes()
   }
 }
 

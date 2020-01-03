@@ -6,7 +6,7 @@ import _ from 'lodash'
 import type { DBConnection, Logger } from '../../interfaces'
 import type { BlockInfoType } from '../../interfaces/storage-processor'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
-import type {TxInputType, TxType as ByronTxType, UtxoInputType} from '../../blockchain/common'
+import type { TxInputType, TxType as ByronTxType, UtxoInputType } from '../../blockchain/common'
 import { Block, TX_STATUS, utils } from '../../blockchain/common'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 import Q from './db-queries'
@@ -658,10 +658,12 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   storePoolOwnersInfo(inputs: Array<TxInputType>): Promise<boolean> {
+    this.logger.debug('Database.storePoolOwnersInfo not supported.', inputs)
     throw new Error('NOT SUPPORTED')
   }
 
   getLatestPoolOwnerHashes(): Promise<{}> {
+    this.logger.debug('Database.getLatestPoolOwnerHashes not supported.')
     throw new Error('NOT SUPPORTED')
   }
 

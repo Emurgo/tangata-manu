@@ -1,12 +1,11 @@
 // @flow
 
 import ElasticData, { coinFormat } from './elastic-data'
-import type {AccountInputType, TxInputType, TxType} from '../../blockchain/common'
+import type { AccountInputType, TxType } from '../../blockchain/common'
 
 const ACCOUNT_INPUT_TYPE = 'account_input'
 
 class AccountInputData extends ElasticData {
-
   input: AccountInputType
 
   type: string
@@ -19,6 +18,10 @@ class AccountInputData extends ElasticData {
 
   ioOrdinal: number
 
+  #isInput: boolean
+
+  #isAccount: boolean
+
   constructor(input: AccountInputType, tx: TxType, index: number) {
     super()
     this.input = input
@@ -27,6 +30,8 @@ class AccountInputData extends ElasticData {
     this.blockHash = tx.blockHash
     this.txOrdinal = tx.txOrdinal
     this.ioOrdinal = index
+    this.#isAccount = true
+    this.#isInput = true
   }
 
   getId() {
@@ -42,11 +47,11 @@ class AccountInputData extends ElasticData {
   }
 
   isInput() {
-    return true
+    return this.#isInput
   }
 
   isAccount() {
-    return true
+    return this.#isAccount
   }
 
   toPlainObject() {

@@ -10,11 +10,11 @@ import { helpers } from 'inversify-vanillajs-helpers'
 import type {
   Scheduler,
   StorageProcessor,
-} from '../interfaces'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
-import GitHubApi from './github-api';
-import type { PoolOwnerInfoEntry } from '../interfaces/storage-processor';
-import { shelleyUtils } from '../blockchain/shelley';
+} from '../../interfaces'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import GitHubApi from './github-api'
+import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
+import { shelleyUtils } from '../../blockchain/shelley'
 
 const ERROR_META = {
 }
@@ -22,7 +22,6 @@ const ERROR_META = {
 const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
 
 class GitHubLoader implements Scheduler {
-
   storageProcessor: StorageProcessor
 
   gitHubApi: GitHubApi
@@ -45,7 +44,7 @@ class GitHubLoader implements Scheduler {
   }
 
   async checkGitHub({
-    existingKeysWithHashes
+    existingKeysWithHashes,
   } : {
     existingKeysWithHashes: { [string]: string }
   }) {
@@ -62,31 +61,32 @@ class GitHubLoader implements Scheduler {
       if (!jsonEntry) {
         this.logger.warn(`[GitHubLoader] No JSON found for key: ${key}! Ignoring`)
         return null
-      } else if (!sigEntry) {
+      } if (!sigEntry) {
         this.logger.warn(`[GitHubLoader] No SIG found for key: ${key} (JSON=${jsonEntry.text})! Ignoring`)
         return null
       }
       const [json, sig] = [jsonEntry.text, sigEntry.text]
       try {
         const hash = blake.blake2bHex(`${json}:${sig}`, null, 32)
-        return  { json: JSON.parse(json), sig, hash }
+        return { json: JSON.parse(json), sig, hash }
       } catch (e) {
         this.logger.warn(`[GitHubLoader] Failed to parse json from: ${json}`, e)
         return null
       }
-    }).pickBy(Boolean).value()
+    }).pickBy(Boolean)
+      .value()
     const entries = Object.entries(grouped).map(([owner, { json, sig, hash }]) => {
       const ownerHex = shelleyUtils.publicKeyBechToHex(owner)
       if (existingKeysWithHashes[ownerHex] === hash) {
         // Owner record matches, ignore
         return null
       }
-      const entry: PoolOwnerInfoEntry = {
+      const entry: PoolOwnerInfoEntryType = {
         owner: ownerHex,
         hash,
         info: json,
         sig,
-        meta: {}
+        meta: {},
       }
       return entry
     }).filter(Boolean)
@@ -95,10 +95,10 @@ class GitHubLoader implements Scheduler {
       try {
         await this.storageProcessor.storePoolOwnersInfo(entries)
       } catch (e) {
-        this.logger.error(`[GitHubLoader] Failed to store pool owner info entries!`, e)
+        this.logger.error('[GitHubLoader] Failed to store pool owner info entries!', e)
       }
       const newOrUpdatedHashes = _.chain(entries).keyBy('owner').mapValues('hash').value()
-      return { existingKeysWithHashes: {...existingKeysWithHashes, ...newOrUpdatedHashes} }
+      return { existingKeysWithHashes: { ...existingKeysWithHashes, ...newOrUpdatedHashes } }
     }
     return { existingKeysWithHashes }
   }

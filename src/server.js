@@ -14,9 +14,9 @@ import {
 } from './interfaces'
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
-import initIoC from './ioc_config'
+import initIoC from './ioc-config'
 import { NETWORK_PROTOCOL } from './entities/network-config'
-import { YOROI_POSTGRES } from './ioc_config/storage-processor'
+import { YOROI_POSTGRES } from './ioc-config/storage-processor'
 
 const loadGenesis = async (container) => {
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
@@ -75,7 +75,7 @@ const startServer = async () => {
 
   if (networkConfig.networkProtocol() === NETWORK_PROTOCOL.SHELLEY) {
     const gitHubLoader = container.get<Scheduler>(SERVICE_IDENTIFIER.GITHUB_LOADER)
-    function runGitHubLoader(counter = 0) {
+    const runGitHubLoader = (counter = 0) => {
       if (counter > 10) {
         logger.warn(`GitHubLoader.startAsync : restarted too many times (${counter}). Shutting it down.`)
         return
@@ -83,11 +83,11 @@ const startServer = async () => {
       logger.debug(`GitHubLoader.startAsync : starting (counter=${counter})`)
       gitHubLoader.startAsync().then(res => {
         logger.error(`GitHubLoader.startAsync exited successfully. This is unexpected to happen by itself! (result=${res})`)
-        logger.debug(`GitHubLoader.startAsync : Restarting`)
+        logger.debug('GitHubLoader.startAsync : Restarting')
         runGitHubLoader(counter + 1)
       }, err => {
-        logger.error(`GitHubLoader.startAsync exited with an error:`, err)
-        logger.debug(`GitHubLoader.startAsync : Restarting`)
+        logger.error('GitHubLoader.startAsync exited with an error:', err)
+        logger.debug('GitHubLoader.startAsync : Restarting')
         runGitHubLoader(counter + 1)
       })
     }

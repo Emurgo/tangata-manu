@@ -98,7 +98,11 @@ class ShelleyValidator implements Validator {
       }
       const { address: inputAddress, amount: inputAmount } = txOutputs[inputIdx]
       this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
-      const { addressRoot, addrAttr, addressType } = ShelleyValidator.deconstructAddress(inputAddress)
+      const {
+        addressRoot,
+        addrAttr,
+        addressType,
+      } = ShelleyValidator.deconstructAddress(inputAddress)
       if (addressType !== 0) {
         this.logger.debug(`Unsupported address type: ${addressType}. Skipping witness validation for this input.`)
         return
