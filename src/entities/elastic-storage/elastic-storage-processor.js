@@ -33,7 +33,7 @@ const INDEX_POOL_OWNER_INFO = 'pool-owner-info'
 const INDEX_POINTER_ALL = '*'
 
 
-const ELASTIC_TEMPLATES = {
+const ELASTIC_BASIC_TEMPLATES = {
   seiza_tx_addresses: {
     index_patterns: ['seiza*.tx'],
     mappings: {
@@ -44,39 +44,9 @@ const ELASTIC_TEMPLATES = {
       },
     },
   },
-  seiza_tx_delegation: {
-    index_patterns: ['seiza*.tx'],
-    mappings: {
-      properties: {
-        delegation: {
-          type: 'nested',
-        },
-      },
-    },
-  },
-  seiza_tx_pools: {
-    index_patterns: ['seiza*.tx'],
-    mappings: {
-      properties: {
-        pools: {
-          type: 'nested',
-        },
-      },
-    },
-  },
-  seiza_tx_certificates: {
-    index_patterns: ['seiza*.tx'],
-    mappings: {
-      properties: {
-        certificates: {
-          type: 'nested',
-        },
-      },
-    },
-  },
 }
 
-type ElasticConfigType = {
+export type ElasticConfigType = {
   node: string,
   indexPrefix: string,
 }
@@ -243,6 +213,8 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   slotsPerEpoch: number
 
+  elasticTemplates: {}
+
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -253,6 +225,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.client = new Client({ node: elasticConfig.node })
     this.networkStartTime = networkConfig.startTime()
     this.slotsPerEpoch = networkConfig.slotsPerEpoch()
+    this.elasticTemplates = ELASTIC_BASIC_TEMPLATES
   }
 
   indexFor(name: string) {
@@ -307,7 +280,7 @@ class ElasticStorageProcessor implements StorageProcessor {
   }
 
   async ensureElasticTemplates() {
-    for (const [name, tmpl] of _.toPairs(ELASTIC_TEMPLATES)) {
+    for (const [name, tmpl] of _.toPairs(this.elasticTemplates)) {
       // eslint-disable-next-line no-await-in-loop
       const tmplExists = await this.client.indices.existsTemplate({
         name,
@@ -502,6 +475,7 @@ class ElasticStorageProcessor implements StorageProcessor {
         blockTxs.push(...txs)
       }
     }
+
     if (!_.isEmpty(txInputsIds)) {
       const txInputs = await this.client.mget({
         index: this.indexFor(INDEX_TXIO),
