@@ -297,7 +297,10 @@ const getAccountIdFromAddress = (accountAddressHex: string) => {
   }
 }
 
-const splitGroupAddress = (groupAddressHex: string) => {
+const splitGroupAddress = (groupAddressHex: string): {
+  groupAddress?: {},
+  accountAddress?: string,
+} => {
   const wasm = global.jschainlibs
   let address
   try {

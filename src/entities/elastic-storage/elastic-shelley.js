@@ -5,6 +5,11 @@ import type { Logger } from 'bunyan'
 
 import type { NetworkConfig } from '../../interfaces'
 import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
+import type { ShelleyTxType } from '../../blockchain/shelley/tx'
+import type { AccountInputType } from '../../blockchain/common'
+
+import { shelleyUtils } from '../../blockchain/shelley'
+import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 import type { ElasticConfigType } from './elastic-storage-processor'
 import ElasticStorageProcessor, { formatBulkUploadBody, qSort } from './elastic-storage-processor'
@@ -66,7 +71,7 @@ const ELASTIC_SHELLEY_TEMPLATES = {
   },
 }
 
-class ElasticShelleyStorageProcessor extends ElasticStorageProcessor {
+class ElasticShelleyStorageProcessor extends ElasticStorageProcessor<ShelleyTxType> {
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -106,6 +111,41 @@ class ElasticShelleyStorageProcessor extends ElasticStorageProcessor {
         'Error: ', e)
       throw e
     }
+  }
+
+  collectBlockAddresses(utxosForInputsAndOutputs: Array<any>,
+    txs: Array<ShelleyTxType>): Array<string> {
+    const utxoAddresses = super.collectBlockAddresses(utxosForInputsAndOutputs, txs)
+    // Account inputs/output addresses. They are straightforward
+    const accountAddresses = txs.flatMap(tx => {
+      const inputAccountAddresses:Array<string> = []
+      for (const input of tx.inputs) {
+        if (input.type === 'account') {
+          inputAccountAddresses.push(input.account_id)
+        }
+      }
+      const outputAccountAddresses = tx.outputs
+        .filter(x => x.type === 'account')
+        .map(x => x.address)
+      return [...inputAccountAddresses, ...outputAccountAddresses]
+    })
+    // For all group addresses (they are UTxO) we extract the related account address
+    const groupAccounts: Array<string> = utxoAddresses.flatMap(addr => {
+      const { accountAddress } = shelleyUtils.splitGroupAddress(addr)
+      return accountAddress
+    }).filter(Boolean)
+
+    // For all delegation certificates we extract the related account address
+    const delegationCertificateAccounts = txs.flatMap(tx => (
+      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation
+        ? [tx.certificate.account]
+        : []))
+    return [
+      ...utxoAddresses,
+      ...accountAddresses,
+      ...groupAccounts,
+      ...delegationCertificateAccounts,
+    ]
   }
 
   async storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntryType>) {

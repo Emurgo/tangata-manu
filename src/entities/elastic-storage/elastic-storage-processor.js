@@ -9,10 +9,11 @@ import { Client } from '@elastic/elasticsearch'
 import BigNumber from 'bignumber.js'
 import type { NetworkConfig, StorageProcessor } from '../../interfaces'
 import type {
-  AccountInputType, Block, TxInputType, TxType,
+  Block, TxInputType, TxType as ByronTxType,
 } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType, PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
+import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
@@ -21,8 +22,6 @@ import UtxoData, { getTxInputUtxoId } from './utxo-data'
 import BlockData from './block-data'
 import TxData from './tx-data'
 import { parseCoinToBigInteger } from './elastic-data'
-import { shelleyUtils } from '../../blockchain/shelley'
-import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 const INDEX_LEADERS = 'leader'
 const INDEX_SLOT = 'slot'
@@ -175,7 +174,7 @@ const createPoolDelegationStateQuery = (uniqueBlockPools) => ({
   },
 })
 
-class ElasticStorageProcessor implements StorageProcessor {
+class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements StorageProcessor {
   logger: Logger
 
   client: Client
@@ -414,7 +413,15 @@ class ElasticStorageProcessor implements StorageProcessor {
     return resp
   }
 
-  async storeBlocksData(blocks: Array<Block>) {
+  collectBlockAddresses(utxosForInputsAndOutputs: Array<any>, txs: Array<TxType>): Array<string> {
+    this.logger.debug(`collectBlockAddresses called for ${txs.length} txs.`)
+    // All utxo input/output addresses (they are taken from resolved data,
+    // because utxo-input address is not straightforward to obtain
+    const utxoAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
+    return utxoAddresses
+  }
+
+  async storeBlocksData(blocks: Array<Block>): Promise<void> {
     const isGenesisBlock = blocks.length === 1 && blocks[0].isGenesisBlock()
     if (isGenesisBlock) {
       this.logger.info('storeBlocksData.GENESIS detected')
@@ -470,46 +477,16 @@ class ElasticStorageProcessor implements StorageProcessor {
     // Plus all the UTxOs produced in the processed blocks
     const utxosForInputsAndOutputs = [...storedUTxOs, ...blockOutputsToStore]
 
-    const chunkTxs: Array<TxType|ShelleyTxType> = blocks.flatMap(b => b.getTxs())
+    const chunkTxs: Array<TxType> = blocks.flatMap(b => b.getTxs())
 
     // Filter all the unique addresses being used in either inputs or outputs
     this.logger.debug('storeBlocksData.processingAddressStates')
 
-    // All utxo input/output addresses (they are taken from resolved data,
-    // because utxo-input address is not straightforward to obtain
-    const utxoAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
-
-    // Account inputs/output addresses. They are straightforward
-    const accountAddresses = chunkTxs.flatMap((tx: TxType) => {
-      const inputAccountAddresses = tx.inputs
-        .filter(x => x.type === 'account')
-        .map((x: AccountInputType) => x.account_id)
-      const outputAccountAddresses = tx.outputs
-        .filter(x => x.type === 'account')
-        .map(x => x.address)
-      return [...inputAccountAddresses, ...outputAccountAddresses]
-    })
-
-    // For all group addresses (they are UTxO) we extract the related account address
-    const groupAccounts = utxoAddresses.map(addr => {
-      const { accountAddress } = shelleyUtils.splitGroupAddress(addr)
-      return accountAddress
-    }).filter(Boolean)
-
-    // For all delegation certificates we extract the related account address
-    const delegationCertificateAccounts = chunkTxs.flatMap(tx => (
-      tx.certificate && tx.certificate.type === CERT_TYPE.StakeDelegation
-        ? [tx.certificate.account]
-        : []))
 
     // All the different extracted addresses are combined in a single set
     // For each one we need to query the previous known state because it will be used in some way
-    const uniqueBlockAddresses = _.uniq([
-      ...utxoAddresses,
-      ...accountAddresses,
-      ...groupAccounts,
-      ...delegationCertificateAccounts,
-    ])
+    const uniqueBlockAddresses = _.uniq(
+      this.collectBlockAddresses(utxosForInputsAndOutputs, chunkTxs))
 
     this.logger.debug(`storeBlocksData.getAddressStates for ${uniqueBlockAddresses.length} addresses`)
     const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
