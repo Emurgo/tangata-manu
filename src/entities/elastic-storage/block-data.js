@@ -19,7 +19,7 @@ class BlockData extends ElasticData {
 
   allUtxos: { [string]: UtxoType }
 
-  inputsData: [] = []
+  inputsData: Array<mixed> = []
 
   resolvedTxs: Array<TxData> = []
 

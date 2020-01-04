@@ -20,13 +20,13 @@ import SERVICE_IDENTIFIER from '../constants/identifiers'
 class ByronValidator implements Validator {
   logger: Logger
 
-  db: Database
+  db: Database<TxType>
 
   expectedNetworkMagic: number
 
   constructor(
     logger: Logger,
-    db: Database,
+    db: Database<TxType>,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger

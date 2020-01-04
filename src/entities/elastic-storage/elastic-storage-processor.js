@@ -611,7 +611,7 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     }
   }
 
-  async indexExists(index: string): boolean {
+  async indexExists(index: string): Promise<boolean> {
     return (await this.client.indices.exists({ index })).body
   }
 

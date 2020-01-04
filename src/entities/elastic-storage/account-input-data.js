@@ -12,9 +12,9 @@ class AccountInputData extends ElasticData {
 
   id: string
 
-  blockHash: string
+  blockHash: ?string
 
-  txOrdinal: number
+  txOrdinal: ?number
 
   ioOrdinal: number
 
