@@ -23,7 +23,7 @@ class BlockData extends ElasticData {
 
   resolvedTxs: Array<TxData> = []
 
-  txsData: Array<mixed> = []
+  txsData: Array<any> = []
 
   constructor(
     block: Block,

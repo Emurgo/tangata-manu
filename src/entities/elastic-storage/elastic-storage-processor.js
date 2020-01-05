@@ -772,7 +772,7 @@ function padEmptySlots(
  * NOTE: `unmapped_type` is set to `long` for all entries except direct objects
  * and arrays of length 3.
  */
-export const qSort = (...entries) => {
+export const qSort = (...entries: Array<any>): {} => {
   const mapped = entries.map(e => {
     const res = {}
     let key
