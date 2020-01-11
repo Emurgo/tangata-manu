@@ -2,7 +2,9 @@
   "appName": "yoroi-importer",
   "elastic": {
     "node": "http://localhost:9200",
-    "indexPrefix": "seiza"
+    "indexPrefix": "seiza",
+    "sleepOnEveryChunkSeconds": 3,
+    "sleepOnCommitChunkSeconds": 5
   },
   "db": {},
   "storageProcessor": "yoroi-postgres",
