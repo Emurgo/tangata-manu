@@ -493,7 +493,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
         })
       const isAllInputsFree = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
       if (!isAllInputsFree) {
-        this.logger.info(`[DB.validateAndGroupPendingTxs] tx ${tx} inputs already spent`)
+        this.logger.info(`[DB.validateAndGroupPendingTxs] tx inputs already spent: `, tx)
         invalidTxs.push(tx.hash)
         continue
       }
@@ -501,7 +501,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
         const lastUpdateTime = tx.last_update.getTime();
         const ageMillis = nowMillis - lastUpdateTime;
         if (ageMillis > this.pendingTxsTimeoutMillis) {
-          this.logger.info(`[DB.validateAndGroupPendingTxs] tx ${tx} has timed out`)
+          this.logger.info(`[DB.validateAndGroupPendingTxs] tx has timed out: `, tx)
           invalidTxs.push(tx.hash)
           continue
         }
