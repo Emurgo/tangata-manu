@@ -41,12 +41,21 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 
   logger: any
 
+  pendingTxsTimeoutMillis: number
+
   constructor(
     dbConn: DBConnection,
     logger: Logger,
+    pendingTxsTimeoutMinutes: number,
   ) {
     this.#conn = dbConn
     this.logger = logger
+    if (!pendingTxsTimeoutMinutes || pendingTxsTimeoutMinutes <= 0) {
+      logger.debug(`[DB] pendingTxsTimeoutMinutes=${pendingTxsTimeoutMinutes}, Pending TTL will NOT be applied`)
+    } else {
+      logger.debug(`[DB] pendingTxsTimeoutMinutes=${pendingTxsTimeoutMinutes}, Pending TTL is applied`)
+      this.pendingTxsTimeoutMillis = pendingTxsTimeoutMinutes * 60000
+    }
   }
 
   getConn() {
@@ -471,6 +480,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     const txs = await this.selectPendingTxsOnly(txHashes)
     const validTxs = []
     const invalidTxs = []
+    const nowMillis = (new Date()).getTime()
     for (const tx of txs) {
       const utxoInputs = (tx.inputs || []).filter(inp => inp.type === 'utxo')
         .map(({ txHash, index }) => {
@@ -482,17 +492,21 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
           return utxo
         })
       const isAllInputsFree = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
-      try {
-        this.logger.debug('[validateAndGroupPendingTxs] tx.time : ', tx.time.getTime())
-      } catch (e) {
-        this.logger.debug('[validateAndGroupPendingTxs] failed to getTime() from tx.time : ', e)
-      }
-      if (isAllInputsFree) {
-        validTxs.push(tx.hash)
-      } else {
-        this.logger.info(`tx ${tx} inputs already spent`)
+      if (!isAllInputsFree) {
+        this.logger.info(`[DB.validateAndGroupPendingTxs] tx ${tx} inputs already spent`)
         invalidTxs.push(tx.hash)
+        continue
       }
+      if (this.pendingTxsTimeoutMillis) {
+        const lastUpdateTime = tx.last_update.getTime();
+        const ageMillis = nowMillis - lastUpdateTime;
+        if (ageMillis > this.pendingTxsTimeoutMillis) {
+          this.logger.info(`[DB.validateAndGroupPendingTxs] tx ${tx} has timed out`)
+          invalidTxs.push(tx.hash)
+          continue
+        }
+      }
+      validTxs.push(tx.hash)
     }
     return [_.uniq(validTxs), _.uniq(invalidTxs)]
   }
@@ -695,6 +709,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 helpers.annotate(DB, [
   SERVICE_IDENTIFIER.DB_CONNECTION,
   SERVICE_IDENTIFIER.LOGGER,
+  'pendingTxsTimeoutMinutes',
 ])
 
 export default DB
