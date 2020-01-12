@@ -482,7 +482,11 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
           return utxo
         })
       const isAllInputsFree = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
-      this.logger.debug('[validateAndGroupPendingTxs] tx.time : ', tx.time, typeof tx.time)
+      try {
+        this.logger.debug('[validateAndGroupPendingTxs] tx.time : ', tx.time.getTime())
+      } catch (e) {
+        this.logger.debug('[validateAndGroupPendingTxs] failed to getTime() from tx.time : ', e)
+      }
       if (isAllInputsFree) {
         validTxs.push(tx.hash)
       } else {
