@@ -5,13 +5,16 @@ import 'reflect-metadata'
 import { Container } from 'inversify'
 import { EagerBinder } from 'inversify-config-injection'
 
+import { NETWORK_PROTOCOL } from '../entities/network-config'
 import {
   CronScheduler,
   GenesisProvider,
+  MempoolChecker,
 } from '../entities'
 import {
   Scheduler,
   Genesis,
+  NetworkConfig,
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import dbModule from './db'
@@ -40,6 +43,12 @@ const initIoC = async () => {
   const storageName = container.getNamed('storageProcessor')
   if (storageName === YOROI_POSTGRES) {
     initRoutes(container)
+    const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
+    const networkProtocol = networkConfig.networkProtocol()
+    if (networkProtocol === NETWORK_PROTOCOL.SHELLEY) {
+      container.bind<Scheduler>(
+        SERVICE_IDENTIFIER.MEMPOOL_CHECKER).to(MempoolChecker).inSingletonScope()
+    }
   }
   return container
 }

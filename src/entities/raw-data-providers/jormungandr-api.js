@@ -133,7 +133,7 @@ class JormungandrApi implements RawDataProvider {
 
   async getMessagePoolLogs() {
     this.logger.debug('[getMessagePoolLogs]: Gets logs from node message pool')
-    const resp = await this.get('fragment/logs')
+    const resp = await this.getJson('fragment/logs')
     const { data } = resp
     return data
   }
