@@ -13,6 +13,7 @@ import type {
 } from '../../blockchain/common'
 import type { BlockInfoType, GenesisLeaderType, PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
+import { sleep } from '../../utils'
 import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
@@ -62,8 +63,6 @@ type FormatBulkUploadOptionsType = {
   getId?: (any) => string,
   getData: (any) => {},
 }
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export const formatBulkUploadBody = (objs: any,
   options: FormatBulkUploadOptionsType) => objs.flatMap(o => [

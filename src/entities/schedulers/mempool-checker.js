@@ -4,16 +4,16 @@ import _ from 'lodash'
 import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import type { Scheduler, RawDataProvider, Database } from '../../interfaces'
+import type { RawDataProvider, Database } from '../../interfaces'
 import { TX_STATUS } from '../../blockchain/common'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 import { sleep } from '../../utils'
 
-class MempoolChecker implements Scheduler {
-  dataProvider: RawDataProvider
+import BaseScheduler from './base-scheduler'
 
-  logger: Logger
+class MempoolChecker extends BaseScheduler {
+  dataProvider: RawDataProvider
 
   checkMempoolMillis: number
 
@@ -25,12 +25,12 @@ class MempoolChecker implements Scheduler {
     dataProvider: RawDataProvider,
     db: Database<ShelleyTxType>,
   ) {
+    super(logger)
     this.checkMempoolMillis = checkMempoolSeconds * 1000
     this.dataProvider = dataProvider
     this.db = db
 
     logger.debug('[MempoolChecker] Checking mempool every', checkMempoolSeconds, 'seconds')
-    this.logger = logger
   }
 
   async updateFailedTxs(txHashes: Array<string>): Promise<void> {
@@ -44,7 +44,7 @@ class MempoolChecker implements Scheduler {
   }
 
   async startAsync() {
-    this.logger.info('[MempoolChecker] starting checking mempool for failed transactions.')
+    this.logger.info(`[${this.name}] starting checking mempool for failed transactions.`)
     for (;;) {
       const failedTxs = (await this.dataProvider.getMessagePoolLogs())
         .filter(msg => msg.status.Rejected !== undefined)

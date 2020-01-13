@@ -8,12 +8,12 @@ import type { Logger } from 'bunyan'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 import type {
-  Scheduler,
   StorageProcessor,
 } from '../../interfaces'
 import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
 
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
+import { BaseScheduler } from '../schedulers'
 import GitHubApi from './github-api'
 import { sleep } from '../../utils'
 import { shelleyUtils } from '../../blockchain/shelley'
@@ -21,12 +21,10 @@ import { shelleyUtils } from '../../blockchain/shelley'
 const ERROR_META = {
 }
 
-class GitHubLoader implements Scheduler {
+class GitHubLoader extends BaseScheduler {
   storageProcessor: StorageProcessor
 
   gitHubApi: GitHubApi
-
-  logger: Logger
 
   checkGitHubMillis: number
 
@@ -36,11 +34,11 @@ class GitHubLoader implements Scheduler {
     gitHubApi: GitHubApi,
     logger: Logger,
   ) {
+    super(logger)
     this.storageProcessor = storageProcessor
     this.gitHubApi = gitHubApi
     this.checkGitHubMillis = checkGitHubSeconds * 1000
-    logger.debug('[GitHubLoader] Checking GitHub every', checkGitHubSeconds, 'seconds')
-    this.logger = logger
+    this.logger.debug('[GitHubLoader] Checking GitHub every', checkGitHubSeconds, 'seconds')
   }
 
   async checkGitHub({
@@ -103,7 +101,7 @@ class GitHubLoader implements Scheduler {
     return { existingKeysWithHashes }
   }
 
-  async startAsync() {
+  async startAsync(): Promise<void> {
     this.logger.info('[GitHubLoader] GitHub loader async: starting chain syncing loop')
     const currentMillis = () => new Date().getTime()
     const existingKeysWithHashes = await this.storageProcessor.getLatestPoolOwnerHashes()
