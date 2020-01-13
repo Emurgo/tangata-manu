@@ -11,15 +11,15 @@ import type {
   Scheduler,
   StorageProcessor,
 } from '../../interfaces'
+import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
+
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import GitHubApi from './github-api'
-import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
+import { sleep } from '../../utils'
 import { shelleyUtils } from '../../blockchain/shelley'
 
 const ERROR_META = {
 }
-
-const sleep = millis => new Promise(resolve => setTimeout(resolve, millis))
 
 class GitHubLoader implements Scheduler {
   storageProcessor: StorageProcessor

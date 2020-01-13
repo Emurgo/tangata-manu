@@ -18,6 +18,7 @@
       "minimumTimeImporterHealthCheck": 90000
     }
   },
+  "checkMempoolSeconds": 60,
   "checkTipSeconds": 15,
   "checkGitHubSeconds": 600,
   "gitHubRepo": "cardano-foundation/incentivized-testnet-stakepool-registry",

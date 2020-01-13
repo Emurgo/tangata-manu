@@ -92,6 +92,9 @@ const startServer = async () => {
       })
     }
     runGitHubLoader()
+
+    const memPoolChecker = container.get<Scheduler>(SERVICE_IDENTIFIER.MEMPOOL_CHECKER)
+    memPoolChecker.startAsync()
   }
 
   const storageName = container.getNamed('storageProcessor')

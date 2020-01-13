@@ -16,6 +16,7 @@ import {
   ShelleyDataParser,
   GitHubLoader,
   GitHubApi,
+  MempoolChecker,
 } from '../entities'
 
 
@@ -30,6 +31,8 @@ const initShelley = (container: Container) => {
     .to(GitHubLoader).inSingletonScope()
   container.bind<Scheduler>(SERVICE_IDENTIFIER.GITHUB_API)
     .to(GitHubApi).inSingletonScope()
+  container.bind<Scheduler>(SERVICE_IDENTIFIER.MEMPOOL_CHECKER)
+    .to(MempoolChecker).inSingletonScope()
 }
 
 export default initShelley

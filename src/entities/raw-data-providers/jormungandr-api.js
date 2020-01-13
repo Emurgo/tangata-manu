@@ -11,7 +11,7 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { NetworkConfig } from '../../interfaces'
 
 // these two are for getting the network instead of using NetworkConfig
-import utils from '../../utils'
+import { getNetworkConfig } from '../../utils'
 
 const GENESIS_PARENT = '0000000000000000000000000000000000000000000000000000000000000000'
 
@@ -35,7 +35,7 @@ class JormungandrApi implements RawDataProvider {
     // TODO: change NetworkConfig? the old bridge had different networks since they
     // were just a proxy, but jormungandr nodes don't.
     const networkName = process.env.importer_network || defaultNetwork
-    const network = utils.getNetworkConfig(networkName)
+    const network = getNetworkConfig(networkName)
     this.#networkBaseUrl = urljoin(network.bridgeUrl, 'api/v0')
     this.#parser = parser
     this.logger = logger
@@ -127,6 +127,13 @@ class JormungandrApi implements RawDataProvider {
   async getBlock(id: string): Promise<string> {
     this.logger.debug(`jormun GET BLOCK: ${id}`)
     const resp = await this.get(`block/${id}`)
+    const { data } = resp
+    return data
+  }
+
+  async getMessagePoolLogs() {
+    this.logger.debug('[getMessagePoolLogs]: Gets logs from node message pool')
+    const resp = await this.get('fragment/logs')
     const { data } = resp
     return data
   }
