@@ -10,23 +10,23 @@ import { sha3_256 } from 'js-sha3'
 import { helpers } from 'inversify-vanillajs-helpers'
 
 
-import type { TxType, UtxoInput } from '../blockchain/common'
+import type { TxType, UtxoInput } from '../../blockchain/common'
 import {
   Database, NetworkConfig, Validator,
-} from '../interfaces'
-import SERVICE_IDENTIFIER from '../constants/identifiers'
+} from '../../interfaces'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 
-class ShelleyValidator implements Validator {
+class ByronValidator implements Validator {
   logger: Logger
 
-  db: Database
+  db: Database<TxType>
 
   expectedNetworkMagic: number
 
   constructor(
     logger: Logger,
-    db: Database,
+    db: Database<TxType>,
     networkConfig: NetworkConfig,
   ) {
     this.logger = logger
@@ -36,12 +36,10 @@ class ShelleyValidator implements Validator {
 
   async validateTx(txObj: TxType) {
     try {
-      this.logger.debug('Shelley tx validator. Ignoring for now: ', JSON.stringify(txObj))
-      // TODO: implement
-      // await this.validateDuplicates(txObj)
-      // await this.validateInputs(txObj)
-      // await this.validateTxWitnesses(txObj)
-      // this.validateDestinationNetwork(txObj)
+      await this.validateDuplicates(txObj)
+      await this.validateInputs(txObj)
+      await this.validateTxWitnesses(txObj)
+      this.validateDestinationNetwork(txObj)
       return null
     } catch (e) {
       return e
@@ -98,11 +96,7 @@ class ShelleyValidator implements Validator {
       }
       const { address: inputAddress, amount: inputAmount } = txOutputs[inputIdx]
       this.logger.debug(`Validating witness for input: ${inputTxId}.${inputIdx} (${inputAmount} coin from ${inputAddress})`)
-      const {
-        addressRoot,
-        addrAttr,
-        addressType,
-      } = ShelleyValidator.deconstructAddress(inputAddress)
+      const { addressRoot, addrAttr, addressType } = ByronValidator.deconstructAddress(inputAddress)
       if (addressType !== 0) {
         this.logger.debug(`Unsupported address type: ${addressType}. Skipping witness validation for this input.`)
         return
@@ -122,7 +116,7 @@ class ShelleyValidator implements Validator {
     this.logger.debug(`Validating output network (outputs: ${outputs.length})`)
     outputs.forEach(({ address }, i) => {
       this.logger.debug(`Validating network for ${address}`)
-      const { addrAttr } = ShelleyValidator.deconstructAddress(address)
+      const { addrAttr } = ByronValidator.deconstructAddress(address)
       const networkAttr: Buffer = addrAttr && addrAttr.get && addrAttr.get(2)
       const networkMagic = networkAttr && networkAttr.readInt32BE(1)
       if (networkMagic !== this.expectedNetworkMagic) {
@@ -139,10 +133,10 @@ class ShelleyValidator implements Validator {
   }
 }
 
-helpers.annotate(ShelleyValidator, [
+helpers.annotate(ByronValidator, [
   SERVICE_IDENTIFIER.LOGGER,
   SERVICE_IDENTIFIER.DATABASE,
   SERVICE_IDENTIFIER.NETWORK_CONFIG,
 ])
 
-export default ShelleyValidator
+export default ByronValidator
