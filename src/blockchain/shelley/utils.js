@@ -267,7 +267,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number,
   return ret
 }
 
-const getAccountIdFromAddress = (accountAddressHex: string) => {
+const getAccountIdFromAddress = (accountAddressHex: string): {
+  type: string,
+  accountId?: string,
+} => {
   const wasm = global.jschainlibs
   let address
   try {
@@ -300,6 +303,7 @@ const getAccountIdFromAddress = (accountAddressHex: string) => {
 const splitGroupAddress = (groupAddressHex: string): {
   groupAddress?: {},
   accountAddress?: string,
+  type: string,
 } => {
   const wasm = global.jschainlibs
   let address

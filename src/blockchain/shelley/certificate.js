@@ -28,9 +28,9 @@ export type PoolRegistrationType = {
   operators: Array<string>,
   rewardAccount: string|null,
   rewards: {
-    fixed: number,
-    ratio: [number, number],
-    limit: number|null,
+    fixed: ?number,
+    ratio: [?number, ?number],
+    limit: ?number,
   },
   keys: {
     kes_bech32: string,
