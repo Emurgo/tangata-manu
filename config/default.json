@@ -2,7 +2,9 @@
   "appName": "yoroi-importer",
   "elastic": {
     "node": "http://localhost:9200",
-    "indexPrefix": "seiza"
+    "indexPrefix": "seiza",
+    "sleepOnEveryChunkSeconds": 3,
+    "sleepOnCommitChunkSeconds": 5
   },
   "db": {},
   "storageProcessor": "yoroi-postgres",
@@ -23,6 +25,7 @@
   "gitHubRepo": "cardano-foundation/incentivized-testnet-stakepool-registry",
   "gitHubAuthUser": null,
   "gitHubAuthToken": null,
+  "pendingTxsTimeoutMinutes": 60,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
   "defaultNetwork": "itn-rewards-v1",
