@@ -4,6 +4,7 @@
     "baseUrl": "http://localhost:8082",
     "template": "testnet2"
   },
+  "db": {},
   "elastic": {
     "node": "http://localhost:9200",
     "indexPrefix": "seiza"

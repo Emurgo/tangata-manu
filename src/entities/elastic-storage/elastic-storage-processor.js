@@ -150,6 +150,8 @@ class ElasticStorageProcessor implements StorageProcessor {
 
   genesisLeaders: Array<GenesisLeaderType>
 
+  elasticAddrStatesCache: Array<any>
+
   constructor(
     logger: Logger,
     elasticConfig: ElasticConfigType,
@@ -159,6 +161,7 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.elasticConfig = elasticConfig
     this.client = new Client({ node: elasticConfig.node })
     this.networkStartTime = networkConfig.startTime()
+    this.elasticAddrStatesCache = []
   }
 
   indexFor(name: string) {
@@ -370,6 +373,22 @@ class ElasticStorageProcessor implements StorageProcessor {
     return resp
   }
 
+  isNewestStates(addressStates: { [string]: any }): boolean {
+    for (const [addr, state] of Object.entries(addressStates)) {
+      // Iterate over each available cache layer from latest and check if address is present
+      for (const stateLayer of this.elasticAddrStatesCache) {
+        if (stateLayer[addr]) {
+          this.logger.debug(`${addr} is used in several chunks close to each other`)
+          if (state.tx_num_after_this_tx <= stateLayer[addr].tx_num_after_this_tx) {
+            this.logger.debug(`Elastic returns old state for: ${addr}`)
+            return false
+          }
+        }
+      }
+    }
+    return true
+  }
+
   async storeBlocksData(blocks: Array<Block>) {
     const storedUTxOs = []
     const blockOutputsToStore = []
@@ -420,16 +439,36 @@ class ElasticStorageProcessor implements StorageProcessor {
     this.logger.debug('storeBlocksData.processingAddressStates')
     // Filter all the unique addresses being used in either inputs or outputs
     const uniqueBlockAddresses = _.uniq(utxosForInputsAndOutputs.map(({ address }) => address))
-    const addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
 
-    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
+
+    let attempts = 0
+    let addressStates: { [string]: any } = await this.getAddressStates(uniqueBlockAddresses)
+    while (!this.isNewestStates(addressStates)) {
+      await sleep(5000)
+      addressStates = await this.getAddressStates(uniqueBlockAddresses)
+      if (attempts > 5) {
+        throw new Error(`Elastic returns obsolete data for address states (tried ${attempts} times with 5 second interval). ${addressStates}`)
+      }
+      attempts += 1
+    }
+
+    // Insert new layer at the start of the states cache
+    this.elasticAddrStatesCache.unshift(_.cloneDeep(addressStates))
+    if (this.elasticAddrStatesCache.length > 5) {
+      // If cache contains too many layers - drop last one
+      this.elasticAddrStatesCache.pop()
+    }
+
+    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
+      blocks, utxosForInputsAndOutputs, txTrackedState, addressStates)
 
     const blockInputsToStore = mappedBlocks
       .flatMap((b: BlockData) => b.getResolvedTxs())
       .flatMap((tx: TxData) => tx.getInputsData())
 
     const tip: BlockInfoType = await this.getBestBlockNum()
-    const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
+    const paddedBlocks: Array<BlockData> = padEmptySlots(
+      mappedBlocks, tip.epoch, tip.slot, this.networkStartTime)
 
     const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject())
 
@@ -456,6 +495,7 @@ class ElasticStorageProcessor implements StorageProcessor {
       getId: (o) => o.hash,
       getData: (o) => o,
     })
+
     await this.bulkUpload([...txiosBody, ...blocksBody, ...txsBody])
 
     // Commit every 10th chunk
