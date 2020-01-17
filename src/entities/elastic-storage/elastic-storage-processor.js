@@ -221,8 +221,11 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
 
   async rollbackTo(height: number) {
     await sleep(10000)
-    const latestStableChunk = await this.getLatestStableChunk()
-    return this.deleteChunksAfter(Math.min(latestStableChunk, height))
+    const [ latestStableChunk, rollbackChunk ] = await Promise.all([
+      this.getLatestStableChunk(),
+      this.getChunkForBlockHeight(height),
+    ])
+    return this.deleteChunksAfter(Math.min(latestStableChunk, rollbackChunk))
   }
 
   async esSearch(params: {}) {
@@ -233,10 +236,7 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
 
   async getLatestStableChunk() {
     const index = this.indexFor(INDEX_CHUNK)
-    const indexExists = (await this.client.indices.exists({
-      index,
-    })).body
-    if (!indexExists) {
+    if (!await this.indexExists(index)) {
       return 0
     }
     const hits = await this.esSearch({
@@ -250,6 +250,26 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     })
     this.logger.debug('getLatestStableChunk', hits)
     return hits.total.value > 0 ? hits.hits[0]._source.chunk : 0
+  }
+
+  async getChunkForBlockHeight(height: number) {
+    const index = this.indexFor(INDEX_SLOT)
+    if (!await this.indexExists(index)) {
+      return 0
+    }
+    const hits = await this.esSearch({
+      index,
+      allowNoIndices: true,
+      ignoreUnavailable: true,
+      body: {
+        query: { range: { height: { lte: height } } },
+        sort: [{ height: { order: 'desc' } }],
+        size: 1,
+        _source: ['_chunk']
+      },
+    })
+    this.logger.debug(`[getChunkForBlockHeight(${height})] `, hits)
+    return hits.total.value > 0 ? hits.hits[0]._source._chunk : 0
   }
 
   async deleteChunksAfter(chunk: number) {
