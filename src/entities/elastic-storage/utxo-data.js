@@ -27,10 +27,16 @@ class UtxoData extends ElasticData {
 
   type: string
 
+  #isInput: boolean
+
+  #isAccount: boolean
+
   constructor(utxo: UtxoType) {
     super()
     this.utxo = utxo
     this.type = UTXO_OUTPUT_TYPE
+    this.#isInput = false
+    this.#isAccount = false
   }
 
   getId() {
@@ -50,11 +56,11 @@ class UtxoData extends ElasticData {
   }
 
   isInput() {
-    return false
+    return this.#isInput
   }
 
   isAccount() {
-    return false
+    return this.#isAccount
   }
 
   toPlainObject() {

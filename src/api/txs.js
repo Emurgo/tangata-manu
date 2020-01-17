@@ -70,12 +70,10 @@ class TxController implements IController {
         } else {
           this.logger.warn('Can\'t even store the tx as pending cuz local parsing failed miserably.')
         }
+      } else if (txObj) {
+        await this.storeTxAsFailed(txObj)
       } else {
-        if (txObj) {
-          await this.storeTxAsFailed(txObj)
-        } else {
-          this.logger.warn('Node rejected the tx, but we also failed to parse it, so not storing anything.')
-        }
+        this.logger.warn('Node rejected the tx, but we also failed to parse it, so not storing anything.')
       }
     } catch (err) {
       this.logger.error('Failed to store tx', err)
@@ -93,7 +91,7 @@ class TxController implements IController {
     } else {
       // Locally we have no validation errors - proxy the network response
       ({ status, statusText } = nodeResp)
-      respBody = nodeResp.data || `@Ok`
+      respBody = nodeResp.data || '@Ok'
     }
     resp.status(status)
     // eslint-disable-next-line no-param-reassign

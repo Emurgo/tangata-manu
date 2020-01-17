@@ -15,7 +15,6 @@
     "function-paren-newline": "off",
     "no-extra-semi": "error",
     "camelcase": "off",
-    "no-console": "off",
     "no-use-before-define": "off",
     "no-await-in-loop": "off",
     "no-plusplus": "off",

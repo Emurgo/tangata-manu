@@ -140,9 +140,8 @@ class JormungandrApi implements RawDataProvider {
       const hex = data.toString('hex')
       this.logger.debug(` = ${hex}`)
       return { result: hex }
-    } else {
-      return { errorStatus: resp.status }
     }
+    return { errorStatus: resp.status }
   }
 
   async getGenesis(hash: string): Promise<Object> {
@@ -166,8 +165,8 @@ class JormungandrApi implements RawDataProvider {
     // TODO: wait for jormungandr to be updated - mocking out some info for now instead
     const resp = await this.getJson('/node/stats')
     const { data } = resp
-    const epochNumber = Math.floor(data.lastBlockHeight / this.networkSlotsPerEpoch);
-    const slotNumber = data.lastBlockHeight % this.networkSlotsPerEpoch;
+    const epochNumber = Math.floor(data.lastBlockHeight / this.networkSlotsPerEpoch)
+    const slotNumber = data.lastBlockHeight % this.networkSlotsPerEpoch
     const x = {
       height: data.lastBlockHeight,
       slot: [epochNumber, slotNumber],

@@ -15,11 +15,10 @@ import { shelleyUtils } from '../blockchain/shelley'
 
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 
-const zipArraysAsKeyValues = (arr1, arr2) =>
-  lodashChain(zipArrays(arr1, arr2))
-    .keyBy(0)
-    .mapValues(1)
-    .value()
+const zipArraysAsKeyValues = (arr1, arr2) => lodashChain(zipArrays(arr1, arr2))
+  .keyBy(0)
+  .mapValues(1)
+  .value()
 
 class AccountInfoController implements IController {
   logger: Logger
@@ -42,7 +41,7 @@ class AccountInfoController implements IController {
       resp.send(respBody)
       next()
     }
-    const addresses = req.body.addresses
+    const { addresses } = req.body
     if (!Array.isArray(addresses) || addresses.length > 50) {
       return doResp(400, 'BadParam',
         '`addresses` should be a valid array of no more than 50 account addresses')
@@ -53,18 +52,17 @@ class AccountInfoController implements IController {
       if (accountId) {
         // returning promise here to make queries parallel
         return this.dataProvider.getAccountState(accountId)
-      } else {
-        this.logger.debug('Failed to query account state for address:', JSON.stringify({ addr, type, comment }))
-        return {
-          error: 'address is not a correct supported account',
-          comment,
-        }
+      }
+      this.logger.debug('Failed to query account state for address:', JSON.stringify({ addr, type, comment }))
+      return {
+        error: 'address is not a correct supported account',
+        comment,
       }
     })
     const resolved = await Promise.all(promises)
     this.logger.debug('Resolved account state promises: ', addresses, resolved)
     const respBody = zipArraysAsKeyValues(addresses, resolved)
-    doResp(200, '@ok', respBody)
+    return doResp(200, '@ok', respBody)
   }
 }
 

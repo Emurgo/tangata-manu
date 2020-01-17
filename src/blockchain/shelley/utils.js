@@ -1,10 +1,10 @@
 // @flow
 
+import { PublicKey } from 'js-chain-libs/js_chain_libs'
 import type { PoolRegistrationType, PoolRetirementType, StakeDelegationType } from './certificate'
 import { CERT_TYPE } from './certificate'
 import type { ShelleyTxType } from './tx'
-import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs';
-import { PublicKey } from 'js-chain-libs/js_chain_libs';
+import { AddressKind } from '../../../js-chain-libs/pkg/js_chain_libs'
 
 function free(...args) {
   for (const a of args) {
@@ -18,8 +18,8 @@ function consumeAccountToOptionalAddress(account, discrimination, stringEncoding
   if (!account) {
     return null
   }
-  const address = account.to_address(discrimination);
-  const result = Buffer.from(address.as_bytes()).toString(stringEncoding);
+  const address = account.to_address(discrimination)
+  const result = Buffer.from(address.as_bytes()).toString(stringEncoding)
   free(address, account)
   return result
 }
@@ -27,7 +27,7 @@ function consumeAccountToOptionalAddress(account, discrimination, stringEncoding
 function consumeKeysToStrings(keys, stringEncoding = 'hex'): Array<string> {
   const result: Array<string> = []
   for (let i = 0; i < keys.size(); i += 1) {
-    const key = keys.get(i);
+    const key = keys.get(i)
     const keyBytes = Buffer.from(key.as_bytes())
     result.push(keyBytes.toString(stringEncoding))
     free(key)
@@ -65,7 +65,8 @@ const consumeKeyToBech32 = (key: any): string => {
   return result
 }
 
-const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
+const fragmentToObj = (fragment: any, networkDiscrimination: number,
+  extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
 
   const common = {
@@ -78,30 +79,6 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     isGenesis: undefined,
     certificate: undefined,
   }
-  // if (fragment.is_initial()) {
-  //   console.log('\n\n\n\nINITIAL\n\n\n\n')
-  // }
-  // if (fragment.is_owner_stake_delegation()) {
-  //   console.log('\n\n\nOWNER STAKE DELEGATION\n\n\n\n')
-  // }
-  // if (fragment.is_stake_delegation()) {
-  //   console.log('\n\n\n\nSTAKE DELEGATION\n\n\n\n')
-  // }
-  // if (fragment.is_pool_registration()) {
-  //   console.log('\n\n\n\nPOOL REGISTRATION\n\n\n\n')
-  // }
-  // if (fragment.is_pool_retirement()) {
-  //   console.log('\n\n\n\nPOOL MANAGEMENT\n\n\n\n')
-  // }
-  // if (fragment.is_old_utxo_declaration()) {
-  //   console.log('\n\n\n\nOLD UTXO\n\n\n\n')
-  // }
-  // if (fragment.is_update_proposal()) {
-  //   console.log('\n\n\n\nUPDATE PROPOSAL\n\n\n\n')
-  // }
-  // if (fragment.is_update_vote()) {
-  //   console.log('\n\n\n\nUPDATE VOTE\n\n\n\n')
-  // }
   const tx = fragment.get_transaction()
   const inputs = tx.inputs()
   const inputs_parsed = []
@@ -167,7 +144,8 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         const reg = cert.get_pool_registration()
         const reg_owners = consumeKeysToStrings(reg.owners())
         const reg_operators = consumeKeysToStrings(reg.operators())
-        const rewardAccountAddress = consumeAccountToOptionalAddress(reg.reward_account(), networkDiscrimination)
+        const rewardAccountAddress = consumeAccountToOptionalAddress(
+          reg.reward_account(), networkDiscrimination)
         const rewards = reg.rewards()
         const keys = reg.keys()
         const poolId = reg.id()
@@ -216,7 +194,8 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           type: CERT_TYPE.StakeDelegation,
           // TODO: handle DelegationType parsing
           pool_id: poolId != null ? poolId.to_string() : null,
-          account: consumeAccountToOptionalAddress(accountIdentifier.to_account_single(), networkDiscrimination),
+          account: consumeAccountToOptionalAddress(accountIdentifier.to_account_single(),
+            networkDiscrimination),
           isOwnerStake: false,
         }
         common.certificate = parsedCert
@@ -235,7 +214,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
           type: CERT_TYPE.PoolRetirement,
           pool_id: retire.pool_id().to_string(),
           // we should be able to do this considering js max int would be 28,5616,414 years
-          retirement_time: parseInt(retirement_time.to_string(), 10),
+          retirement_time: parseInt(retirementTime.to_string(), 10),
         }
         retirementTime.free()
         retire.free()
@@ -243,7 +222,6 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
         break
       }
       case wasm.CertificateKind.PoolUpdate:
-        console.log('\n\n\n\n\n========\n\nPOOL UPDATE FOUND\n\n\n')
         break
       case wasm.CertificateKind.OwnerStakeDelegation: {
         if (inputs_parsed.length !== 1 || inputs_parsed[0].type !== 'account') {
@@ -285,7 +263,6 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number, extraData: 
     ...common,
     ...extraData,
   }
-  console.log(`parsed a tx: \n${JSON.stringify(ret)}\n`)
   tx.free()
   return ret
 }
@@ -304,7 +281,7 @@ const getAccountIdFromAddress = (accountAddressHex: string) => {
   const kind = address.get_kind()
   if (kind === AddressKind.Account) {
     const accountAddress = address.to_account_address()
-    const accountKey = accountAddress.get_account_key();
+    const accountKey = accountAddress.get_account_key()
     const result = {
       type: 'account',
       accountId: Buffer.from(accountKey.as_bytes()).toString('hex'),
@@ -320,7 +297,10 @@ const getAccountIdFromAddress = (accountAddressHex: string) => {
   }
 }
 
-const splitGroupAddress = (groupAddressHex: string) => {
+const splitGroupAddress = (groupAddressHex: string): {
+  groupAddress?: {},
+  accountAddress?: string,
+} => {
   const wasm = global.jschainlibs
   let address
   try {
@@ -328,7 +308,7 @@ const splitGroupAddress = (groupAddressHex: string) => {
   } catch (e) {
     return {
       type: 'unknown',
-      comment: 'failed to parse as an address'
+      comment: 'failed to parse as an address',
     }
   }
   let result = null
@@ -368,7 +348,7 @@ const splitGroupAddress = (groupAddressHex: string) => {
     // Unsupported type
     result = {
       type: 'unknown',
-      comment: 'unsupported kind'
+      comment: 'unsupported kind',
     }
   }
   address.free()
@@ -382,7 +362,8 @@ const publicKeyBechToHex = (bech: string): string => {
   return hex
 }
 
-const rawTxToObj = (tx: Array<any>, networkDiscrimination: number, extraData: {txTime: Date}): ShelleyTxType => {
+const rawTxToObj = (tx: Array<any>, networkDiscrimination: number,
+  extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
   const fragment = wasm.Fragment.from_bytes(tx)
   const obj = fragmentToObj(fragment, networkDiscrimination, extraData)

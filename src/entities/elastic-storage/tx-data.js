@@ -1,4 +1,6 @@
 // @flow
+
+/* eslint-disable no-shadow */
 /* eslint-disable no-param-reassign */
 
 import _ from 'lodash'
@@ -10,10 +12,10 @@ import { utils } from '../../blockchain/common'
 import ElasticData, { coinFormat } from './elastic-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
-import AccountInputData from "./account-input-data";
-import AccountOutputData from "./account-output-data";
-import { shelleyUtils } from "../../blockchain/shelley";
-import { CERT_TYPE } from "../../blockchain/shelley/certificate";
+import AccountInputData from './account-input-data'
+import AccountOutputData from './account-output-data'
+import { shelleyUtils } from '../../blockchain/shelley'
+import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 class TxData extends ElasticData {
   tx: TxType
@@ -119,7 +121,7 @@ class TxData extends ElasticData {
         isAddressOutput: isAddressOutput || !isInput,
         ...(isAccount ? {
           // If account balance itself is changed - delegation sum changes accordingly
-          accountDelegationDiff: accountDelegationDiff + balanceDiff
+          accountDelegationDiff: accountDelegationDiff + balanceDiff,
         } : {}),
       }
       if (!isAccount) {
@@ -135,11 +137,12 @@ class TxData extends ElasticData {
           txAddressDiff[accountAddress] = {
             isAddressAccount: true,
             // account balance does not change
-            addressBalanceDiff: addressBalanceDiff,
+            addressBalanceDiff,
             // account itself is not used as either input or output in this particular case
-            // but it might have been additionally used in the same transaction, so we are preserving the flags
-            isAddressInput: isAddressInput,
-            isAddressOutput: isAddressOutput,
+            // but it might have been additionally used in the same transaction,
+            // so we are preserving the flags
+            isAddressInput,
+            isAddressOutput,
             // Delegation sum per account changes with the same value
             accountDelegationDiff: accountDelegationDiff + balanceDiff,
           }
@@ -150,7 +153,7 @@ class TxData extends ElasticData {
     if (tx.certificate) {
       const cert = tx.certificate
       if (cert.type === CERT_TYPE.StakeDelegation) {
-        const { pool_id, account, isOwnerStake } = cert
+        const { pool_id, account } = cert
         const accountDiff = txAddressDiff[account] || {}
         txAddressDiff[account] = {
           ...accountDiff,
@@ -207,8 +210,6 @@ class TxData extends ElasticData {
         // Change related pool delegation sum for an account
         const oldDelegation = delegation_after_this_tx
         const newDelegation = newState.delegation_after_this_tx
-        let oldPoolNewState = null;
-        let newPoolNewState = null;
         if (oldPool) {
           const {
             delegation_after_this_tx = 0,
@@ -253,7 +254,13 @@ class TxData extends ElasticData {
           keys,
         } = cert
         this.poolStates = [{
-          pool_id, owners, operators, rewardAccount, rewards, start_validity, keys,
+          pool_id,
+          owners,
+          operators,
+          rewardAccount,
+          rewards,
+          start_validity,
+          keys,
           type: 'new',
           state_ordinal: 1,
         }]
@@ -302,7 +309,7 @@ class TxData extends ElasticData {
   }
 
   toPlainObject() {
-    const certificate = this.tx.certificate
+    const { certificate } = this.tx
     return {
       ...TxData.getBaseFields(),
       is_genesis: this.tx.isGenesis || false,

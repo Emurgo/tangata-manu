@@ -6,7 +6,7 @@ export type BlockInfoType = {
   height: number,
   epoch: number,
   slot?: number,
-  hash: ?string,
+  hash?: string,
 }
 
 export type GenesisLeaderType = {
@@ -17,7 +17,7 @@ export type GenesisLeaderType = {
   ordinal: number
 }
 
-export type PoolOwnerInfoEntry = {
+export type PoolOwnerInfoEntryType = {
   owner: string,
   hash: string,
   info: any,
@@ -41,7 +41,7 @@ export interface StorageProcessor {
 
   rollbackTo(height: number): Promise<void>;
 
-  storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntry>): Promise<void>;
+  storePoolOwnersInfo(entries: Array<PoolOwnerInfoEntryType>): Promise<void>;
 
   /**
    * Returns a map from owner keys to latest info hashes

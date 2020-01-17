@@ -90,7 +90,8 @@ class CronScheduler implements Scheduler {
         return Math.min(2, this.rollbackBlocksCount)
       }
       if (consecutiveRollbackCounter > 1 && consecutiveRollbackCounter < 5) {
-        // Try dropping 5 blocks for next multiple times, if this doesn't help the rollback is critical
+        // Try dropping 5 blocks for next multiple times,
+        // if this doesn't help the rollback is critical
         return Math.min(5, this.rollbackBlocksCount)
       }
     }
@@ -229,18 +230,16 @@ class CronScheduler implements Scheduler {
         if (lastBlockHash === null) {
           nextBlockId = this.#genesisHash
         } else {
-          const  { result, errorStatus } = await this.#dataProvider.getNextBlockId(lastBlockHash)
+          const { result, errorStatus } = await this.#dataProvider.getNextBlockId(lastBlockHash)
           if (result) {
             nextBlockId = result
+          } else if (errorStatus === 404) {
+            this.logger.debug('nextBlockId returned 404. Rolling back')
+            status = STATUS_ROLLBACK_REQUIRED
           } else {
-            if (errorStatus === 404) {
-              this.logger.debug(`nextBlockId returned 404. Rolling back`)
-              status = STATUS_ROLLBACK_REQUIRED
-            } else {
-              const msg = `nextBlockId returned error status  ${errorStatus}`;
-              this.logger.debug(msg)
-              throw new Error(msg)
-            }
+            const msg = `nextBlockId returned error status  ${errorStatus}`
+            this.logger.debug(msg)
+            throw new Error(msg)
           }
         }
         if (!status) {
@@ -256,9 +255,8 @@ class CronScheduler implements Scheduler {
         // Increment the counter in case next attempt will also cause a rollback
         this.consecutiveRollbackCounter += 1
         return
-      } else {
-        this.consecutiveRollbackCounter = 0
       }
+      this.consecutiveRollbackCounter = 0
     }
   }
 
