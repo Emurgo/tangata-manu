@@ -26,6 +26,7 @@ class MempoolChecker extends BaseScheduler {
     db: Database<ShelleyTxType>,
   ) {
     super(logger)
+    this.name = 'MempoolChecker'
     this.checkMempoolMillis = checkMempoolSeconds * 1000
     this.dataProvider = dataProvider
     this.db = db
@@ -43,7 +44,7 @@ class MempoolChecker extends BaseScheduler {
     }
   }
 
-  async startAsync() {
+  async startAsync(): Promise<void> {
     this.logger.info(`[${this.name}] starting checking mempool for failed transactions.`)
     for (;;) {
       const failedTxs = (await this.dataProvider.getMessagePoolLogs())

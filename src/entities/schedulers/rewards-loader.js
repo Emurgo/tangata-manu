@@ -3,16 +3,17 @@
 import type { Logger } from 'bunyan'
 
 import chokidar from 'chokidar'
-import _ from 'lodash'
 import fs from 'fs'
 import csv from 'csv-parser'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import type { Database } from '../interfaces'
-import type { ShelleyTxType } from '../blockchain/shelley/tx'
+import type { Database } from '../../interfaces'
+import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 
-import SERVICE_IDENTIFIER from '../constants/identifiers'
+import SERVICE_IDENTIFIER from '../../constants/identifiers'
+
+import BaseScheduler from './base-scheduler'
 
 const epochFromPathRe = /reward\-info\-(?<epoch>\d+)-/g
 
@@ -26,11 +27,7 @@ const getEpochFromPath = (path: string): number => {
   return 0
 }
 
-class RewardsLoaderImpl {
-  logger: Logger
-
-  name: string
-
+class RewardsLoaderImpl extends BaseScheduler {
   jormunRewardsDirPath: string
 
   db: Database<ShelleyTxType>
@@ -40,7 +37,7 @@ class RewardsLoaderImpl {
     jormunRewardsDirPath: string,
     db: Database<ShelleyTxType>,
   ) {
-    this.logger = logger
+    super(logger)
     this.name = 'RewardsLoader'
     this.jormunRewardsDirPath = jormunRewardsDirPath
     this.db = db
