@@ -11,6 +11,7 @@ import {
   StorageProcessor,
   RawDataProvider,
   NetworkConfig,
+  RewardsLoader,
 } from './interfaces'
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
@@ -79,6 +80,9 @@ const startServer = async () => {
 
     const memPoolChecker = container.get<Scheduler>(SERVICE_IDENTIFIER.MEMPOOL_CHECKER)
     memPoolChecker.run('MempoolChecker')
+
+    const rewardsLoader = container.get<RewardsLoader>(SERVICE_IDENTIFIER.REWARDS_LOADER)
+    rewardsLoader.run()
   }
 
   const storageName = container.getNamed('storageProcessor')

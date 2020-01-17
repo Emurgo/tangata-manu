@@ -7,6 +7,7 @@ import type {
   RawDataProvider,
   RawDataParser,
   Scheduler,
+  RewardsLoader,
 } from '../interfaces'
 
 import SERVICE_IDENTIFIER from '../constants/identifiers'
@@ -16,6 +17,7 @@ import {
   ShelleyDataParser,
   GitHubLoader,
   GitHubApi,
+  RewardsLoaderImpl,
 } from '../entities'
 
 
@@ -30,6 +32,8 @@ const initShelley = (container: Container) => {
     .to(GitHubLoader).inSingletonScope()
   container.bind<Scheduler>(SERVICE_IDENTIFIER.GITHUB_API)
     .to(GitHubApi).inSingletonScope()
+  container.bind<RewardsLoader>(SERVICE_IDENTIFIER.REWARDS_LOADER)
+    .to(RewardsLoaderImpl).inSingletonScope()
 }
 
 export default initShelley

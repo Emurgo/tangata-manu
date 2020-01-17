@@ -2,6 +2,7 @@
   "defaultNetwork": "TANGATA_DEFAULT_NETWORK",
   "storageProcessor": "TANGATA_STORAGE_PROCESSOR",
   "defaultBridgeUrl": "TANGATA_BRIDGE_URL",
+  "jormunRewardsDirPath": "JORMUNGANDR_REWARD_DUMP_DIRECTORY",
   "server": {
     "port": "TANGATA_API_SERVER_PORT"
   },

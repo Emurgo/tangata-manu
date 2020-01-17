@@ -15,7 +15,12 @@ import DB from './database'
 import type { TxDbDataType, TxInputsDbDataType } from './database'
 import Q from './db-queries'
 import { TX_STATUS } from '../../blockchain/common/tx'
-import type { PoolRegistrationType, PoolRetirementType, PoolUpdateType } from '../../blockchain/shelley'
+import type {
+  PoolRegistrationType,
+  PoolRetirementType,
+  PoolUpdateType,
+  JormunRewardsType,
+} from '../../blockchain/shelley'
 import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
 
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
@@ -68,6 +73,30 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       })
       .toString()
     this.logger.debug('storeStakeDelegationCertTx: ', sql)
+    await this.getConn().query(sql)
+  }
+
+  async storeStakingRewards(rewardsData: Array<JormunRewardsType>): Promise<void> {
+    if (_.isEmpty(rewardsData)) {
+      this.logger.debug('[DB]]: storeStakingRewards: rewardsData is empty.')
+      return
+    }
+    const { epoch, slot } = await this.getBestBlockNum()
+    const currentTime = new Date().toUTCString()
+
+    const dbFields = rewardsData.map((item) => ({
+      epoch: item.epoch,
+      account: item.identifier,
+      reward: item.received,
+      around_epoch: epoch,
+      around_slot: slot,
+      around_time: currentTime,
+    }))
+    const sql = Q.sql.insert().into('staking_rewards')
+      .setFieldsRows(dbFields)
+      .onConflict()
+      .toString()
+    this.logger.debug('[DB]: storeStakingRewards:', sql)
     await this.getConn().query(sql)
   }
 
