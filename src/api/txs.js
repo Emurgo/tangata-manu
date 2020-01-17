@@ -116,9 +116,14 @@ class TxController implements IController {
 
   storeTxAsPending(tx: TxType) {
     return this.db.doInTransaction(async () => {
-      this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-      await this.db.storeTx(tx)
-      await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_PENDING_STATUS)
+      const existingStatus = this.db.getTxStatus(tx.id)
+      if (existingStatus) {
+        this.logger.debug(`txs.storeTxAsPending : TX ALREADY EXISTS status='${existingStatus}'. Ignoring`)
+      } else {
+        this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
+        await this.db.storeTx(tx)
+        await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_PENDING_STATUS)
+      }
     })
   }
 
