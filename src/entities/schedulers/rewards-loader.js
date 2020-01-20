@@ -1,5 +1,7 @@
 // @flow
 
+import path from 'path'
+
 import type { Logger } from 'bunyan'
 
 import chokidar from 'chokidar'
@@ -39,30 +41,34 @@ class RewardsLoaderImpl extends BaseScheduler {
   ) {
     super(logger)
     this.name = 'RewardsLoader'
-    this.jormunRewardsDirPath = jormunRewardsDirPath
+    this.jormunRewardsDirPath = path.resolve(jormunRewardsDirPath)
     this.db = db
   }
 
-  run() {
+
+  async run(): Promise<void> {
     this.logger.debug(`[${this.name}]: Subscribe for changes to ${this.jormunRewardsDirPath} dir.`)
     const csvData = []
-    chokidar.watch(this.jormunRewardsDirPath).on('file', (event, path) => {
+    chokidar.watch(this.jormunRewardsDirPath).on('all', (event, path) => {
       const epoch = getEpochFromPath(path)
-      fs.createReadStream('data.csv')
-        .pipe(csv())
-        .on('data', (data) => {
-          if (data.type === 'pool' || data.type === 'account') {
-            csvData.push({
-              epoch,
-              ...data,
-            })
-          }
-        })
-        .on('end', () => {
-          this.db.storeStakingRewards(csvData).then(() => {
-            csvData.length = 0
+      if (epoch > 0) {
+        fs.createReadStream(path)
+          .pipe(csv())
+          .on('data', (data) => {
+            if (data.type === 'pool' || data.type === 'account') {
+              csvData.push({
+                epoch,
+                ...data,
+              })
+            }
           })
-        })
+          .on('end', () => {
+            this.logger.debug(`Update rewards data from ${path}`)
+            this.db.storeStakingRewards(csvData).then(() => {
+              csvData.length = 0
+            })
+          })
+      }
     })
   }
 }
@@ -70,8 +76,8 @@ class RewardsLoaderImpl extends BaseScheduler {
 helpers.annotate(RewardsLoaderImpl,
   [
     SERVICE_IDENTIFIER.LOGGER,
-    SERVICE_IDENTIFIER.DATABASE,
     'jormunRewardsDirPath',
+    SERVICE_IDENTIFIER.DATABASE,
   ])
 
 export default RewardsLoaderImpl

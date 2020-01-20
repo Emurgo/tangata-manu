@@ -25,7 +25,7 @@ class BaseScheduler implements Scheduler {
     throw Error('BaseScheduler.startAsync should be overriden by child class.')
   }
 
-  async run() {
+  async run(): Promise<void> {
     if (this.counter > 10) {
       this.logger.warn(`${this.name}: restarted too many times (${this.counter}). Shutting it down.`)
       return

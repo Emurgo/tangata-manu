@@ -21,7 +21,7 @@
   "checkMempoolSeconds": 60,
   "checkTipSeconds": 15,
   "checkGitHubSeconds": 600,
-  "jormunRewardsDirPath": "~/jormungandr/rewards/",
+  "jormunRewardsDirPath": "../jormungandr/rewards/",
   "gitHubRepo": "cardano-foundation/incentivized-testnet-stakepool-registry",
   "gitHubAuthUser": null,
   "gitHubAuthToken": null,

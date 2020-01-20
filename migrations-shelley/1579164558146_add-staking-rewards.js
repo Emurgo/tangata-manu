@@ -4,7 +4,7 @@ const SQL = `
 CREATE TABLE staking_rewards  (
     epoch integer,
     account text,
-    reward integer,
+    reward bigint,
     around_epoch integer,
     around_slot integer,
     around_time timestamp,
