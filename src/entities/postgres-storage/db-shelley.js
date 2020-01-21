@@ -96,7 +96,6 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       .setFieldsRows(dbFields)
       .onConflict()
       .toString()
-    this.logger.debug('[DB]: storeStakingRewards:', sql)
     await this.getConn().query(sql)
   }
 
