@@ -37,8 +37,10 @@ class MempoolChecker extends BaseScheduler {
     if (_.isEmpty(txHashes)) {
       return
     }
-    await this.db.updateTxsStatus(txHashes, TX_STATUS.TX_FAILED_STATUS)
-    for (const txHash of txHashes) {
+    const pendingOnlyTxHashes = _.map(
+      await this.db.selectPendingTxsOnly(txHashes), 'hash')
+    await this.db.updateTxsStatus(pendingOnlyTxHashes, TX_STATUS.TX_FAILED_STATUS)
+    for (const txHash of pendingOnlyTxHashes) {
       await this.db.addNewTxToTransientSnapshots(txHash, TX_STATUS.TX_FAILED_STATUS)
     }
   }
@@ -48,11 +50,14 @@ class MempoolChecker extends BaseScheduler {
     for (;;) {
       const failedTxs = (await this.dataProvider.getMessagePoolLogs())
         .filter(msg => msg.status.Rejected !== undefined)
-        .map(msg => msg.fragment_id)
-      await this.updateFailedTxs(failedTxs)
+      failedTxs.forEach(tx => {
+        this.logger.debug(`[MempoolChecker] TX_REJECTED ${tx.fragment_id}, reason=${tx.status.Rejected.reason}`)
+      })
+
+      await this.updateFailedTxs(_.map(failedTxs, 'fragment_id'))
       this.logger.debug(`Rejected txs: ${failedTxs}`)
       this.logger.debug('[MempoolChecker] async: loop finished')
-      this.logger.debug('[GitHubLoader] async: sleeping for', this.checkMempoolMillis)
+      this.logger.debug('[MempoolChecker] async: sleeping for', this.checkMempoolMillis)
       await sleep(this.checkMempoolMillis)
     }
   }

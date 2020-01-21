@@ -445,7 +445,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       .where('hash IN ?', txHashes)
       .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
       .toString()
-    this.logger.debug('selectInputsForPendingTxsOnly', sql)
+    this.logger.debug('selectPendingTxsOnly', sql)
     const dbRes = await this.getConn().query(sql)
     return dbRes.rows
   }
@@ -597,8 +597,10 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   async updateTxsStatus(txs: Array<string>, status: string) {
+    const now = new Date().toUTCString()
     const sql = Q.sql.update().table('txs')
       .set('tx_state', status)
+      .set('last_update', now)
       .where('hash IN ?', txs)
       .toString()
     return this.getConn().query(sql)

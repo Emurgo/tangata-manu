@@ -14,7 +14,7 @@ function free(...args) {
   }
 }
 
-function consumeAccountToOptionalAddress(account, discrimination, stringEncoding = 'hex'): string {
+function consumeAccountToOptionalAddress(account, discrimination, stringEncoding = 'hex'): ?string {
   if (!account) {
     return null
   }
@@ -164,10 +164,10 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number,
           operators: reg_operators,
           rewardAccount: rewardAccountAddress,
           rewards: {
-            fixed: consumeOptionalValueToNumber(rewards.fixed()),
+            fixed: consumeOptionalValueToNumber(rewards.fixed()) || 0,
             ratio: [
-              consumeOptionalValueToNumber(rewards.ratio_numerator()),
-              consumeOptionalValueToNumber(rewards.ratio_denominator()),
+              consumeOptionalValueToNumber(rewards.ratio_numerator()) || 0,
+              consumeOptionalValueToNumber(rewards.ratio_denominator()) || 0,
             ],
             limit: consumeOptionalValueToNumber(rewards.max_limit()),
           },
