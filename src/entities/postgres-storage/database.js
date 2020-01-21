@@ -41,12 +41,21 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 
   logger: any
 
+  pendingTxsTimeoutMillis: number
+
   constructor(
     dbConn: DBConnection,
     logger: Logger,
+    pendingTxsTimeoutMinutes: number,
   ) {
     this.#conn = dbConn
     this.logger = logger
+    if (!pendingTxsTimeoutMinutes || pendingTxsTimeoutMinutes <= 0) {
+      logger.debug(`[DB] pendingTxsTimeoutMinutes=${pendingTxsTimeoutMinutes}, Pending TTL will NOT be applied`)
+    } else {
+      logger.debug(`[DB] pendingTxsTimeoutMinutes=${pendingTxsTimeoutMinutes}, Pending TTL is applied`)
+      this.pendingTxsTimeoutMillis = pendingTxsTimeoutMinutes * 60000
+    }
   }
 
   getConn() {
@@ -428,7 +437,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     return dbRes.rows.length === 1 ? dbRes.rows[0].tx_state : null
   }
 
-  async selectInputsForPendingTxsOnly(txHashes: Array<string>): Promise<Array<mixed>> {
+  async selectPendingTxsOnly(txHashes: Array<string>): Promise<Array<mixed>> {
     if (_.isEmpty(txHashes)) {
       return []
     }
@@ -442,28 +451,36 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   async queryPendingSet() {
+    const qMaxSnapshotBlockNum =
+      Q.sql.select().from(SNAPSHOTS_TABLE).field('MAX(block_num)');
     const query = Q.sql.select().from(SNAPSHOTS_TABLE)
       .field('tx_hash')
-      .where('block_num = ?', Q.sql.select().from(SNAPSHOTS_TABLE)
-        .field('MAX(block_num)'))
+      .where('block_num = ?', qMaxSnapshotBlockNum)
       .where('status = ?', TX_STATUS.TX_PENDING_STATUS)
-      .union(Q.sql.select().from('txs')
-        .field('hash')
-        .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
-        .where('NOT EXISTS ?', Q.sql.select().from(SNAPSHOTS_TABLE)
-          .field('1')
-          .where('tx_hash = hash')))
+      .union(
+        Q.sql.select().from('txs')
+          .field('hash')
+          .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
+          .where('NOT EXISTS ?',
+            Q.sql.select().from(SNAPSHOTS_TABLE)
+              .field('1')
+              .where('tx_hash = hash')
+              .where('block_num = ?', qMaxSnapshotBlockNum)
+          )
+      )
       .toString()
     const dbRes = await this.getConn().query(query)
     this.logger.debug('queryPendingSet:', query, dbRes)
     return _.map(dbRes.rows, 'tx_hash')
   }
 
-  async groupPendingTxs(
-    txHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
-    const txs = await this.selectInputsForPendingTxsOnly(txHashes)
+  async validateAndGroupPendingTxs(
+    txHashes: Array<string>
+  ): Promise<[Array<string>, Array<string>]> {
+    const txs = await this.selectPendingTxsOnly(txHashes)
     const validTxs = []
     const invalidTxs = []
+    const nowMillis = (new Date()).getTime()
     for (const tx of txs) {
       const utxoInputs = (tx.inputs || []).filter(inp => inp.type === 'utxo')
         .map(({ txHash, index }) => {
@@ -474,13 +491,22 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
           }
           return utxo
         })
-      const isValidTx = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
-      if (isValidTx) {
-        validTxs.push(tx.hash)
-      } else {
-        this.logger.info(`tx ${tx} inputs already spent`)
+      const isAllInputsFree = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
+      if (!isAllInputsFree) {
+        this.logger.info(`[DB.validateAndGroupPendingTxs] tx inputs already spent: `, tx)
         invalidTxs.push(tx.hash)
+        continue
       }
+      if (this.pendingTxsTimeoutMillis) {
+        const lastUpdateTime = tx.last_update.getTime();
+        const ageMillis = nowMillis - lastUpdateTime;
+        if (ageMillis > this.pendingTxsTimeoutMillis) {
+          this.logger.info(`[DB.validateAndGroupPendingTxs] tx has timed out: `, tx)
+          invalidTxs.push(tx.hash)
+          continue
+        }
+      }
+      validTxs.push(tx.hash)
     }
     return [_.uniq(validTxs), _.uniq(invalidTxs)]
   }
@@ -489,7 +515,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     newConfirmedTxHashes: Array<string>): Promise<[Array<string>, Array<string>]> {
     const pendingSet = await this.queryPendingSet()
     const txsInPendingState = _.difference(pendingSet, newConfirmedTxHashes)
-    const [pendingTxs, invalidTxs] = await this.groupPendingTxs(txsInPendingState)
+    const [pendingTxs, invalidTxs] = await this.validateAndGroupPendingTxs(txsInPendingState)
     return [pendingTxs, invalidTxs]
   }
 
@@ -685,6 +711,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 helpers.annotate(DB, [
   SERVICE_IDENTIFIER.DB_CONNECTION,
   SERVICE_IDENTIFIER.LOGGER,
+  'pendingTxsTimeoutMinutes',
 ])
 
 export default DB

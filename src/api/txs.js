@@ -114,17 +114,22 @@ class TxController implements IController {
     return txObj
   }
 
-  storeTxAsPending(tx: TxType) {
+  storeTxAsPending(tx: TxType): Promise<any> {
     return this.db.doInTransaction(async () => {
-      this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
-      await this.db.storeTx(tx)
-      await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_PENDING_STATUS)
+      const existingStatus: ?string = await this.db.getTxStatus(tx.id)
+      if (existingStatus) {
+        this.logger.debug(`txs.storeTxAsPending : TX ALREADY EXISTS status='${existingStatus}'. Ignoring`)
+      } else {
+        this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
+        await this.db.storeTx(tx)
+        await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_PENDING_STATUS)
+      }
     })
   }
 
-  storeTxAsFailed(tx: TxType) {
+  storeTxAsFailed(tx: TxType): Promise<any> {
     return this.db.doInTransaction(async () => {
-      const existingStatus = this.db.getTxStatus(tx.id)
+      const existingStatus: ?string = await this.db.getTxStatus(tx.id)
       if (!existingStatus || existingStatus === TX_STATUS.TX_PENDING_STATUS) {
         const failedTx = {
           ...tx,
