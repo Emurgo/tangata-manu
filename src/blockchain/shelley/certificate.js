@@ -30,7 +30,7 @@ export type PoolRegistrationType = {
   rewards: {
     fixed: number,
     ratio: [number, number],
-    limit: number|null,
+    limit: ?number,
   },
   keys: {
     kes_bech32: string,

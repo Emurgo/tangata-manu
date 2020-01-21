@@ -13,6 +13,7 @@ const SERVICE_IDENTIFIER = {
   VALIDATOR: Symbol.for('Validator'),
   GITHUB_LOADER: Symbol.for('GitHubLoader'),
   GITHUB_API: Symbol.for('GitHubAPI'),
+  MEMPOOL_CHECKER: Symbol.for('MempoolChecker'),
 }
 
 export default SERVICE_IDENTIFIER

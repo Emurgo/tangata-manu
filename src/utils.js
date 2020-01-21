@@ -11,12 +11,11 @@ type NetworkConfigType = {
   networkDiscrimination?: string,
 }
 
-const getNetworkConfig = (networkName: string): NetworkConfigType => {
+export const getNetworkConfig = (networkName: string): NetworkConfigType => {
   const network = { ...config.get('networks')[networkName] }
   network.bridgeUrl = network.bridgeUrl || config.get('defaultBridgeUrl')
   return network
 }
 
-export default {
-  getNetworkConfig,
-}
+export const sleep = (millis: number): Promise<void> => new Promise(
+  resolve => setTimeout(resolve, millis))

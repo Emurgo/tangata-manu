@@ -122,7 +122,7 @@ class TxController implements IController {
       } else {
         this.logger.debug(`txs.storeTxAsPending ${JSON.stringify(tx)}`)
         await this.db.storeTx(tx)
-        await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_PENDING_STATUS)
+        await this.db.addNewTxsToTransientSnapshots(tx.id, TX_STATUS.TX_PENDING_STATUS)
       }
     })
   }
@@ -137,7 +137,7 @@ class TxController implements IController {
         }
         this.logger.debug(`txs.storeTxAsFailed ${JSON.stringify(tx)}`)
         await this.db.storeTx(failedTx)
-        await this.db.addNewTxToTransientSnapshots(tx.id, TX_STATUS.TX_FAILED_STATUS)
+        await this.db.addNewTxsToTransientSnapshots(tx.id, TX_STATUS.TX_FAILED_STATUS)
       }
     })
   }

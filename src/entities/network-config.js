@@ -5,7 +5,7 @@ import config from 'config'
 
 import urljoin from 'url-join'
 
-import utils from '../utils'
+import { getNetworkConfig } from '../utils'
 import type { NetworkConfig } from '../interfaces/network-config'
 
 export const NETWORK_PROTOCOL = {
@@ -39,7 +39,7 @@ class NetworkConfigImp implements NetworkConfig {
 
   constructor() {
     this.#networkName = process.env.importer_network || config.get('defaultNetwork')
-    const network = utils.getNetworkConfig(this.#networkName)
+    const network = getNetworkConfig(this.#networkName)
     this.#networkBaseUrl = urljoin(network.bridgeUrl, this.#networkName)
     this.#genesisHash = network.genesis
     this.#startTime = network.startTime

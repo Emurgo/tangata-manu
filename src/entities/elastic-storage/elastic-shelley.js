@@ -6,7 +6,6 @@ import type { Logger } from 'bunyan'
 import type { NetworkConfig } from '../../interfaces'
 import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
-import type { AccountInputType } from '../../blockchain/common'
 
 import { shelleyUtils } from '../../blockchain/shelley'
 import { CERT_TYPE } from '../../blockchain/shelley/certificate'

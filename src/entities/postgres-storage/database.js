@@ -445,7 +445,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       .where('hash IN ?', txHashes)
       .where('tx_state = ?', TX_STATUS.TX_PENDING_STATUS)
       .toString()
-    this.logger.debug('selectInputsForPendingTxsOnly', sql)
+    this.logger.debug('selectPendingTxsOnly', sql)
     const dbRes = await this.getConn().query(sql)
     return dbRes.rows
   }
@@ -536,10 +536,13 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     await this.getConn().query(sql)
   }
 
-  async addNewTxToTransientSnapshots(txHash: string, txStatus: string) {
-    this.logger.debug('addNewTxToTransientSnapshots:', txHash, txStatus)
-    if (!txHash) {
-      this.logger.debug('addNewTxToTransientSnapshots: No tx is provided')
+  async addNewTxsToTransientSnapshots(txHashes: string|Array<string>, txStatus: string) {
+    if (!Array.isArray(txHashes)) {
+      txHashes = [txHashes]
+    }
+    this.logger.debug('addNewTxsToTransientSnapshots:', txHashes, txStatus)
+    if (_.isEmpty(txHashes)) {
+      this.logger.debug('addNewTxsToTransientSnapshots: No tx is provided')
       return
     }
     if (txStatus !== TX_STATUS.TX_PENDING_STATUS && txStatus !== TX_STATUS.TX_FAILED_STATUS) {
@@ -547,18 +550,18 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
        Expected one of: '${TX_STATUS.TX_PENDING_STATUS}' or '${TX_STATUS.TX_FAILED_STATUS}'`)
     }
     const { hash, height } = await this.getBestBlockNum()
-    const dbFields = [{
+    const dbFields = txHashes.map(txHash => ({
       tx_hash: txHash,
       block_hash: hash,
       block_num: height,
       status: txStatus,
-    }]
+    }))
     const sql = Q.sql.insert()
       .into(SNAPSHOTS_TABLE)
       .setFieldsRows(dbFields)
       .onConflict()
       .toString()
-    this.logger.debug('addNewTxToTransientSnapshots: ', sql)
+    this.logger.debug('addNewTxsToTransientSnapshots: ', sql)
     await this.getConn().query(sql)
   }
 
@@ -597,8 +600,10 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   async updateTxsStatus(txs: Array<string>, status: string) {
+    const now = new Date().toUTCString()
     const sql = Q.sql.update().table('txs')
       .set('tx_state', status)
+      .set('last_update', now)
       .where('hash IN ?', txs)
       .toString()
     return this.getConn().query(sql)

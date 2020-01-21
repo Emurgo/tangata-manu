@@ -75,23 +75,10 @@ const startServer = async () => {
 
   if (networkConfig.networkProtocol() === NETWORK_PROTOCOL.SHELLEY) {
     const gitHubLoader = container.get<Scheduler>(SERVICE_IDENTIFIER.GITHUB_LOADER)
-    const runGitHubLoader = (counter = 0) => {
-      if (counter > 10) {
-        logger.warn(`GitHubLoader.startAsync : restarted too many times (${counter}). Shutting it down.`)
-        return
-      }
-      logger.debug(`GitHubLoader.startAsync : starting (counter=${counter})`)
-      gitHubLoader.startAsync().then(res => {
-        logger.error(`GitHubLoader.startAsync exited successfully. This is unexpected to happen by itself! (result=${res})`)
-        logger.debug('GitHubLoader.startAsync : Restarting')
-        runGitHubLoader(counter + 1)
-      }, err => {
-        logger.error('GitHubLoader.startAsync exited with an error:', err)
-        logger.debug('GitHubLoader.startAsync : Restarting')
-        runGitHubLoader(counter + 1)
-      })
-    }
-    runGitHubLoader()
+    gitHubLoader.run('GitHubLoader')
+
+    const memPoolChecker = container.get<Scheduler>(SERVICE_IDENTIFIER.MEMPOOL_CHECKER)
+    memPoolChecker.run('MempoolChecker')
   }
 
   const storageName = container.getNamed('storageProcessor')
