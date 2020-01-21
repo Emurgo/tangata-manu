@@ -28,8 +28,8 @@ export type PoolRegistrationType = {
   operators: Array<string>,
   rewardAccount: string|null,
   rewards: {
-    fixed: ?number,
-    ratio: [?number, ?number],
+    fixed: number,
+    ratio: [number, number],
     limit: ?number,
   },
   keys: {
