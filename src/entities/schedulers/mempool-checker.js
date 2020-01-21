@@ -37,12 +37,14 @@ class MempoolChecker extends BaseScheduler {
     if (_.isEmpty(txHashes)) {
       return
     }
-    const pendingOnlyTxHashes = _.map(
-      await this.db.selectPendingTxsOnly(txHashes), 'hash')
-    await this.db.updateTxsStatus(pendingOnlyTxHashes, TX_STATUS.TX_FAILED_STATUS)
-    for (const txHash of pendingOnlyTxHashes) {
-      await this.db.addNewTxToTransientSnapshots(txHash, TX_STATUS.TX_FAILED_STATUS)
-    }
+    await this.db.doInTransaction(async () => {
+      const pendingOnlyTxHashes = _.map(
+        await this.db.selectPendingTxsOnly(txHashes), 'hash')
+      if (pendingOnlyTxHashes.length > 0) {
+        await this.db.updateTxsStatus(pendingOnlyTxHashes, TX_STATUS.TX_FAILED_STATUS)
+        await this.db.addNewTxsToTransientSnapshots(pendingOnlyTxHashes, TX_STATUS.TX_FAILED_STATUS)
+      }
+    })
   }
 
   async startAsync() {

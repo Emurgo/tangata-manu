@@ -15,7 +15,7 @@ export interface Database<TxType> {
   getTxStatus(txId: string): Promise<string>;
   storeBlocks(blocks: Array<Block>): Promise<void>;
   storeNewSnapshot(block: Block): Promise<void>;
-  addNewTxToTransientSnapshots(txHash: string, txStatus: string): Promise<void>;
+  addNewTxsToTransientSnapshots(txHashes: string|Array<string>, txStatus: string): Promise<void>;
   rollbackTo(blockHeight: number): Promise<void>;
   rollBackTransactions(blockHeight: number): Promise<void>;
   rollbackTransientSnapshots(blockHeight: number): Promise<void>;
