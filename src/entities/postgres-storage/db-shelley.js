@@ -23,6 +23,8 @@ import type {
 } from '../../blockchain/shelley'
 import type { PoolOwnerInfoEntryType } from '../../interfaces/storage-processor'
 
+const DB_BULK_UPLOAD_CNT = 1000
+
 const DELEGATION_CERTIFICATES_TBL = 'delegation_certificates'
 const POOL_CERTIFICATES_TBL = 'pool_certificates'
 const POOL_OWNERS_INFO_TBL = 'pool_owners_info'
@@ -92,11 +94,13 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
       around_slot: slot,
       around_time: currentTime,
     }))
-    const sql = Q.sql.insert().into('staking_rewards')
-      .setFieldsRows(dbFields)
-      .onConflict()
-      .toString()
-    await this.getConn().query(sql)
+    for (const dbChunkedFields of _.chunk(dbFields, DB_BULK_UPLOAD_CNT)) {
+      const sql = Q.sql.insert().into('staking_rewards')
+        .setFieldsRows(dbChunkedFields)
+        .onConflict()
+        .toString()
+      await this.getConn().query(sql)
+    }
   }
 
   async storePoolCertTx(tx: TxType): Promise<void> {
