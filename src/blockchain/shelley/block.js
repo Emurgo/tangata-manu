@@ -26,7 +26,7 @@ export default class ShelleyBlock implements Block {
   slotLeader: ?string
 
   constructor(hash: string, slot: number, epoch: number,
-    height:number, txs: any, prevHash: string) {
+    height:number, txs: any, prevHash: string, slotLeader: ?string) {
     this.hash = hash
     this.prevHash = prevHash
     this.slot = slot
@@ -37,15 +37,16 @@ export default class ShelleyBlock implements Block {
     // FIXME: implement
     this.time = new Date(Date.now())
     this.size = 0
-    this.slotLeader = null
+    this.slotLeader = slotLeader
   }
 
   serialize() {
     return {
-      block_hash: this.hash,
-      epoch: this.epoch,
-      slot: this.slot,
-      block_height: this.height,
+      block_hash: this.getHash(),
+      epoch: this.getEpoch(),
+      slot: this.getSlot(),
+      block_height: this.getHeight(),
+      slot_leader: this.getSlotLeaderId(),
     }
   }
 
@@ -86,7 +87,7 @@ export default class ShelleyBlock implements Block {
   }
 
   getSlotLeaderId(): ?string {
-    return this.slotLeader
+    return this.slotLeader || null
   }
 
   static parseBlock(
@@ -166,7 +167,21 @@ export default class ShelleyBlock implements Block {
       fragment.free()
     }
     fragments.free()
+
+    const leaderIdPtr = block.leader_id()
+    let slotLeader = null
+    if (leaderIdPtr !== undefined) {
+      slotLeader = leaderIdPtr.to_string()
+      leaderIdPtr.free()
+    }
+
     block.free()
-    return new ShelleyBlock(blockHash, slotId, epochId, chainLength, txs, parentHash)
+    return new ShelleyBlock(blockHash,
+      slotId,
+      epochId,
+      chainLength,
+      txs,
+      parentHash,
+      slotLeader)
   }
 }
