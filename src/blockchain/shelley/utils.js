@@ -36,6 +36,16 @@ function consumeKeysToStrings(keys, stringEncoding = 'hex'): Array<string> {
   return result
 }
 
+// frees input rust-wasm Value and parses it into a js string
+const consumeOptionalValueToString = (value: any): ?string => {
+  if (!value) {
+    return null
+  }
+  const str = value.to_str ? value.to_str() : value.to_string()
+  free(value)
+  return str
+}
+
 // frees input rust-wasm Value and parses it into a js number
 const consumeOptionalValueToNumber = (value: any): ?number => {
   // TODO: Values are returned as strings under the rationale that js strings
@@ -382,5 +392,6 @@ export default {
   getAccountIdFromAddress,
   consumeValueToNumber: consumeOptionalValueToNumber,
   consumeIdToHex,
+  consumeOptionalValueToString,
   publicKeyBechToHex,
 }

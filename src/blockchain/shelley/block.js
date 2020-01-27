@@ -168,13 +168,7 @@ export default class ShelleyBlock implements Block {
     }
     fragments.free()
 
-    const leaderIdPtr = block.leader_id()
-    let slotLeader = null
-    if (leaderIdPtr !== undefined) {
-      slotLeader = leaderIdPtr.to_string()
-      leaderIdPtr.free()
-    }
-
+    let slotLeader = shelleyUtils.consumeOptionalValueToString(block.leader_id())
     block.free()
     return new ShelleyBlock(blockHash,
       slotId,
