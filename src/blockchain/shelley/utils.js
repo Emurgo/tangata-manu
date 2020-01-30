@@ -75,6 +75,15 @@ const consumeKeyToBech32 = (key: any): string => {
   return result
 }
 
+const identifierToAddress = (identifier: string, networkDiscrimination: number) => {
+  const wasm = global.jschainlibs
+  const bytes = Buffer.from(identifier, 'hex')
+  const accountIdentifier = wasm.AccountIdentifier.from_bytes(bytes)
+  const account = accountIdentifier.to_account_single()
+  const accountAddrHex = consumeIdToHex(account.to_address(networkDiscrimination))
+  return accountAddrHex
+}
+
 const fragmentToObj = (fragment: any, networkDiscrimination: number,
   extraData: {txTime: Date}): ShelleyTxType => {
   const wasm = global.jschainlibs
@@ -389,6 +398,7 @@ export default {
   rawTxToObj,
   fragmentToObj,
   splitGroupAddress,
+  identifierToAddress,
   getAccountIdFromAddress,
   consumeValueToNumber: consumeOptionalValueToNumber,
   consumeIdToHex,
