@@ -10,8 +10,10 @@ import csv from 'csv-parser'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import type { Database } from '../../interfaces'
+import type { Database, NetworkConfig } from '../../interfaces'
 import type { ShelleyTxType } from '../../blockchain/shelley/tx'
+
+import utils from '../../blockchain/shelley/utils'
 
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
@@ -32,16 +34,20 @@ const getEpochFromPath = (path: string): number => {
 class RewardsLoaderImpl extends BaseScheduler {
   jormunRewardsDirPath: string
 
+  networkDiscrimination: number
+
   db: Database<ShelleyTxType>
 
   constructor(
     logger: Logger,
     jormunRewardsDirPath: string,
     db: Database<ShelleyTxType>,
+    networkConfig: NetworkConfig,
   ) {
     super(logger)
     this.name = 'RewardsLoader'
     this.jormunRewardsDirPath = path.resolve(jormunRewardsDirPath)
+    this.networkDiscrimination = networkConfig.networkDiscrimination()
     this.db = db
   }
 
@@ -56,8 +62,11 @@ class RewardsLoaderImpl extends BaseScheduler {
           .pipe(csv())
           .on('data', (data) => {
             if (data.type === 'pool' || data.type === 'account') {
+              const address = utils.identifierToAddress(
+                data.identifier, this.networkDiscrimination)
               csvData.push({
                 epoch,
+                address,
                 ...data,
               })
             }
@@ -78,6 +87,7 @@ helpers.annotate(RewardsLoaderImpl,
     SERVICE_IDENTIFIER.LOGGER,
     'jormunRewardsDirPath',
     SERVICE_IDENTIFIER.DATABASE,
+    SERVICE_IDENTIFIER.NETWORK_CONFIG,
   ])
 
 export default RewardsLoaderImpl
