@@ -61,13 +61,18 @@ class RewardsLoaderImpl extends BaseScheduler {
         fs.createReadStream(path)
           .pipe(csv())
           .on('data', (data) => {
-            if (data.type === 'pool' || data.type === 'account') {
-              const address = utils.identifierToAddress(
-                data.identifier, this.networkDiscrimination)
+            const type = data.type;
+            const isPool = type === 'pool';
+            const isAccount = type === 'account';
+            if (isPool || isAccount) {
+              const identifier = isAccount ?
+                utils.identifierToAddress(data.identifier, this.networkDiscrimination)
+                : data.identifier
               csvData.push({
                 epoch,
-                address,
-                ...data,
+                identifier,
+                type,
+                received: data.received,
               })
             }
           })
