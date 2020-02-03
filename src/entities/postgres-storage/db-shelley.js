@@ -88,7 +88,8 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
 
     const dbFields = rewardsData.map((item) => ({
       epoch: item.epoch,
-      account: item.address,
+      identifier: item.identifier,
+      type: item.type,
       reward: item.received,
       around_epoch: epoch,
       around_slot: slot,

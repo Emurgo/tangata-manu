@@ -3,7 +3,8 @@ exports.shorthands = undefined
 const SQL = `
 CREATE TABLE staking_rewards  (
     epoch integer,
-    account text,
+    identifier text,
+    type text,
     reward bigint,
     around_epoch integer,
     around_slot integer,
