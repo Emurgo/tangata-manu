@@ -9,7 +9,7 @@ CREATE TABLE staking_rewards  (
     around_epoch integer,
     around_slot integer,
     around_time timestamp,
-    PRIMARY KEY (epoch, account)
+    PRIMARY KEY (epoch, identifier)
 );
 `
 
