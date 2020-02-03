@@ -11,6 +11,7 @@ import {
   StorageProcessor,
   RawDataProvider,
   NetworkConfig,
+  RewardsLoader,
 } from './interfaces'
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
@@ -75,10 +76,13 @@ const startServer = async () => {
 
   if (networkConfig.networkProtocol() === NETWORK_PROTOCOL.SHELLEY) {
     const gitHubLoader = container.get<Scheduler>(SERVICE_IDENTIFIER.GITHUB_LOADER)
-    gitHubLoader.run('GitHubLoader')
+    gitHubLoader.run()
 
     const memPoolChecker = container.get<Scheduler>(SERVICE_IDENTIFIER.MEMPOOL_CHECKER)
-    memPoolChecker.run('MempoolChecker')
+    memPoolChecker.run()
+
+    const rewardsLoader = container.get<RewardsLoader>(SERVICE_IDENTIFIER.REWARDS_LOADER)
+    rewardsLoader.run()
   }
 
   const storageName = container.getNamed('storageProcessor')

@@ -35,6 +35,7 @@ class GitHubLoader extends BaseScheduler {
     logger: Logger,
   ) {
     super(logger)
+    this.name = 'GitHubLoader'
     this.storageProcessor = storageProcessor
     this.gitHubApi = gitHubApi
     this.checkGitHubMillis = checkGitHubSeconds * 1000

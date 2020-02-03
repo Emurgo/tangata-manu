@@ -12,3 +12,5 @@ export type {
   PoolUpdateType,
   StakeDelegationType,
 } from './certificate'
+
+export type { JormunRewardsType } from './staking-rewards'
