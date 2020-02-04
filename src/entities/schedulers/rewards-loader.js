@@ -53,7 +53,8 @@ class RewardsLoaderImpl extends BaseScheduler {
 
   async run(): Promise<void> {
     const logger = this.logger;
-    logger.debug(`[${this.name}]: Subscribe for changes to ${this.jormunRewardsDirPath} dir.`)
+    const loaderName = this.name;
+    logger.debug(`[${loaderName}]: Subscribe for changes to ${this.jormunRewardsDirPath} dir.`)
     chokidar.watch(this.jormunRewardsDirPath).on('all', (event, path) => {
       const epoch = getEpochFromPath(path)
       if (epoch >= 0) {
@@ -78,9 +79,9 @@ class RewardsLoaderImpl extends BaseScheduler {
           })
           .on('end', () => {
             this.db.storeStakingRewards(csvData).then(res => {
-              logger.debug(`[${this.name}]: Updated rewards data from '${path}'`)
+              logger.debug(`[${loaderName}]: Updated rewards data from '${path}'`)
             }, err => {
-              logger.error(`[${this.name}]: Failed to store rewards from '${path}'!`, err)
+              logger.error(`[${loaderName}]: Failed to store rewards from '${path}'!`, err)
             })
           })
       }
