@@ -19,9 +19,8 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 
 import BaseScheduler from './base-scheduler'
 
-const epochFromPathRe = /reward\-info\-(?<epoch>\d+)-/g
-
 const getEpochFromPath = (path: string): number => {
+  const epochFromPathRe = /reward\-info\-(?<epoch>\d+)-/g
   const matchResult = epochFromPathRe.exec(path)
   if (matchResult !== null && matchResult !== undefined) {
     const { groups } = matchResult
