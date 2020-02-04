@@ -86,19 +86,30 @@ class DBShelley extends DB<TxType> implements Database<TxType> {
     const { epoch, slot } = await this.getBestBlockNum()
     const currentTime = new Date().toUTCString()
 
-    const dbFields = rewardsData.map((item) => ({
-      epoch: item.epoch,
-      identifier: item.identifier,
-      type: item.type,
-      reward: item.received,
-      around_epoch: epoch,
-      around_slot: slot,
-      around_time: currentTime,
-    }))
+    const dbFields = rewardsData.map((item) => {
+      const changingFields = {
+        type: item.type,
+        reward: item.received,
+        around_epoch: epoch,
+        around_slot: slot,
+        around_time: currentTime,
+      }
+      return {
+        fields: {
+          epoch: item.epoch,
+          identifier: item.identifier,
+          ...changingFields,
+        },
+        onConflictArgs: [
+          ['epoch', 'identifier'],
+          changingFields,
+        ],
+      }
+    })
     for (const dbChunkedFields of _.chunk(dbFields, DB_BULK_UPLOAD_CNT)) {
       const sql = Q.sql.insert().into('staking_rewards')
-        .setFieldsRows(dbChunkedFields)
-        .onConflict()
+        .setFieldsRows(dbChunkedFields.fields)
+        .onConflict(...dbChunkedFields.onConflictArgs)
         .toString()
       await this.getConn().query(sql)
     }
