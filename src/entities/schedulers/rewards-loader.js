@@ -24,10 +24,10 @@ const getEpochFromPath = (path: string): number => {
   const matchResult = epochFromPathRe.exec(path)
   if (matchResult !== null && matchResult !== undefined) {
     const { groups } = matchResult
-    const epoch = groups !== null && groups !== undefined ? groups.epoch : 0
+    const epoch = groups !== null && groups !== undefined ? groups.epoch : -1
     return parseInt(epoch, 10)
   }
-  return 0
+  return -1
 }
 
 class RewardsLoaderImpl extends BaseScheduler {
@@ -53,10 +53,10 @@ class RewardsLoaderImpl extends BaseScheduler {
 
   async run(): Promise<void> {
     this.logger.debug(`[${this.name}]: Subscribe for changes to ${this.jormunRewardsDirPath} dir.`)
-    const csvData = []
     chokidar.watch(this.jormunRewardsDirPath).on('all', (event, path) => {
       const epoch = getEpochFromPath(path)
-      if (epoch > 0) {
+      if (epoch >= 0) {
+        const csvData = []
         fs.createReadStream(path)
           .pipe(csv())
           .on('data', (data) => {
@@ -77,9 +77,7 @@ class RewardsLoaderImpl extends BaseScheduler {
           })
           .on('end', () => {
             this.logger.debug(`Update rewards data from ${path}`)
-            this.db.storeStakingRewards(csvData).then(() => {
-              csvData.length = 0
-            })
+            this.db.storeStakingRewards(csvData)
           })
       }
     })
