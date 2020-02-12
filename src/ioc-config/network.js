@@ -14,6 +14,7 @@ import initShelley from './shelley-config'
 const initNetwork = (container: Container) => {
   const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
   const networkProtocol = networkConfig.networkProtocol()
+  const dataProvider = networkConfig.dataProvider()
 
   if (networkProtocol === NETWORK_PROTOCOL.BYRON) {
     initByron(container)
