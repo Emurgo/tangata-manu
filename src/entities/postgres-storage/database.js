@@ -395,7 +395,6 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
         inputs_amount: txDbFields.inputs_amount,
         outputs_address: txDbFields.outputs_address,
         outputs_amount: txDbFields.outputs_amount,
-        certificates: txDbFields.certificates,
         block_num: txDbFields.block_num,
         block_hash: txDbFields.block_hash,
         time: txDbFields.time,
