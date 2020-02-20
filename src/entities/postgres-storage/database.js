@@ -457,8 +457,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   async queryPendingSet() {
-    const qMaxSnapshotBlockNum =
-      Q.sql.select().from(SNAPSHOTS_TABLE).field('MAX(block_num)');
+    const qMaxSnapshotBlockNum = Q.sql.select().from(SNAPSHOTS_TABLE).field('MAX(block_num)')
     const query = Q.sql.select().from(SNAPSHOTS_TABLE)
       .field('tx_hash')
       .where('block_num = ?', qMaxSnapshotBlockNum)
@@ -471,8 +470,8 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
             Q.sql.select().from(SNAPSHOTS_TABLE)
               .field('1')
               .where('tx_hash = hash')
-              .where('block_num = ?', qMaxSnapshotBlockNum)
-          )
+              .where('block_num = ?', qMaxSnapshotBlockNum),
+          ),
       )
       .toString()
     const dbRes = await this.getConn().query(query)
@@ -481,7 +480,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   async validateAndGroupPendingTxs(
-    txHashes: Array<string>
+    txHashes: Array<string>,
   ): Promise<[Array<string>, Array<string>]> {
     const txs = await this.selectPendingTxsOnly(txHashes)
     const validTxs = []
@@ -497,17 +496,18 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
           }
           return utxo
         })
-      const isAllInputsFree = utxoInputs.length === 0 || (await this.utxosForInputsExists(utxoInputs))
+      const isAllInputsFree = utxoInputs.length === 0
+        || (await this.utxosForInputsExists(utxoInputs))
       if (!isAllInputsFree) {
-        this.logger.info(`[DB.validateAndGroupPendingTxs] tx inputs already spent: `, tx)
+        this.logger.info('[DB.validateAndGroupPendingTxs] tx inputs already spent: ', tx)
         invalidTxs.push(tx.hash)
         continue
       }
       if (this.pendingTxsTimeoutMillis) {
-        const lastUpdateTime = tx.last_update.getTime();
-        const ageMillis = nowMillis - lastUpdateTime;
+        const lastUpdateTime = tx.last_update.getTime()
+        const ageMillis = nowMillis - lastUpdateTime
         if (ageMillis > this.pendingTxsTimeoutMillis) {
-          this.logger.info(`[DB.validateAndGroupPendingTxs] tx has timed out: `, tx)
+          this.logger.info('[DB.validateAndGroupPendingTxs] tx has timed out: ', tx)
           invalidTxs.push(tx.hash)
           continue
         }
@@ -543,11 +543,12 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
   }
 
   async addNewTxsToTransientSnapshots(txHashes: string|Array<string>, txStatus: string) {
-    if (!Array.isArray(txHashes)) {
-      txHashes = [txHashes]
+    let txHashesForSnapshot = txHashes
+    if (!Array.isArray(txHashesForSnapshot)) {
+      txHashesForSnapshot = [txHashes]
     }
-    this.logger.debug('addNewTxsToTransientSnapshots:', txHashes, txStatus)
-    if (_.isEmpty(txHashes)) {
+    this.logger.debug('addNewTxsToTransientSnapshots:', txHashesForSnapshot, txStatus)
+    if (_.isEmpty(txHashesForSnapshot)) {
       this.logger.debug('addNewTxsToTransientSnapshots: No tx is provided')
       return
     }
@@ -556,7 +557,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
        Expected one of: '${TX_STATUS.TX_PENDING_STATUS}' or '${TX_STATUS.TX_FAILED_STATUS}'`)
     }
     const { hash, height } = await this.getBestBlockNum()
-    const dbFields = txHashes.map(txHash => ({
+    const dbFields = txHashesForSnapshot.map(txHash => ({
       tx_hash: txHash,
       block_hash: hash,
       block_num: height,

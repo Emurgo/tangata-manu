@@ -18,12 +18,13 @@
     "no-use-before-define": "off",
     "no-await-in-loop": "off",
     "no-plusplus": "off",
+    "no-continue": "off",
     "no-restricted-syntax": [
       "off",
       "ForOfStatement"
     ],
     "no-underscore-dangle": [
-      2, { "allow": ["_source"] }
+      2, { "allow": ["_source", "_chunk"] }
     ],
     "prefer-destructuring": ["error", {"object": true, "array": false}],
     "semi": ["error", "never"],
