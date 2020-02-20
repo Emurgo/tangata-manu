@@ -48,18 +48,14 @@ class JormungandrApi implements RawDataProvider {
     this.networkSlotsPerEpoch = networkConfig.slotsPerEpoch()
   }
 
-  async getWithRetry(path: string, options: ?object) {
-    for (
-      let n = this.retryCount, alreadyTriedCount = 0;
-      n >= -1;
-      n === -1 ? 0 : n--,
-      ++alreadyTriedCount) {
+  async getWithRetry(path: string, options?: {}) {
+    for (let alreadyTriedCount = 1; ;alreadyTriedCount++) {
       try {
         const resp = await this.get(path, options)
         return resp
       } catch (e) {
         const millisSleep = alreadyTriedCount * MILLIS_RETRY
-        if (n !== 0) {
+        if ((alreadyTriedCount <= this.retryCount) || (this.retryCount !== -1)) {
           this.logger.debug(`[JormungadnrApi.getWithRetry]: Request failed ${alreadyTriedCount} times. Retry in ${millisSleep} millis.`)
           await sleep(millisSleep)
         } else {
