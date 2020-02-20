@@ -15,7 +15,7 @@ import type { NetworkConfig } from '../../interfaces'
 import { getNetworkConfig, sleep } from '../../utils'
 
 const GENESIS_PARENT = '0000000000000000000000000000000000000000000000000000000000000000'
-const MILLIS_RETRY = 1000
+const MILLIS_RETRY = 5000
 
 class JormungandrApi implements RawDataProvider {
   #networkBaseUrl: string
@@ -35,7 +35,7 @@ class JormungandrApi implements RawDataProvider {
     parser: RawDataParser,
     logger: Logger,
     defaultNetwork: string,
-    retryCount: number,
+    retryCount: ?number,
   ) {
     // TODO: change NetworkConfig? the old bridge had different networks since they
     // were just a proxy, but jormungandr nodes don't.
@@ -44,19 +44,23 @@ class JormungandrApi implements RawDataProvider {
     this.#networkBaseUrl = urljoin(network.bridgeUrl, 'api/v0')
     this.#parser = parser
     this.logger = logger
-    this.retryCount = retryCount
+    this.retryCount = retryCount || -1
     this.networkSlotsPerEpoch = networkConfig.slotsPerEpoch()
   }
 
-  async getWithRetry(path: String, options: ?object) {
-    for (const n of _.range(this.retryCount)) {
+  async getWithRetry(path: string, options: ?object) {
+    for (
+      let n = this.retryCount, alreadyTriedCount = 0;
+      n >= -1;
+      n === -1 ? 0 : n--,
+      ++alreadyTriedCount) {
       try {
         const resp = await this.get(path, options)
         return resp
       } catch (e) {
-        const millisSleep = MILLIS_RETRY * n
-        if (n < this.retryCount - 1) {
-          this.logger.debug(`[JormungadnrApi.getWithRetry]: Request failed ${n} times. Retry in ${millisSleep} millis.`)
+        const millisSleep = alreadyTriedCount * MILLIS_RETRY
+        if (n !== 0) {
+          this.logger.debug(`[JormungadnrApi.getWithRetry]: Request failed ${alreadyTriedCount} times. Retry in ${millisSleep} millis.`)
           await sleep(millisSleep)
         } else {
           throw e
