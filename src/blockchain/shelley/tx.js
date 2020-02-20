@@ -5,5 +5,5 @@ import type { CertificateType } from './certificate'
 
 export type ShelleyTxType = {
   ...TxType,
-  certificate: CertificateType,
+  certificate?: CertificateType,
 }

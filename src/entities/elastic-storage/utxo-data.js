@@ -12,6 +12,10 @@ export type UtxoType = {
   amount: number,
 }
 
+export type UtxoPlanObjectType = {
+
+}
+
 export const getTxInputUtxoId = (input: TxInputType) => {
   switch (input.type) {
     case 'utxo':
@@ -63,7 +67,7 @@ class UtxoData extends ElasticData {
     return this.#isAccount
   }
 
-  toPlainObject() {
+  toPlainObject(): UtxoPlanObjectType {
     return {
       id: this.getId(),
       type: this.type,

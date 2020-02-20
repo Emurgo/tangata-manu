@@ -284,6 +284,7 @@ const fragmentToObj = (fragment: any, networkDiscrimination: number,
 const getAccountIdFromAddress = (accountAddressHex: string): {
   type: string,
   accountId?: string,
+  comment?: string
 } => {
   const wasm = global.jschainlibs
   let address
