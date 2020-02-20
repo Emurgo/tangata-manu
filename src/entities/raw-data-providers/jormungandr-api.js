@@ -55,7 +55,7 @@ class JormungandrApi implements RawDataProvider {
         return resp
       } catch (e) {
         const millisSleep = alreadyTriedCount * MILLIS_RETRY
-        if ((alreadyTriedCount <= this.retryCount) || (this.retryCount !== -1)) {
+        if ((alreadyTriedCount <= this.retryCount) || (this.retryCount === -1)) {
           this.logger.debug(`[JormungadnrApi.getWithRetry]: Request failed ${alreadyTriedCount} times. Retry in ${millisSleep} millis.`)
           await sleep(millisSleep)
         } else {
