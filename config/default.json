@@ -30,6 +30,7 @@
   "pendingTxsTimeoutMinutes": 60,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
+  "jormungandrApiRetryCount": 4,
   "defaultNetwork": "itn-rewards-v1",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {

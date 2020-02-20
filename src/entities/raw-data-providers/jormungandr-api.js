@@ -1,5 +1,6 @@
 // @flow
 
+import _ from 'lodash'
 import urljoin from 'url-join'
 import axios from 'axios'
 
@@ -11,9 +12,10 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { NetworkConfig } from '../../interfaces'
 
 // these two are for getting the network instead of using NetworkConfig
-import { getNetworkConfig } from '../../utils'
+import { getNetworkConfig, sleep } from '../../utils'
 
 const GENESIS_PARENT = '0000000000000000000000000000000000000000000000000000000000000000'
+const MILLIS_RETRY = 1000
 
 class JormungandrApi implements RawDataProvider {
   #networkBaseUrl: string
@@ -21,6 +23,8 @@ class JormungandrApi implements RawDataProvider {
   #parser: any
 
   #idToHeight: any
+
+  retryCount: number
 
   logger: Logger
 
@@ -31,6 +35,7 @@ class JormungandrApi implements RawDataProvider {
     parser: RawDataParser,
     logger: Logger,
     defaultNetwork: string,
+    retryCount: number,
   ) {
     // TODO: change NetworkConfig? the old bridge had different networks since they
     // were just a proxy, but jormungandr nodes don't.
@@ -39,12 +44,30 @@ class JormungandrApi implements RawDataProvider {
     this.#networkBaseUrl = urljoin(network.bridgeUrl, 'api/v0')
     this.#parser = parser
     this.logger = logger
+    this.retryCount = retryCount
     this.networkSlotsPerEpoch = networkConfig.slotsPerEpoch()
+  }
+
+  async getWithRetry(path: String, options: ?object) {
+    for (const n of _.range(this.retryCount)) {
+      try {
+        const resp = await this.get(path, options)
+        return resp
+      } catch (e) {
+        const millisSleep = MILLIS_RETRY * n
+        if (n < this.retryCount - 1) {
+          this.logger.debug(`[JormungadnrApi.getWithRetry]: Request failed ${n} times. Retry in ${millisSleep} millis.`)
+          await sleep(millisSleep)
+        } else {
+          throw e
+        }
+      }
+    }
   }
 
   // not sure if needed
   async getJson(path: string) {
-    const resp = await this.get(path, {
+    const resp = await this.getWithRetry(path, {
       responseType: 'json',
     })
     return resp
@@ -89,7 +112,7 @@ class JormungandrApi implements RawDataProvider {
   }
 
   async getTip() {
-    const resp = await this.get('tip')
+    const resp = await this.getWithRetry('tip')
     return resp
   }
 
@@ -126,7 +149,7 @@ class JormungandrApi implements RawDataProvider {
 
   async getBlock(id: string): Promise<string> {
     this.logger.debug(`jormun GET BLOCK: ${id}`)
-    const resp = await this.get(`block/${id}`)
+    const resp = await this.getWithRetry(`block/${id}`)
     const { data } = resp
     return data
   }
@@ -141,7 +164,7 @@ class JormungandrApi implements RawDataProvider {
   // TODO: remove once we support querying by height
   async getNextBlockId(id: string): Promise<string> {
     this.logger.debug(`getNextBlockId(${id})`)
-    const resp = await this.get(`block/${id}/next_id`)
+    const resp = await this.getWithRetry(`block/${id}/next_id`)
     if (resp.status === 200) {
       const { data } = resp
       const hex = data.toString('hex')
@@ -212,6 +235,7 @@ helpers.annotate(JormungandrApi, [
   SERVICE_IDENTIFIER.RAW_DATA_PARSER,
   SERVICE_IDENTIFIER.LOGGER,
   'defaultNetwork',
+  'jormungandrApiRetryCount',
 ])
 
 export default JormungandrApi
