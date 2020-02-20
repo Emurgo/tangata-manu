@@ -74,18 +74,20 @@ const startServer = async () => {
     process.exit(1)
   })
 
+  const storageName = container.getNamed('storageProcessor')
   if (networkConfig.networkProtocol() === NETWORK_PROTOCOL.SHELLEY) {
     const gitHubLoader = container.get<Scheduler>(SERVICE_IDENTIFIER.GITHUB_LOADER)
     gitHubLoader.run()
 
-    const memPoolChecker = container.get<Scheduler>(SERVICE_IDENTIFIER.MEMPOOL_CHECKER)
-    memPoolChecker.run()
+    if (storageName === YOROI_POSTGRES) {
+      const memPoolChecker = container.get<Scheduler>(SERVICE_IDENTIFIER.MEMPOOL_CHECKER)
+      memPoolChecker.run()
 
-    const rewardsLoader = container.get<RewardsLoader>(SERVICE_IDENTIFIER.REWARDS_LOADER)
-    rewardsLoader.run()
+      const rewardsLoader = container.get<RewardsLoader>(SERVICE_IDENTIFIER.REWARDS_LOADER)
+      rewardsLoader.run()
+    }
   }
 
-  const storageName = container.getNamed('storageProcessor')
   const serverConfig = container.getNamed('server')
   if (storageName === YOROI_POSTGRES) {
     const server = new InversifyRestifyServer(container)

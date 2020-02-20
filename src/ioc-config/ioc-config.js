@@ -32,7 +32,6 @@ const initIoC = async () => {
   container.load(configBinder.getModule())
   container.load(loggerModule)
   container.load(networkConfigModule)
-  await container.loadAsync(dbModule)
 
   initNetwork(container)
 
@@ -42,6 +41,7 @@ const initIoC = async () => {
   initStorageProcessor(container)
   const storageName = container.getNamed('storageProcessor')
   if (storageName === YOROI_POSTGRES) {
+    await container.loadAsync(dbModule)
     initRoutes(container)
     const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
     const networkProtocol = networkConfig.networkProtocol()
