@@ -220,7 +220,7 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
 
   async rollbackTo(height: number) {
     await sleep(10000)
-    const [ latestStableChunk, rollbackChunk ] = await Promise.all([
+    const [latestStableChunk, rollbackChunk] = await Promise.all([
       this.getLatestStableChunk(),
       this.getChunkForBlockHeight(height),
     ])
@@ -264,7 +264,7 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
         query: { range: { height: { lte: height } } },
         sort: [{ height: { order: 'desc' } }],
         size: 1,
-        _source: ['_chunk']
+        _source: ['_chunk'],
       },
     })
     this.logger.debug(`[getChunkForBlockHeight(${height})] `, hits)
@@ -607,7 +607,8 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
 
     // Commit every 10th chunk
     const isCommitChunk = (chunk % 10 === 0) || isGenesisBlock
-    const sleepOnChunkMillis = (isCommitChunk ? this.sleepOnCommitChunkSeconds : this.sleepOnEveryChunkSeconds) * 1000
+    const sleepOnChunkMillis = (isCommitChunk ? this.sleepOnCommitChunkSeconds
+      : this.sleepOnEveryChunkSeconds) * 1000
     if (sleepOnChunkMillis > 0) {
       await sleep(sleepOnChunkMillis)
       if (isCommitChunk) {

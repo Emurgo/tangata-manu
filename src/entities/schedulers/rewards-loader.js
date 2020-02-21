@@ -1,6 +1,6 @@
 // @flow
 
-import path from 'path'
+import pathModule from 'path'
 
 import type { Logger } from 'bunyan'
 
@@ -20,7 +20,7 @@ import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import BaseScheduler from './base-scheduler'
 
 const getEpochFromPath = (path: string): number => {
-  const epochFromPathRe = /reward\-info\-(?<epoch>\d+)-/g
+  const epochFromPathRe = /reward-info-(?<epoch>\d+)-/g
   const matchResult = epochFromPathRe.exec(path)
   if (matchResult !== null && matchResult !== undefined) {
     const { groups } = matchResult
@@ -45,14 +45,14 @@ class RewardsLoaderImpl extends BaseScheduler {
   ) {
     super(logger)
     this.name = 'RewardsLoader'
-    this.jormunRewardsDirPath = path.resolve(jormunRewardsDirPath)
+    this.jormunRewardsDirPath = pathModule.resolve(jormunRewardsDirPath)
     this.networkDiscrimination = networkConfig.networkDiscrimination()
     this.db = db
   }
 
 
   async run(): Promise<void> {
-    const logger = this.logger;
+    const { logger } = this
     logger.debug(`[${this.name}]: Subscribe for changes to ${this.jormunRewardsDirPath} dir.`)
     chokidar.watch(this.jormunRewardsDirPath).on('all', (event, path) => {
       const epoch = getEpochFromPath(path)
@@ -61,12 +61,12 @@ class RewardsLoaderImpl extends BaseScheduler {
         fs.createReadStream(path)
           .pipe(csv())
           .on('data', (data) => {
-            const type = data.type;
-            const isPool = type === 'pool';
-            const isAccount = type === 'account';
+            const { type } = data
+            const isPool = type === 'pool'
+            const isAccount = type === 'account'
             if (isPool || isAccount) {
-              const identifier = isAccount ?
-                utils.identifierToAddress(data.identifier, this.networkDiscrimination)
+              const identifier = isAccount
+                ? utils.identifierToAddress(data.identifier, this.networkDiscrimination)
                 : data.identifier
               csvData.push({
                 epoch,
@@ -77,7 +77,7 @@ class RewardsLoaderImpl extends BaseScheduler {
             }
           })
           .on('end', () => {
-            this.db.storeStakingRewards(csvData).then(res => {
+            this.db.storeStakingRewards(csvData).then(() => {
               logger.debug(`[${this.name}]: Updated rewards data from '${path}'`)
             }, err => {
               logger.error(`[${this.name}]: Failed to store rewards from '${path}'!`, err)

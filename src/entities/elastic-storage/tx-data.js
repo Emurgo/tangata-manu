@@ -6,19 +6,21 @@
 import _ from 'lodash'
 
 import BigNumber from 'bignumber.js'
-import type { TxType } from '../../blockchain/common'
+import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 import { utils } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
+import type { UtxoPlainObjectType } from './utxo-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
 import AccountInputData from './account-input-data'
 import AccountOutputData from './account-output-data'
 import { shelleyUtils } from '../../blockchain/shelley'
+import type { CertificateType } from '../../blockchain/shelley/certificate'
 import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 class TxData extends ElasticData {
-  tx: TxType
+  tx: ShelleyTxType
 
   resolvedInputs: Array<InputData>
 
@@ -41,7 +43,7 @@ class TxData extends ElasticData {
   delegationStates: Array<{ [string]: any }> = []
 
   constructor(
-    tx: TxType,
+    tx: ShelleyTxType,
     inputsUtxos: {} = {},
     txTrackedState: { [string]: any } = {},
     addressStates: { [string]: any } = {},
@@ -189,19 +191,23 @@ class TxData extends ElasticData {
       if (isNewAddress) {
         newAddresses += 1
       }
+      const delegationData: {|
+        delegation_after_this_tx?: number,
+        delegated_pool_after_this_tx?: any
+      |} = isAddressAccount ? {
+        delegation_after_this_tx: delegation_after_this_tx + accountDelegationDiff,
+        delegated_pool_after_this_tx: newDelegatedPool || delegated_pool_after_this_tx,
+      } : { ...null }
       const newState = {
         address,
         is_account: isAddressAccount,
         balance_after_this_tx: balance_after_this_tx + addressBalanceDiff,
-        ...(isAddressAccount ? {
-          delegation_after_this_tx: delegation_after_this_tx + accountDelegationDiff,
-          delegated_pool_after_this_tx: newDelegatedPool || delegated_pool_after_this_tx,
-        } : {}),
+        ...delegationData,
         tx_num_after_this_tx: tx_num_after_this_tx + (isAddressInput || isAddressOutput ? 1 : 0),
         sent_tx_num_after_this_tx: sent_tx_num_after_this_tx + (isAddressInput ? 1 : 0),
         received_tx_num_after_this_tx: received_tx_num_after_this_tx + (isAddressOutput ? 1 : 0),
         state_ordinal: state_ordinal + 1,
-        ...(isNewAddress ? { new_address: true } : {}),
+        ...((isNewAddress ? { new_address: true } : { ...null }): {| new_address?: boolean|}),
       }
       addressStates[address] = newState
       const oldPool = delegated_pool_after_this_tx
@@ -300,16 +306,25 @@ class TxData extends ElasticData {
     })
   }
 
-  getOutputsData() {
+  getOutputsData(): Array<UtxoPlainObjectType> {
     return this.resolvedOutputs.map(o => o.toPlainObject())
   }
 
-  getInputsData() {
+  getInputsData(): Array<UtxoPlainObjectType> {
     return this.resolvedInputs.map(i => i.toPlainObject())
   }
 
   toPlainObject() {
     const { certificate } = this.tx
+    const certificatesData: {|
+      certificates?: Array<CertificateType>
+    |} = certificate ? { certificates: [certificate] } : { ...null }
+
+    const supplyAfterThisTxData: {|
+      supply_after_this_tx?: any
+    |} = this.tx.isGenesis ? { ...null } : {
+      supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
+    }
     return {
       ...TxData.getBaseFields(),
       is_genesis: this.tx.isGenesis || false,
@@ -330,10 +345,8 @@ class TxData extends ElasticData {
       fees: coinFormat(this.fee),
       new_addresses: this.newAddresses,
       time: this.tx.txTime.toISOString(),
-      ...(this.tx.isGenesis ? {} : {
-        supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
-      }),
-      ...(certificate ? { certificates: [certificate] } : {}),
+      ...supplyAfterThisTxData,
+      ...certificatesData,
       ...(this.poolStates ? { pools: this.poolStates } : {}),
       delegation: this.delegationStates.map(s => ({
         ...s,
