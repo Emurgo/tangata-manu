@@ -720,7 +720,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 
 
 helpers.annotate(DB, [
-  SERVICE_IDENTIFIER.DB_CONNECTION,
+  { type: SERVICE_IDENTIFIER.DB_CONNECTION, named: 'dbConnection' },
   SERVICE_IDENTIFIER.LOGGER,
   'pendingTxsTimeoutMinutes',
 ])

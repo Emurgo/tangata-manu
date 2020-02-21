@@ -13,7 +13,8 @@ const createDb = async (dbSettings: PgPoolConfig): Promise<Pool> => (new pg.Pool
 
 const cardanoExplorerDbModule = new AsyncContainerModule(async (bind: interfaces.Bind) => {
   const dbConn = await createDb(config.get('cardanoExplorerDb'))
-  bind<DBConnection>(SERVICE_IDENTIFIER.DB_CONNECTION).toConstantValue(dbConn).whenTargetNamed('cardanoExplorerDb')
+  bind<DBConnection>(SERVICE_IDENTIFIER.DB_CONNECTION)
+    .toConstantValue(dbConn).whenTargetNamed('cardanoExplorerDbConnection')
 })
 
 export default cardanoExplorerDbModule

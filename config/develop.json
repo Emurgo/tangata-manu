@@ -15,6 +15,7 @@
     "user": "postgres",
     "host": "localhost",
     "database": "cexplorer",
+    "password": "mysecretpassword",
     "port": 5432,
     "min": 4,
     "max": 20,
