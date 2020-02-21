@@ -390,11 +390,17 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     if (upsert) {
       const now = new Date().toUTCString()
       onConflictArgs.push('hash', {
+        inputs: txDbFields.inputs,
+        inputs_address: txDbFields.inputs_address,
+        inputs_amount: txDbFields.inputs_amount,
+        outputs_address: txDbFields.outputs_address || null,
+        outputs_amount: txDbFields.outputs_amount || null,
         block_num: txDbFields.block_num,
         block_hash: txDbFields.block_hash,
         time: txDbFields.time,
         tx_state: txDbFields.tx_state,
         last_update: now,
+        tx_body: txDbFields.tx_body,
         tx_ordinal: txDbFields.tx_ordinal,
       })
     }
@@ -649,7 +655,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
         return false
       }))
     }
-    this.logger.debug('storeBlockTxs.requiredUtxo', requiredUtxoIds)
+    this.logger.debug('collectTxsData.requiredUtxo', requiredUtxoIds)
     const availableUtxos = await this.getUtxos(requiredUtxoIds)
     const allUtxoMap = _.keyBy([...availableUtxos, ...blockUtxos], 'id')
     return {
