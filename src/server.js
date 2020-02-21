@@ -57,7 +57,7 @@ const startServer = async () => {
 
   if (process.env.TANGATA_ROLLBACK_TO !== undefined) {
     const blockNum = parseInt(process.env.TANGATA_ROLLBACK_TO, 10)
-    storageProcessor.rollbackTo(blockNum)
+    await storageProcessor.rollbackTo(blockNum)
     return
   }
 
