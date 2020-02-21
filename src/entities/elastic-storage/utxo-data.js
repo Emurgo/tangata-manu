@@ -1,5 +1,6 @@
 // @flow
 
+import type { CoinDataType } from './elastic-data'
 import ElasticData, { coinFormat } from './elastic-data'
 import type { TxInputType } from '../../blockchain/common'
 
@@ -12,8 +13,16 @@ export type UtxoType = {
   amount: number,
 }
 
-export type UtxoPlanObjectType = {
-
+export type UtxoPlainObjectType = {
+  id: string,
+  type: string,
+  tx_hash: string,
+  block_hash: string,
+  branch: number,
+  tx_ordinal: number,
+  io_ordinal: number,
+  address: string,
+  value: CoinDataType,
 }
 
 export const getTxInputUtxoId = (input: TxInputType) => {
@@ -67,7 +76,7 @@ class UtxoData extends ElasticData {
     return this.#isAccount
   }
 
-  toPlainObject(): UtxoPlanObjectType {
+  toPlainObject(): UtxoPlainObjectType {
     return {
       id: this.getId(),
       type: this.type,

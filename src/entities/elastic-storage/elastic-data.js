@@ -4,7 +4,13 @@ import BigNumber from 'bignumber.js'
 
 const LOVELACE_IN_ADA = 1000000
 
-export const coinFormat = (num: number|BigNumber) => {
+export type CoinDataType = {
+  integers: number,
+  decimals: number,
+  full: number,
+}
+
+export const coinFormat = (num: number|BigNumber): CoinDataType => {
   if (BigNumber.isBigNumber(num)) {
     return {
       integers: Math.floor(num.dividedBy(LOVELACE_IN_ADA).toNumber()),

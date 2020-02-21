@@ -10,12 +10,13 @@ import type { ShelleyTxType } from '../../blockchain/shelley/tx'
 import { utils } from '../../blockchain/common'
 
 import ElasticData, { coinFormat } from './elastic-data'
-import type { UtxoPlanObjectType } from './utxo-data'
+import type { UtxoPlainObjectType } from './utxo-data'
 import UtxoData from './utxo-data'
 import InputData from './input-data'
 import AccountInputData from './account-input-data'
 import AccountOutputData from './account-output-data'
 import { shelleyUtils } from '../../blockchain/shelley'
+import type { CertificateType } from '../../blockchain/shelley/certificate'
 import { CERT_TYPE } from '../../blockchain/shelley/certificate'
 
 class TxData extends ElasticData {
@@ -305,18 +306,18 @@ class TxData extends ElasticData {
     })
   }
 
-  getOutputsData(): Array<UtxoPlanObjectType> {
+  getOutputsData(): Array<UtxoPlainObjectType> {
     return this.resolvedOutputs.map(o => o.toPlainObject())
   }
 
-  getInputsData(): Array<UtxoPlanObjectType> {
+  getInputsData(): Array<UtxoPlainObjectType> {
     return this.resolvedInputs.map(i => i.toPlainObject())
   }
 
   toPlainObject() {
     const { certificate } = this.tx
     const certificatesData: {|
-      certificates?: Array<any>
+      certificates?: Array<CertificateType>
     |} = certificate ? { certificates: [certificate] } : { ...null }
 
     const supplyAfterThisTxData: {|
