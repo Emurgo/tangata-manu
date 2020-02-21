@@ -9,7 +9,7 @@
   "db": {},
   "storageProcessor": "yoroi-postgres",
   "server": {
-    "port": 8087,
+    "port": 8080,
     "logLevel": "debug",
     "logRequests": "true",
     "apiConfig": {
