@@ -55,6 +55,12 @@ const startServer = async () => {
 
   await storageProcessor.onLaunch()
 
+  if (process.env.TANGATA_ROLLBACK_TO !== undefined) {
+    const blockNum = parseInt(process.env.TANGATA_ROLLBACK_TO, 10)
+    await storageProcessor.rollbackTo(blockNum)
+    return
+  }
+
   const genesisLoaded = await storageProcessor.genesisLoaded()
   if (!genesisLoaded) {
     logger.info('Start to upload genesis.')
