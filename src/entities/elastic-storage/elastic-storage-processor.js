@@ -438,6 +438,10 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
       refresh: 'true',
       body,
     })
+    if (resp.body.errors) {
+      this.logger.error('bulkUpload error:', resp)
+      throw new Error('bulkUpload failed to upload all documents')
+    }
     this.logger.debug('bulkUpload', { ...resp, body: { ...resp.body, items: undefined } })
     return resp
   }
