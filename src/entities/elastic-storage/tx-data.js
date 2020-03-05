@@ -319,7 +319,7 @@ class TxData extends ElasticData {
       addresses: this.addressStates.map(s => ({
         ...s,
         balance_after_this_tx: coinFormat(s.balance_after_this_tx),
-        ...(s.delegation_after_this_tx ? {
+        ...(s.delegation_after_this_tx !== undefined ? {
           delegation_after_this_tx: coinFormat(s.delegation_after_this_tx),
         } : {}),
       })),
