@@ -391,8 +391,9 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       const now = new Date().toUTCString()
       onConflictArgs.push('hash', {
         inputs: txDbFields.inputs,
-        inputs_address: txDbFields.inputs_address,
-        inputs_amount: txDbFields.inputs_amount,
+        // inputs and outputs can be empty(especially in genesis block)
+        inputs_address: txDbFields.inputs_address || null,
+        inputs_amount: txDbFields.inputs_amount || null,
         outputs_address: txDbFields.outputs_address || null,
         outputs_amount: txDbFields.outputs_amount || null,
         block_num: txDbFields.block_num,
