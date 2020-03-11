@@ -58,11 +58,20 @@ We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrati
 
 # Run development environment
 
+## Run `itn`
+1. Start postgres, `docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres`
+1. Run [Jormungandr](https://github.com/input-output-hk/jormungandr) instance with REST API enabled.
+1. Go to `tangata-manu` directory, `cd tangata-manu`
+1. Start the app, `TANGATA_BRIDGE_URL=http://jormun-instance:port/ yarn run dev`.
+
+
+## Run `mainnet`
 1. Start postgres, `docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres`
 1. Go to `cardano-http-bridge` directory, `cd cardano-http-bridge`
-1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=testnet2`
-1. Go to `yoroi-importer` directory, `cd yoroi-importer`
-1. Start the app, `yarn run dev`.
+1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=mainnet`
+1. Go to `tangata-manu` directory, `cd tangata-manu`
+1. Start the app, `TANGATA_DEFAULT_NETWORK=mainnet yarn run dev`.
+
 
 # Documentation
 
