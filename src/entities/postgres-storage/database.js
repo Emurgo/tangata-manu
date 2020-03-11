@@ -390,7 +390,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     if (upsert) {
       const now = new Date().toUTCString()
       onConflictArgs.push('hash', {
-        inputs: txDbFields.inputs,
+        inputs: txDbFields.inputs || null,
         // inputs and outputs can be empty(especially in genesis block)
         inputs_address: txDbFields.inputs_address || null,
         inputs_amount: txDbFields.inputs_amount || null,
@@ -420,7 +420,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 
   async storeTx(tx: ShelleyTxType,
     txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
-    const txDbData = this.getTxDBData(tx, txUtxos)
+    const txDbData = await this.getTxDBData(tx, txUtxos)
     await this.storeTxImpl(tx, txUtxos, upsert, txDbData)
   }
 
