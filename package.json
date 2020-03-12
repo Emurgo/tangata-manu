@@ -9,7 +9,7 @@
     "build": "babel src -d dist",
     "eslint": "eslint --ignore-path .gitignore src",
     "dev": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js --max_old_space_size=4096 --inspect --exec babel-node | bunyan",
-    "prod": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && babel-node ./src/index.js --max_old_space_size=4096 --inspect | bunyan",
+    "prod": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-production} && babel-node ./src/index.js --max_old_space_size=4096 --inspect | bunyan",
     "start": "yarn run dev",
     "start:prod": "yarn run prod",
     "test": "jest",
