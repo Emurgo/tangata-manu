@@ -18,6 +18,7 @@ import {
 } from '../interfaces'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import dbModule from './db'
+import cardanoExplorerDbModule from './cardano-explorer-db'
 import loggerModule from './logger'
 import networkConfigModule from './network-config'
 import initRoutes from './routes'
@@ -33,6 +34,7 @@ const initIoC = async () => {
   container.load(loggerModule)
   container.load(networkConfigModule)
   await container.loadAsync(dbModule)
+  await container.loadAsync(cardanoExplorerDbModule)
 
   initNetwork(container)
 

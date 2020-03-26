@@ -9,6 +9,7 @@ type NetworkConfigType = {
   networkMagic: number,
   protocol: string,
   networkDiscrimination?: string,
+  dataProvider?: string
 }
 
 export const getNetworkConfig = (networkName: string): NetworkConfigType => {

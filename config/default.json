@@ -7,6 +7,7 @@
     "sleepOnCommitChunkSeconds": 5
   },
   "db": {},
+  "cardanoExplorerDb": {},
   "storageProcessor": "yoroi-postgres",
   "server": {
     "port": 8080,
@@ -30,7 +31,7 @@
   "pendingTxsTimeoutMinutes": 60,
   "rollbackBlocksCount": 25,
   "maxBlockBatchSize": 900,
-  "defaultNetwork": "itn-rewards-v1",
+  "defaultNetwork": "mainnet",
   "defaultBridgeUrl": "http://localhost:8082",
   "networks": {
     "testnet2": {
@@ -45,7 +46,8 @@
     "mainnet": {
       "genesis": "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb",
       "startTime": 1506203091,
-      "protocol": "byron"
+      "protocol": "byron",
+      "dataProvider": "cardano-explorer"
     },
     "jormun-testnet": {
       "genesis": "c511043dda377d7764d9f01d721ddea323f2a01b1e89f62c8ee587a65d7a1487",

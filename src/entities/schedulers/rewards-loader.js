@@ -52,7 +52,7 @@ class RewardsLoaderImpl extends BaseScheduler {
 
 
   async run(): Promise<void> {
-    const logger = this.logger;
+    const { logger } = this
     logger.debug(`[${this.name}]: Subscribe for changes to ${this.jormunRewardsDirPath} dir.`)
     chokidar.watch(this.jormunRewardsDirPath).on('all', (event, path) => {
       const epoch = getEpochFromPath(path)
@@ -61,12 +61,12 @@ class RewardsLoaderImpl extends BaseScheduler {
         fs.createReadStream(path)
           .pipe(csv())
           .on('data', (data) => {
-            const type = data.type;
-            const isPool = type === 'pool';
-            const isAccount = type === 'account';
+            const { type } = data
+            const isPool = type === 'pool'
+            const isAccount = type === 'account'
             if (isPool || isAccount) {
-              const identifier = isAccount ?
-                utils.identifierToAddress(data.identifier, this.networkDiscrimination)
+              const identifier = isAccount
+                ? utils.identifierToAddress(data.identifier, this.networkDiscrimination)
                 : data.identifier
               csvData.push({
                 epoch,

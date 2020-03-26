@@ -4,6 +4,8 @@ import { Block } from '../common'
 import type { EpochIdType, SlotIdType, TxType } from '../common'
 import shelleyUtils from './utils'
 
+export const GENESIS_PARENT = '0000000000000000000000000000000000000000000000000000000000000000'
+
 export type HeaderType = Array<any>
 
 export default class ShelleyBlock implements Block {
@@ -168,7 +170,7 @@ export default class ShelleyBlock implements Block {
     }
     fragments.free()
 
-    let slotLeader = shelleyUtils.consumeOptionalValueToString(block.leader_id())
+    const slotLeader = shelleyUtils.consumeOptionalValueToString(block.leader_id())
     block.free()
     return new ShelleyBlock(blockHash,
       slotId,

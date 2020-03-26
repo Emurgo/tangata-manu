@@ -10,10 +10,10 @@ import { RawDataProvider, RawDataParser } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
 import type { NetworkConfig } from '../../interfaces'
 
+import { GENESIS_PARENT } from '../../blockchain/shelley/block'
+
 // these two are for getting the network instead of using NetworkConfig
 import { getNetworkConfig } from '../../utils'
-
-const GENESIS_PARENT = '0000000000000000000000000000000000000000000000000000000000000000'
 
 class JormungandrApi implements RawDataProvider {
   #networkBaseUrl: string

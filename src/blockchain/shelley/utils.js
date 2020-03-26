@@ -47,13 +47,13 @@ const consumeOptionalValueToString = (value: any): ?string => {
 }
 
 // frees input rust-wasm Value and parses it into a js number
-const consumeOptionalValueToNumber = (value: any): ?number => {
+const consumeOptionalValueToNumber = (value: any): ?number =>
   // TODO: Values are returned as strings under the rationale that js strings
   // can only fit a 52-bit radix as integers, but since the max ADA supply is smaller
   // than this (but bigger than a 32-bit int) this should be safe. We should try and
   // see if this can be changed in js-chain-libs and use that there instead.
-  return value ? parseInt(consumeOptionalValueToString(value), 10) : null;
-}
+  (value ? parseInt(consumeOptionalValueToString(value), 10) : null)
+
 
 // frees any generic rust-wasm id (anything with as_bytes()) and creates a hex string buffer from it
 const consumeIdToHex = (id: any): string => {

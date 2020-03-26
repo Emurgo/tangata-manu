@@ -10,7 +10,7 @@ import type {
   StorageProcessor,
   NetworkConfig,
 } from '../interfaces'
-import { NETWORK_PROTOCOL } from './network-config'
+import { NETWORK_PROTOCOL, DATA_PROVIDER } from './network-config'
 import SERVICE_IDENTIFIER from '../constants/identifiers'
 import type { Block } from '../blockchain/common'
 
@@ -54,6 +54,8 @@ class CronScheduler implements Scheduler {
 
   consecutiveRollbackCounter: number = 0
 
+  dataProviderName: string
+
   constructor(
     dataProvider: RawDataProvider,
     checkTipSeconds: number,
@@ -76,6 +78,7 @@ class CronScheduler implements Scheduler {
     // TODO: this can't be the best way, can it? (for jormungandr next_id syncing)
     this.#genesisHash = networkConfig.genesisHash()
     this.networkProtocol = networkConfig.networkProtocol()
+    this.dataProviderName = networkConfig.dataProvider()
     logger.debug(`genesisHash = ${this.#genesisHash}`)
   }
 
@@ -185,7 +188,9 @@ class CronScheduler implements Scheduler {
     }
     this.logger.debug(`Last imported block ${height}. Node status: local=${tipStatus.slot} remote=${remoteStatus.slot} packedEpochs=${packedEpochs}`)
     const [remEpoch, remSlot] = remoteStatus.slot
-    if (this.networkProtocol === NETWORK_PROTOCOL.BYRON && epoch < remEpoch) {
+    if (this.networkProtocol === NETWORK_PROTOCOL.BYRON
+      && this.dataProviderName === DATA_PROVIDER.CARDANO_BRIDGE
+      && epoch < remEpoch) {
       // If local epoch is lower than the current network tip
       // there's a potential for us to download full epochs, instead of single blocks
       // Calculate latest stable remote epoch

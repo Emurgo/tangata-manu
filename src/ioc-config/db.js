@@ -13,7 +13,8 @@ const createDb = async (dbSettings: PgPoolConfig): Promise<Pool> => (new pg.Pool
 
 const dbModule = new AsyncContainerModule(async (bind: interfaces.Bind) => {
   const dbConn = await createDb(config.get('db'))
-  bind<DBConnection>(SERVICE_IDENTIFIER.DB_CONNECTION).toConstantValue(dbConn)
+  bind<DBConnection>(SERVICE_IDENTIFIER.DB_CONNECTION).
+    toConstantValue(dbConn).whenTargetNamed('dbConnection')
 })
 
 export default dbModule

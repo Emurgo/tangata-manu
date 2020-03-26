@@ -5,9 +5,8 @@ import axios from 'axios'
 
 import { helpers } from 'inversify-vanillajs-helpers'
 
-import { RawDataProvider, RawDataParser } from '../../interfaces'
+import type { RawDataProvider, RawDataParser, NetworkConfig } from '../../interfaces'
 import SERVICE_IDENTIFIER from '../../constants/identifiers'
-import type { NetworkConfig } from '../../interfaces'
 
 
 class CardanoBridgeApi implements RawDataProvider {

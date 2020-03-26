@@ -13,6 +13,12 @@ export const NETWORK_PROTOCOL = {
   SHELLEY: 'shelley',
 }
 
+export const DATA_PROVIDER = {
+  CARDANO_EXPLORER: 'cardano-explorer',
+  CARDANO_BRIDGE: 'cardano-http-bridge',
+  JORMUNGANDR: 'jormungandr',
+}
+
 const BYRON_DEFAULTS = {
   slotsPerEpoch: 21600,
   slotDurationSeconds: 20,
@@ -37,6 +43,8 @@ class NetworkConfigImp implements NetworkConfig {
 
   #networkDiscrimination: ?string
 
+  #dataProvider: ?string
+
   constructor() {
     this.#networkName = process.env.importer_network || config.get('defaultNetwork')
     const network = getNetworkConfig(this.#networkName)
@@ -48,9 +56,20 @@ class NetworkConfigImp implements NetworkConfig {
     this.#networkMagic = network.networkMagic
     this.#networkProtocol = network.protocol
     this.#networkDiscrimination = network.networkDiscrimination
+    this.#dataProvider = network.dataProvider
   }
 
   networkName = () => this.#networkName
+
+  dataProvider = () => {
+    if (this.#dataProvider !== undefined) {
+      return this.#dataProvider
+    }
+    if (this.networkProtocol() === NETWORK_PROTOCOL.BYRON) {
+      return DATA_PROVIDER.CARDANO_BRIDGE
+    }
+    return DATA_PROVIDER.JORMUNGANDR
+  }
 
   startTime = () => this.#startTime
 
