@@ -349,6 +349,10 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
 
   async storeGenesisLeaders(leaders: Array<GenesisLeaderType>) {
     this.logger.debug('storeGenesisLeaders')
+    if (_.isEmpty(leaders)) {
+      this.logger.debug('storeGenesisLeaders: no leaders.')
+      return
+    }
     this.setGenesisLeaders(leaders)
     const leadersBody = formatBulkUploadBody(leaders, {
       index: this.indexFor(INDEX_LEADERS),
