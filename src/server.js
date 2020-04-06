@@ -16,7 +16,7 @@ import {
 import SERVICE_IDENTIFIER from './constants/identifiers'
 
 import initIoC from './ioc-config'
-import { NETWORK_PROTOCOL } from './entities/network-config'
+import { NETWORK_PROTOCOL, DATA_PROVIDER } from './entities/network-config'
 import { YOROI_POSTGRES } from './ioc-config/storage-processor'
 
 const loadGenesis = async (container) => {
@@ -27,6 +27,12 @@ const loadGenesis = async (container) => {
     const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
     await scheduler.processBlockById(networkConfig.genesisHash())
     logger.debug(`loadGenesis: ${NETWORK_PROTOCOL.SHELLEY}: loaded.`)
+    return
+  }
+  if (networkConfig.dataProvider() === DATA_PROVIDER.CARDANO_EXPLORER) {
+    const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
+    await scheduler.processBlockById(networkConfig.genesisHash())
+    logger.debug(`loadGenesis: ${NETWORK_PROTOCOL.BYRON}: loaded.`)
     return
   }
   const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)

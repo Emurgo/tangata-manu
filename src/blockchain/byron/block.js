@@ -39,7 +39,7 @@ export default class ByronBlock implements Block {
 
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
-    time, lead, slotLeaderPk, size,
+    time, lead, slotLeaderPk, size, isGenesis,
   }: {hash: string,
     slot: ?number,
     epoch: number,
@@ -50,7 +50,8 @@ export default class ByronBlock implements Block {
     prevHash: string,
     time: Date,
     lead: ?string,
-    slotLeaderPk: ?string
+    slotLeaderPk: ?string,
+    isGenesis: ?boolean,
   }) {
     this.hash = hash
     this.prevHash = prevHash
@@ -63,7 +64,7 @@ export default class ByronBlock implements Block {
     this.lead = lead
     this.slotLeaderPk = slotLeaderPk
     this.size = size
-    this.isGenesis = false
+    this.isGenesis = isGenesis || false
   }
 
   serialize() {

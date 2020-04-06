@@ -75,7 +75,7 @@ class TxData extends ElasticData {
       })
     })
 
-    const prevSupply: BigNumber = txTrackedState.supply_after_this_tx
+    const prevSupply: BigNumber = txTrackedState.supply_after_this_tx || new BigNumber(0)
 
     if (this.resolvedInputs.length === 1
      && this.resolvedOutputs.length === 1
@@ -329,7 +329,7 @@ class TxData extends ElasticData {
       sum_outputs: coinFormat(this.sumOutputs),
       fees: coinFormat(this.fee),
       new_addresses: this.newAddresses,
-      time: this.tx.txTime.toISOString(),
+      time: (typeof this.tx.txTime === 'string') ? this.tx.txTime : this.tx.txTime.toISOString(),
       ...(this.tx.isGenesis ? {} : {
         supply_after_this_tx: coinFormat(this.txTrackedState.supply_after_this_tx),
       }),

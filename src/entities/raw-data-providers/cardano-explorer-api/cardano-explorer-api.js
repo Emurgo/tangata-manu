@@ -36,40 +36,23 @@ class CardanoExplorerApi implements RawDataProvider {
     this.conn = conn
   }
 
-  async getGenesis(hash: string): Promise<Object> {
-    this.logger.debug(`getGenesis: ${hash}`)
-    // const resp = await this.getJson(`/genesis/${hash}`)
-    // const { data } = resp
-    // return data
-    // not supported right now in jormungandr, so we're hardcoding this for now
-    // as something empty to not cause any issues.
-    return {
-      protocolConsts: {
-        protocolMagic: null,
-      },
-      nonAvvmBalances: [],
-      avvmDistr: [],
-    }
-  }
-
-  async getBlockByHeight(height: number): Promise<ByronBlock> {
-    this.logger.debug('cardano-explorer-api:getBlockByHeight: ', height)
-    // get block data
+  async getBlock(id: string): Promise<ByronBlock> {
+    this.logger.debug(`[cardano-explorer] GET BLOCK: ${id}`)
     const blockSql = sql.select().from('"Block"')
-      .where('number = ?', height)
+      .where('id = ?', `\\x${id}`)
       .limit(1)
       .toString()
     const txs = []
     const blockData = (await this.conn.query(blockSql)).rows[0]
     const blockId = blockData.id.toString('hex')
     this.logger.debug('blockData', blockData)
-    // get transactions for block
-    if (blockData.transactionsCount > 0) {
-      const txsSql = sql.select().from('"Transaction"')
-        .where('"blockId" = ?', `\\x${blockId}`).toString()
-      const txsData = (await this.conn.query(txsSql)).rows
+
+    const txsSql = sql.select().from('"Transaction"')
+      .where('"blockId" = ?', `\\x${blockId}`).toString()
+    const txsData = (await this.conn.query(txsSql)).rows
+    if (txsData.length > 0) {
       const txsIds = txsData.map(tx => `\\x${tx.id.toString('hex')}`)
-      // get transaction inputsf
+      // get transaction inputs
       const txInputsSql = sql.select().from('"TransactionInput"')
         .where('"txId" IN ?', txsIds).toString()
       const txInputsData = (await this.conn.query(txInputsSql)).rows
@@ -94,7 +77,7 @@ class CardanoExplorerApi implements RawDataProvider {
               value: out.value,
             })),
           id: txData.id.toString('hex'),
-          blockNum: height,
+          blockNum: blockData.number,
           blockHash: blockData.id,
           status: 'Successfull',
           txTime: txData.includedAt.toString(),
@@ -102,21 +85,37 @@ class CardanoExplorerApi implements RawDataProvider {
           txOrdinal: 0,
         })
       }
-      console.log('txsData', txInputsData, txOutputsData)
     }
-
     return new ByronBlock({
       hash: blockId,
       epoch: blockData.epochNo,
       slot: blockData.slotNo,
       size: blockData.size,
-      height,
+      height: blockData.number,
       txs,
+      isGenesis: true,
       isEBB: false,
-      prevHash: blockData.previousBlockId.toString('hex'),
+      prevHash: blockData.previousBlockId && blockData.previousBlockId.toString('hex'),
       time: blockData.createdAt,
       lead: blockData.createdBy,
+      slotLeaderPk: '',
     })
+  }
+
+  async getBlockByHeight(height: number): Promise<ByronBlock> {
+    this.logger.debug('cardano-explorer-api:getBlockByHeight: ', height)
+    // get block data
+    const blockSql = sql.select().from('"Block"')
+      .where('number = ?', height)
+      .limit(1)
+      .toString()
+    const blockData = (await this.conn.query(blockSql)).rows[0]
+    const blockId = blockData.id.toString('hex')
+    return this.getBlock(blockId)
+  }
+
+  async parseBlock(block) {
+    return block
   }
 
   async getStatus(): Promise<NodeStatusType> {

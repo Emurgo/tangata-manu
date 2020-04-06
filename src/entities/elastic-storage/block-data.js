@@ -21,10 +21,6 @@ class BlockData extends ElasticData {
 
   inputsData: Array<mixed> = []
 
-  resolvedTxs: Array<TxData> = []
-
-  txsData: Array<any> = []
-
   constructor(
     block: Block,
     storedUTxOs: Array<UtxoType> = [],
@@ -33,6 +29,9 @@ class BlockData extends ElasticData {
     poolDelegationStates: { [string]: any } = {},
   ) {
     super()
+    this.txTrackedState = txTrackedState
+    this.addressStates = addressStates
+    this.poolDelegationStates = poolDelegationStates
     this.block = block
     this.storedUTxOs = storedUTxOs
     const txs = block.getTxs()
@@ -44,20 +43,6 @@ class BlockData extends ElasticData {
     if (!_.isEmpty(txs)) {
       this.inputsData = _.flatMap(txs, 'inputs')
         .flatMap(inp => this.allUtxos[utils.getUtxoId(inp)])
-
-      this.resolvedTxs = txs.map(tx => new TxData(
-        tx,
-        this.allUtxos,
-        txTrackedState,
-        addressStates,
-        poolDelegationStates,
-      ))
-
-      this.txsData = this.resolvedTxs.map(tx => ({
-        epoch: block.getEpoch(),
-        slot: block.getSlot(),
-        ...tx.toPlainObject(),
-      }))
     }
   }
 
@@ -82,42 +67,56 @@ class BlockData extends ElasticData {
     }))
   }
 
-  getResolvedTxs(): Array<TxData> {
-    return this.resolvedTxs
+  * getResolvedTxs(): Generator<TxData, void, void> {
+    for (const tx of this.block.getTxs()) {
+      yield new TxData(
+        tx,
+        this.allUtxos,
+        this.txTrackedState,
+        this.addressStates,
+        this.poolDelegationStates,
+      )
+    }
   }
 
   getReceivedAmount(): BigNumber {
-    return this.txsData.reduce(
+    return this.getTxsData().reduce(
       (sum, { sum_inputs }) => sum.plus(sum_inputs.full), new BigNumber(0))
   }
 
   getSentAmount(): BigNumber {
-    return this.txsData.reduce(
-      (sum, { sum_outputs }) => sum.plus(sum_outputs.full), new BigNumber(0))
+    return this.getResolvedTxs().reduce(
+      (sum, { sumOutputs }) => sum.plus(coinFormat(sumOutputs).full), new BigNumber(0))
   }
 
-  getTxsData() {
-    return this.txsData
+  * getTxsData() {
+    for (const tx of this.getResolvedTxs()) {
+      yield {
+        epoch: this.block.getEpoch(),
+        slot: this.block.getSlot(),
+        ...tx.toPlainObject(),
+      }
+    }
   }
 
   getFees(): BigNumber {
-    return this.txsData.reduce((sum, { fees }) => sum.plus(fees.full), new BigNumber(0))
+    return this.getResolvedTxs().reduce((sum, { fee }) => sum.plus(coinFormat(fee).full), new BigNumber(0))
   }
 
   getNewAddresses(): number {
-    return this.txsData.reduce((sum, { new_addresses }) => sum + new_addresses, 0)
+    return this.getResolvedTxs().reduce((sum, { newAddresses }) => sum + newAddresses, 0)
   }
 
-  toPlainObject() {
+  toPlainObject(omitTx:boolean = false) {
     const time = this.block.getTime().toISOString()
     let sent = 0
     let fees = 0
     let newAddresses = 0
     const txs = this.block.getTxs()
     if (txs.length > 0) {
-      sent = this.getSentAmount()
-      fees = this.getFees()
-      newAddresses = this.getNewAddresses()
+      sent = 0 // this.getSentAmount()
+      fees = 0 // this.getFees()
+      newAddresses = [] //this.getNewAddresses()
     }
     return {
       epoch: this.block.getEpoch(),
@@ -133,7 +132,7 @@ class BlockData extends ElasticData {
       time,
       branch: 0,
       tx_num: txs.length,
-      tx: this.getTxsData(),
+      tx: omitTx ? null : this.getTxsData(),
       sent: coinFormat(sent),
       fees: coinFormat(fees),
       new_addresses: newAddresses,

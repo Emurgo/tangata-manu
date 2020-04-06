@@ -85,7 +85,9 @@ const getBlocksForSlotIdx = (
   poolDelegationStates: { [string]: any },
 ): Array<BlockData> => {
   const blocksData = blocks.map(
-    block => new BlockData(block, storedUTxOs, txTrackedState, addressStates, poolDelegationStates))
+    (block) => {
+      return new BlockData(block, storedUTxOs, txTrackedState, addressStates, poolDelegationStates)
+    })
   return blocksData
 }
 
@@ -420,14 +422,15 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     if (!indexExists) {
       return emptyDb
     }
-    const esResponse = await this.client.search({
-      index,
-      body: {
-        sort: [{ epoch: { order: 'desc' } }, { slot: { order: 'desc' } }],
-        size: 1,
-      },
-    })
-    const { hits } = esResponse.body.hits
+    try {
+      const esResponse = await this.client.search({
+        index,
+        body: {
+          sort: [{ epoch: { order: 'desc' } }, { slot: { order: 'desc' } }],
+          size: 1,
+        },
+      })
+      const { hits } = esResponse.body.hits
     if (_.isEmpty(hits)) {
       return emptyDb
     }
@@ -435,6 +438,9 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     const source = hits[0]._source
     this.logger.debug('getBestBlockNum', source.height)
     return source
+    } catch (e) {
+      return emptyDb
+    }
   }
 
   async bulkUpload(body: Array<mixed>) {
@@ -454,15 +460,125 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     return utxoAddresses
   }
 
+  async storeGenesisBlockData(block: Array<Block>): Promise<void> {
+    const chunk = ++this.lastChunk
+    const utxosForInputsAndOutputs = getBlockUtxos(block)
+    const blockOutputsToStore = utxosForInputsAndOutputs
+    const blockTxsCount = block.getTxs().length
+    const mappedBlocks: Array<BlockData> = getBlocksForSlotIdx(
+      [block],
+      [],
+      {},
+      {},
+      {},
+    )
+
+
+    const tip: BlockInfoType = await this.getBestBlockNum()
+    const paddedBlocks: Array<BlockData> = padEmptySlots(mappedBlocks,
+      tip.epoch, tip.slot, this.networkStartTime, this.slotsPerEpoch)
+
+    const blocksData = paddedBlocks.map((b: BlockData) => b.toPlainObject(true))
+
+    const isGenesisBlock = true
+    this.logger.debug(`storeBlocksData.constructing bulk for ${blocksData.length} slots`)
+    const blocksBody = formatBulkUploadBody(blocksData, {
+      index: this.indexFor(INDEX_SLOT),
+      getId: (o) => o.hash,
+      getData: o => ({
+        ...o,
+        ...(isGenesisBlock ? {
+          tx: undefined,
+        } : {}),
+        _chunk: chunk,
+      }),
+    })
+
+    const blockTxioToStore = blockOutputsToStore
+    this.logger.debug(`storeBlocksData.constructing bulk for ${blockTxioToStore.length} txio`)
+    const txiosBody = formatBulkUploadBody(blockTxioToStore, {
+      index: this.indexFor(INDEX_TXIO),
+      getId: (o) => o.id,
+      getData: (o) => ({
+        ...o,
+        _chunk: chunk,
+      }),
+    })
+
+    const bulkData = [...blocksBody, ...txiosBody]
+    this.logger.debug(`storeBlocksData.total bulk is ${bulkData.length} documents`)
+    const bulkChunks = _.chunk(bulkData, 1000)
+    for (let i = 0; i < bulkChunks.length; i += 1) {
+      this.logger.debug(`storeBlocksData.bulkUpload chunk ${i + 1} out of ${bulkChunks.length}`)
+      try {
+        await this.bulkUpload(bulkChunks[i])
+        await sleep(100)
+      } catch (e) {
+        this.logger.error(`Failed to bulk-upload blocks data (chunk ${i + 1} out of ${bulkChunks.length})`, e)
+        throw new Error(`Failed to bulk-upload blocks data (chunk ${i + 1} out of ${bulkChunks.length}) : ${e}`)
+      }
+    }
+
+    for (const b of paddedBlocks) {
+      // const txsData = []
+      let idx = 0
+      for (const txData of b.getTxsData()) {
+        //txsData.push(txData)
+        // collect 1k items and upload them
+        // if (idx % 1000 === 0) {
+        const txsBody = formatBulkUploadBody([txData], {
+            index: this.indexFor(INDEX_TX),
+            getId: (o) => o.hash,
+            getData: (o) => o,
+          })
+          await sleep(100)
+          await this.bulkUpload(txsBody)
+          // txsData.splice(0, txsData.length)
+        // }
+        ++idx
+        this.logger.debug('Idx:', idx)
+      }
+    }
+
+    /*
+    const txsDataGen = paddedBlocks.flatMap(b => b.getTxsData())
+    this.logger.debug(`storeBlocksData.constructing bulk for ${txsData.length} txs`)
+    const txsBody = formatBulkUploadBody(txsData, {
+      index: this.indexFor(INDEX_TX),
+      getId: (o) => o.hash,
+      getData: (o) => o,
+    })
+    */
+
+
+    // Commit every 10th chunk
+    const isCommitChunk = (chunk % 10 === 0) || isGenesisBlock
+    const sleepOnChunkMillis = (isCommitChunk ?
+      this.sleepOnCommitChunkSeconds : this.sleepOnEveryChunkSeconds) * 1000
+    if (sleepOnChunkMillis > 0) {
+      await sleep(sleepOnChunkMillis)
+      if (isCommitChunk) {
+        await this.storeChunk({
+          chunk,
+          blocks: mappedBlocks.length,
+          txs: blockTxsCount,
+          txios: blockTxioToStore.length,
+        })
+        await sleep(sleepOnChunkMillis)
+      }
+    }
+  }
+
   async storeBlocksData(blocks: Array<Block>): Promise<void> {
     const isGenesisBlock = blocks.length === 1 && blocks[0].isGenesisBlock()
     if (isGenesisBlock) {
       this.logger.info('storeBlocksData.GENESIS detected')
+      return this.storeGenesisBlockData(blocks[0])
     }
     const storedUTxOs = []
     const blockOutputsToStore = []
     const txInputsIds = []
-    const blockTxs = []
+    let blockTxsCount = 0
     const chunk = ++this.lastChunk
     for (const block of blocks) {
       // Resolves the slot leader PKs into a usable ID here for Byron blocks.
@@ -489,8 +605,8 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
         for (const u of getBlockUtxos(block)) {
           blockOutputsToStore.push(u)
         }
-        blockTxs.push(...txs)
       }
+      blockTxsCount += txs.length
     }
 
     if (!_.isEmpty(txInputsIds)) {
@@ -511,9 +627,6 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     const utxosForInputsAndOutputs = [...storedUTxOs, ...blockOutputsToStore]
 
     const chunkTxs: Array<TxType> = blocks.flatMap(b => b.getTxs())
-
-    // Filter all the unique addresses being used in either inputs or outputs
-    this.logger.debug('storeBlocksData.processingAddressStates')
 
 
     // All the different extracted addresses are combined in a single set
@@ -611,14 +724,15 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
 
     // Commit every 10th chunk
     const isCommitChunk = (chunk % 10 === 0) || isGenesisBlock
-    const sleepOnChunkMillis = (isCommitChunk ? this.sleepOnCommitChunkSeconds : this.sleepOnEveryChunkSeconds) * 1000
+    const sleepOnChunkMillis = (isCommitChunk ?
+      this.sleepOnCommitChunkSeconds : this.sleepOnEveryChunkSeconds) * 1000
     if (sleepOnChunkMillis > 0) {
       await sleep(sleepOnChunkMillis)
       if (isCommitChunk) {
         await this.storeChunk({
           chunk,
-          blocks: blocks.length,
-          txs: blockTxs.length,
+          blocks: mappedBlocks.length,
+          txs: blockTxsCount,
           txios: blockTxioToStore.length,
         })
         await sleep(sleepOnChunkMillis)
