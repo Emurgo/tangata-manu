@@ -78,7 +78,7 @@ class CardanoExplorerApi implements RawDataProvider {
             })),
           id: txData.id.toString('hex'),
           blockNum: blockData.number,
-          blockHash: blockData.id,
+          blockHash: blockData.id.toString('hex'),
           status: 'Successfull',
           txTime: txData.includedAt.toString(),
           txBody: '',

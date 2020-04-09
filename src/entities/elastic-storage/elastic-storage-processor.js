@@ -540,17 +540,6 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
       }
     }
 
-    /*
-    const txsDataGen = paddedBlocks.flatMap(b => b.getTxsData())
-    this.logger.debug(`storeBlocksData.constructing bulk for ${txsData.length} txs`)
-    const txsBody = formatBulkUploadBody(txsData, {
-      index: this.indexFor(INDEX_TX),
-      getId: (o) => o.hash,
-      getData: (o) => o,
-    })
-    */
-
-
     // Commit every 10th chunk
     const isCommitChunk = (chunk % 10 === 0) || isGenesisBlock
     const sleepOnChunkMillis = (isCommitChunk ?
