@@ -2,6 +2,7 @@
 
 import _ from 'lodash'
 import restify from 'restify'
+import v8 from 'v8'
 import { InversifyRestifyServer } from 'inversify-restify-utils'
 
 import {
@@ -31,7 +32,7 @@ const loadGenesis = async (container) => {
   }
   if (networkConfig.dataProvider() === DATA_PROVIDER.CARDANO_EXPLORER) {
     const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
-    await scheduler.processBlockById(networkConfig.genesisHash())
+    await scheduler.processGenesisBlockById(networkConfig.genesisHash())
     logger.debug(`loadGenesis: ${NETWORK_PROTOCOL.BYRON}: loaded.`)
     return
   }
@@ -55,10 +56,14 @@ const loadGenesis = async (container) => {
 
 const startServer = async () => {
   const container = await initIoC()
+  const totalHeapSize = v8.getHeapStatistics().total_available_size;
+  const totalHeapSizaInMB = (totalHeapSize / 1024 / 1024).toFixed(2)
+
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
   const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
   const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
 
+  logger.debug('V8 Total Heap Size', totalHeapSizaInMB, 'MB')
   await storageProcessor.onLaunch()
 
   const genesisLoaded = await storageProcessor.genesisLoaded()

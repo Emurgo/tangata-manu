@@ -274,6 +274,23 @@ class CronScheduler implements Scheduler {
     return status
   }
 
+  async processGenesisBlockById(id: string, flushCache: boolean = true) {
+    const blockRaw = await this.#dataProvider.getBlock(id)
+    this.logger.debug('blockRaw acquired.')
+    const block = await this.#dataProvider.parseBlock(blockRaw)
+    let utxos = []
+    for (const tx of block.getTxs()) {
+      utxos.push(...tx.outputs.map((out, index) => ({
+        tx_hash: tx.id,
+        block_hash: tx.blockHash,
+        tx_index: index,
+        receiver: out.address,
+        amount: out.value,
+      })))
+    }
+    await this.storageProcessor.storeGenesisUtxos(utxos)
+  }
+
   async startAsync() {
     this.logger.info('Scheduler async: starting chain syncing loop')
     const currentMillis = () => new Date().getTime()

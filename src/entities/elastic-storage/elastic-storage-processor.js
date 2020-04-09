@@ -381,36 +381,73 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     return _.map(hits, '_source')
   }
 
+  async uploadTxIoBodies(utxos) {
+    const utxosObjs = utxos.map((utxo) => new UtxoData(utxo))
+    const body = formatBulkUploadBody(utxosObjs, {
+      index: this.indexFor(INDEX_TXIO),
+      getData: (o) => ({
+        ...o.toPlainObject(),
+        _chunk: this.lastChunk,
+      }),
+    })
+    await this.bulkUpload(body)
+  }
+
+  async uploadTxBodies(utxos) {
+    const utxoObjs = []
+    for (const utxo of utxos) {
+      const utxoObj = new UtxoData(utxo)
+      utxoObjs.push(utxoObj)
+      if (utxoObjs.length % 1000 === 0) {
+        const body = formatBulkUploadBody(utxoObjs, {
+          index: this.indexFor(INDEX_TX),
+          getId: (o) => o.getHash(),
+          getData: (o) => ({
+            ...TxData.fromGenesisUtxo(o.utxo, this.networkStartTime).toPlainObject(),
+            _chunk: this.lastChunk,
+          }),
+        })
+        await this.bulkUpload(body)
+        utxoObjs.splice(0, utxoObjs.length)
+        global.gc()
+        this.logger.debug('uploadTxBodies: uploaded 1000 txs')
+      }
+    }
+    if (utxoObjs.length > 0) {
+      const body = formatBulkUploadBody(utxoObjs, {
+        index: this.indexFor(INDEX_TX),
+        getId: (o) => o.getHash(),
+        getData: (o) => ({
+          ...TxData.fromGenesisUtxo(o.utxo, this.networkStartTime).toPlainObject(),
+          _chunk: this.lastChunk,
+        }),
+      })
+      await this.bulkUpload(body)
+      utxoObjs.splice(0, utxoObjs.length)
+      global.gc()
+    }
+  }
+
   async storeGenesisUtxos(utxos: Array<UtxoType>) {
     // TODO: check bulk upload response
     this.logger.debug('storeGenesisUtxos: store utxos to "txio" index and create fake txs in "tx" index')
     const chunk = ++this.lastChunk
 
-    const utxosObjs = utxos.map((utxo) => new UtxoData(utxo))
-    const txioBody = formatBulkUploadBody(utxosObjs, {
-      index: this.indexFor(INDEX_TXIO),
-      getData: (o) => ({
-        ...o.toPlainObject(),
-        _chunk: chunk,
-      }),
-    })
-    const txBody = formatBulkUploadBody(utxosObjs, {
-      index: this.indexFor(INDEX_TX),
-      getId: (o) => o.getHash(),
-      getData: (o) => ({
-        ...TxData.fromGenesisUtxo(o.utxo, this.networkStartTime).toPlainObject(),
-        _chunk: chunk,
-      }),
-    })
+    if (utxos.length < 5000) {
+      await this.uploadTxBodies(utxos)
+      global.gc()
+    }
 
-    const resp = await this.bulkUpload([...txioBody, ...txBody])
+    await this.uploadTxIoBodies(utxos)
+    global.gc()
+
     await this.storeChunk({
       chunk,
       blocks: 0,
-      txs: utxosObjs.length,
-      txios: utxosObjs.length,
+      txs: utxos.length,
+      txios: utxos.length,
     })
-    this.logger.debug('storeGenesisUtxos:tx', resp)
+    this.logger.debug('storeGenesisUtxos: done.')
   }
 
   async getBestBlockNum(): Promise<BlockInfoType> {
