@@ -17,7 +17,6 @@ import {
   sql,
   GET_BEST_BLOCK_NUM,
 } from './db-queries'
-import { Block } from 'js-chain-libs'
 
 class CardanoExplorerApi implements RawDataProvider {
   logger: Logger
@@ -80,7 +79,7 @@ class CardanoExplorerApi implements RawDataProvider {
           blockNum: blockData.number,
           blockHash: blockData.id.toString('hex'),
           status: 'Successfull',
-          txTime: txData.includedAt.toString(),
+          txTime: txData.includedAt,
           txBody: '',
           txOrdinal: 0,
         })

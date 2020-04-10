@@ -67,7 +67,14 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
       return
     }
     const conn = this.getConn()
-    const query = Q.newUtxosInsert().setFieldsRows(utxos).toString()
+    const query = Q.newUtxosInsert().setFieldsRows(utxos.map(u => ({
+      tx_hash: u.tx_hash,
+      tx_index: u.tx_index,
+      block_num: u.block_num,
+      receiver: u.receiver,
+      amount: u.amount,
+      utxo_id: u.utxo_id,
+    }))).toString()
     // this.logger.debug('storeUtxos', utxos, query)
     await conn.query(query)
   }
@@ -390,7 +397,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
     if (upsert) {
       const now = new Date().toUTCString()
       onConflictArgs.push('hash', {
-        inputs: txDbFields.inputs,
+        inputs: txDbFields.inputs || null,
         // inputs and outputs can be empty(especially in genesis block)
         inputs_address: txDbFields.inputs_address || null,
         inputs_amount: txDbFields.inputs_amount || null,
@@ -420,7 +427,7 @@ class DB<TxType: ByronTxType | ShelleyTxType> {
 
   async storeTx(tx: ShelleyTxType,
     txUtxos:Array<mixed> = [], upsert:boolean = true): Promise<void> {
-    const txDbData = this.getTxDBData(tx, txUtxos)
+    const txDbData = await this.getTxDBData(tx, txUtxos)
     await this.storeTxImpl(tx, txUtxos, upsert, txDbData)
   }
 

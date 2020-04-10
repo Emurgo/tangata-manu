@@ -24,6 +24,8 @@ const loadGenesis = async (container) => {
   const logger = container.get<Logger>(SERVICE_IDENTIFIER.LOGGER)
   const networkConfig = container.get<NetworkConfig>(SERVICE_IDENTIFIER.NETWORK_CONFIG)
   const dataProvider = container.get<RawDataProvider>(SERVICE_IDENTIFIER.RAW_DATA_PROVIDER)
+  const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
+  const storageName = container.getNamed('storageProcessor')
   if (networkConfig.networkProtocol() === NETWORK_PROTOCOL.SHELLEY) {
     const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
     await scheduler.processBlockById(networkConfig.genesisHash())
@@ -32,13 +34,16 @@ const loadGenesis = async (container) => {
   }
   if (networkConfig.dataProvider() === DATA_PROVIDER.CARDANO_EXPLORER) {
     const scheduler = container.get<Scheduler>(SERVICE_IDENTIFIER.SCHEDULER)
-    await scheduler.processGenesisBlockById(networkConfig.genesisHash())
+    if (storageName === YOROI_POSTGRES) {
+      await scheduler.processGenesisBlockById(networkConfig.genesisHash())
+    } else {
+      await scheduler.processGenesisBlockById(networkConfig.genesisHash())
+    }
     logger.debug(`loadGenesis: ${NETWORK_PROTOCOL.BYRON}: loaded.`)
     return
   }
   const genesis = container.get<Genesis>(SERVICE_IDENTIFIER.GENESIS)
   const genesisFile = await dataProvider.getGenesis(genesis.genesisHash)
-  const storageProcessor = container.get<StorageProcessor>(SERVICE_IDENTIFIER.STORAGE_PROCESSOR)
   const { protocolMagic } = genesisFile.protocolConsts
 
   const genesisLeaders = genesis.getGenesisLeaders(genesisFile.heavyDelegation || {})

@@ -284,8 +284,10 @@ class CronScheduler implements Scheduler {
         tx_hash: tx.id,
         block_hash: tx.blockHash,
         tx_index: index,
+        block_num: 1,
         receiver: out.address,
-        amount: out.value,
+        amount: parseInt(out.value, 10),
+        utxo_id: `${tx.id}${index}`,
       })))
     }
     await this.storageProcessor.storeGenesisUtxos(utxos)
