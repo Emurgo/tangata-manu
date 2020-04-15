@@ -594,7 +594,7 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     const isGenesisBlock = blocks.length === 1 && blocks[0].isGenesisBlock()
     if (isGenesisBlock) {
       this.logger.info('storeBlocksData.GENESIS detected')
-      return this.storeGenesisBlockData(blocks[0])
+      // return this.storeGenesisBlockData(blocks[0])
     }
     const storedUTxOs = []
     const blockOutputsToStore = []

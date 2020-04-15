@@ -35,6 +35,9 @@ class BlockData extends ElasticData {
     this.block = block
     this.storedUTxOs = storedUTxOs
     const txs = block.getTxs()
+    this.resolvedTxs = []
+    this.inputsData = []
+    this.txsData = []
 
     this.allUtxos = _.keyBy([
       ...this.storedUTxOs,
@@ -43,6 +46,19 @@ class BlockData extends ElasticData {
     if (!_.isEmpty(txs)) {
       this.inputsData = _.flatMap(txs, 'inputs')
         .flatMap(inp => this.allUtxos[utils.getUtxoId(inp)])
+      this.resolvedTxs = txs.map(tx => new TxData(
+          tx,
+          this.allUtxos,
+          txTrackedState,
+          addressStates,
+          poolDelegationStates,
+      ))
+  
+      this.txsData = this.resolvedTxs.map(tx => ({
+          epoch: block.getEpoch(),
+          slot: block.getSlot(),
+          ...tx.toPlainObject(),
+      }))
     }
   }
 
@@ -67,16 +83,8 @@ class BlockData extends ElasticData {
     }))
   }
 
-  * getResolvedTxs(): Generator<TxData, void, void> {
-    for (const tx of this.block.getTxs()) {
-      yield new TxData(
-        tx,
-        this.allUtxos,
-        this.txTrackedState,
-        this.addressStates,
-        this.poolDelegationStates,
-      )
-    }
+  getResolvedTxs(): Array<TxData> {
+    return this.resolvedTxs
   }
 
   getReceivedAmount(): BigNumber {
@@ -89,14 +97,8 @@ class BlockData extends ElasticData {
       (sum, { sumOutputs }) => sum.plus(coinFormat(sumOutputs).full), new BigNumber(0))
   }
 
-  * getTxsData() {
-    for (const tx of this.getResolvedTxs()) {
-      yield {
-        epoch: this.block.getEpoch(),
-        slot: this.block.getSlot(),
-        ...tx.toPlainObject(),
-      }
-    }
+  getTxsData() {
+    return this.txsData
   }
 
   getFees(): BigNumber {
@@ -132,7 +134,7 @@ class BlockData extends ElasticData {
       time,
       branch: 0,
       tx_num: txs.length,
-      tx: omitTx ? null : this.getTxsData(),
+      tx: omitTx ? [] : this.getTxsData(),
       sent: coinFormat(sent),
       fees: coinFormat(fees),
       new_addresses: newAddresses,

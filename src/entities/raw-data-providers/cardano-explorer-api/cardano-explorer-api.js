@@ -49,7 +49,7 @@ class CardanoExplorerApi implements RawDataProvider {
     const txsSql = sql.select().from('"Transaction"')
       .where('"blockId" = ?', `\\x${blockId}`).toString()
     const txsData = (await this.conn.query(txsSql)).rows
-    if (txsData.length > 0) {
+    if (txsData.length > 0 && blockData.number !== undefined) {
       const txsIds = txsData.map(tx => `\\x${tx.id.toString('hex')}`)
       // get transaction inputs
       const txInputsSql = sql.select().from('"TransactionInput"')
@@ -92,7 +92,7 @@ class CardanoExplorerApi implements RawDataProvider {
       size: blockData.size,
       height: blockData.number,
       txs,
-      isGenesis: true,
+      isGenesis: blockData.number === undefined,
       isEBB: false,
       prevHash: blockData.previousBlockId && blockData.previousBlockId.toString('hex'),
       time: blockData.createdAt,
