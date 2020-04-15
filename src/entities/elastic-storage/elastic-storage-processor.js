@@ -433,12 +433,6 @@ class ElasticStorageProcessor<TxType: ByronTxType | ShelleyTxType> implements St
     this.logger.debug('storeGenesisUtxos: store utxos to "txio" index and create fake txs in "tx" index')
     const chunk = ++this.lastChunk
 
-    for (const chunkNum of _.range(Math.ceil(utxos.length / 2000))) {
-      await this.uploadTxBodies(utxos.slice(2000 * chunkNum, 2000 * (chunkNum + 1)))
-      this.logger.debug('storeGenesisUtxos: uploadTxBodies', chunkNum)
-      global.gc()
-    }
-
     await this.uploadTxIoBodies(utxos)
     global.gc()
 

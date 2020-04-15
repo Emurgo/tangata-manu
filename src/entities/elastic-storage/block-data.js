@@ -114,9 +114,9 @@ class BlockData extends ElasticData {
     let newAddresses = 0
     const txs = this.block.getTxs()
     if (txs.length > 0) {
-      sent = 0 // this.getSentAmount()
-      fees = 0 // this.getFees()
-      newAddresses = [] //this.getNewAddresses()
+      sent = this.getSentAmount()
+      fees = this.getFees()
+      newAddresses = this.getNewAddresses()
     }
     return {
       epoch: this.block.getEpoch(),
