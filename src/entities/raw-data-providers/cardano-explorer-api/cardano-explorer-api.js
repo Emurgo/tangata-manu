@@ -37,8 +37,20 @@ class CardanoExplorerApi implements RawDataProvider {
 
   async getBlock(id: string): Promise<ByronBlock> {
     this.logger.debug(`[cardano-explorer] GET BLOCK: ${id}`)
-    const blockSql = sql.select().from('"Block"')
-      .where('id = ?', `\\x${id}`)
+    const blockSql = sql.select()
+      .from('"Block"', 'block')
+      .fields({
+        'block.number': 'number',
+        'block.id': 'id',
+        'block."epochNo"': '"epochNo"',
+        'block."slotNo"': '"slotNo"',
+        'block.size': 'size',
+        'block."createdAt"': '"createdAt"',
+        'block."createdBy"': '"createdBy"',
+        'hash': 'hash',
+      })
+      .join('slot_leader', null, 'block."createdBy" = slot_leader.description')
+      .where('block.id = ?', `\\x${id}`)
       .limit(1)
       .toString()
     const txs = []
@@ -97,7 +109,7 @@ class CardanoExplorerApi implements RawDataProvider {
       prevHash: blockData.previousBlockId && blockData.previousBlockId.toString('hex'),
       time: blockData.createdAt,
       lead: blockData.createdBy,
-      slotLeaderPk: '',
+      slotLeaderPk: blockData.hash.toString('hex'),
     })
   }
 
