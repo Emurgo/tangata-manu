@@ -48,8 +48,9 @@ class CardanoExplorerApi implements RawDataProvider {
         'block."createdAt"': '"createdAt"',
         'block."createdBy"': '"createdBy"',
         'slot_leader.hash': '"leaderHash"',
+        'block."previousBlockId"': '"previousBlockId"',
       })
-      .join('slot_leader', null, 'block."createdBy" = slot_leader.description')
+      .left_join('slot_leader', null, 'block."createdBy" = slot_leader.description')
       .where('block.id = ?', `\\x${id}`)
       .limit(1)
       .toString()
@@ -109,7 +110,7 @@ class CardanoExplorerApi implements RawDataProvider {
       prevHash: blockData.previousBlockId && blockData.previousBlockId.toString('hex'),
       time: blockData.createdAt,
       lead: blockData.createdBy,
-      slotLeaderPk: blockData.leaderHash.toString('hex'),
+      slotLeaderPk: blockData.leaderHash && blockData.leaderHash.toString('hex'),
     })
   }
 
