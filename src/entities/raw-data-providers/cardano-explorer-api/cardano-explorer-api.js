@@ -98,6 +98,7 @@ class CardanoExplorerApi implements RawDataProvider {
         })
       }
     }
+    const issuerPk = blockData.leaderHash && blockData.leaderHash.toString('hex')
     return new ByronBlock({
       hash: blockId,
       epoch: blockData.epochNo,
@@ -109,8 +110,8 @@ class CardanoExplorerApi implements RawDataProvider {
       isEBB: false,
       prevHash: blockData.previousBlockId && blockData.previousBlockId.toString('hex'),
       time: blockData.createdAt,
-      lead: blockData.createdBy,
-      slotLeaderPk: blockData.leaderHash && blockData.leaderHash.toString('hex'),
+      lead: issuerPk,
+      slotLeaderPk: Buffer.from(issuerPk, 'base64').toString('hex'),
     })
   }
 
