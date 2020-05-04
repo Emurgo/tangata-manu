@@ -7,17 +7,17 @@
   * features are added this will have to change.
 */
 
-export type UtxoInputType = {
+export type UtxoInputType = {|
   type: 'utxo',
   txId: string,
   idx: number,
-}
+|}
 
-export type AccountInputType = {
+export type AccountInputType = {|
   type: 'account',
   account_id: string,
   value: number,
-}
+|}
 
 export type TxInputType = UtxoInputType | AccountInputType
 
@@ -38,7 +38,7 @@ export type TxType = {
   txTime: Date,
   txBody: string,
   txOrdinal: ?number,
-  witnesses: [],
+  witnesses: Array<{| type: any, sign: any |}>,
   isGenesis: ?boolean,
 }
 

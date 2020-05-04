@@ -32,7 +32,7 @@ type CborEncoderType = {
 }
 
 class CborIndefiniteLengthArray {
-  elements: Array<{}>
+  elements: Array<{...}>
 
   cborEncoder: CborEncoderType
 
@@ -85,10 +85,12 @@ const rawTxToObj = (tx: Array<any>, extraData: {
   blockNum: ?number,
   txOrdinal: ?number,
   txTime: Date,
+  ...
 }): TxType => {
   const [[inputs, outputs], witnesses] = tx
   const [txId, txBody] = packRawTxIdAndBody(tx)
   return {
+    ...extraData,
     isGenesis: false,
     id: txId,
     inputs: inputs.map(inp => {
@@ -114,11 +116,10 @@ const rawTxToObj = (tx: Array<any>, extraData: {
       return { type, sign: cbor.decode(tagged.value) }
     }),
     txBody,
-    ...extraData,
   }
 }
 
-const headerToId = (header: string, type: number) => {
+const headerToId: (string, number) => string = (header, type) => {
   const headerData = cbor.encode([type, header])
   const id = blake.blake2bHex(headerData, null, 32)
   return id

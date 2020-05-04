@@ -3,8 +3,7 @@
 import { Block } from '../common'
 import type { EpochIdType, SlotIdType, TxType } from '../common'
 import shelleyUtils from './utils'
-
-export type HeaderType = Array<any>
+import { RustModule } from '../../rustLoader'
 
 export default class ShelleyBlock implements Block {
   hash: string
@@ -58,7 +57,7 @@ export default class ShelleyBlock implements Block {
     return this.prevHash
   }
 
-  isGenesisBlock() {
+  isGenesisBlock(): boolean {
     return this.height === 0
   }
 
@@ -87,7 +86,9 @@ export default class ShelleyBlock implements Block {
   }
 
   getSlotLeaderId(): ?string {
-    return this.slotLeader || null
+    return this.slotLeader == null
+      ? null
+      : this.slotLeader
   }
 
   static parseBlock(
@@ -97,9 +98,7 @@ export default class ShelleyBlock implements Block {
     networkSlotsPerEpoch: number,
     networkSlotDurationSeconds: number,
   ): ShelleyBlock {
-    const wasm = global.jschainlibs
-
-    const block = wasm.Block.from_bytes(blob)
+    const block = RustModule.WalletV3.Block.from_bytes(blob)
 
     const epochId = block.epoch()
     const slotId = block.slot()
@@ -168,7 +167,7 @@ export default class ShelleyBlock implements Block {
     }
     fragments.free()
 
-    let slotLeader = shelleyUtils.consumeOptionalValueToString(block.leader_id())
+    const slotLeader = shelleyUtils.consumeOptionalValueToString(block.leader_id())
     block.free()
     return new ShelleyBlock(blockHash,
       slotId,

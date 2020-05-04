@@ -1,13 +1,18 @@
 [ignore]
-.*/js-chain-libs/.*
 
 [include]
 
 [libs]
+flow/declarations/
 
 [lints]
+sketchy-null=warn
+sketchy-number=warn
+unnecessary-optional-chain=warn
+ambiguous-object-type=error
 
 [options]
+include_warnings=true
 esproposal.decorators=ignore
 
 [strict]

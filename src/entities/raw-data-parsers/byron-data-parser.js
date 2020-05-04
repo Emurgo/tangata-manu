@@ -29,7 +29,7 @@ class ByronDataParser implements RawDataParser {
     return ByronBlock.fromCBOR(blob, this.networkStartTime)
   }
 
-  parseEpoch(data: Buffer, options:{omitEbb?: boolean} = {}) {
+  parseEpoch(data: Buffer, options: {| omitEbb?: boolean |} = Object.freeze({})) {
     const epoch = ByronEpoch.fromCBOR(data, this.networkStartTime)
     return epoch.getBlocksIterator(options)
   }

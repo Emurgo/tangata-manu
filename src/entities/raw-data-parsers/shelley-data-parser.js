@@ -36,7 +36,7 @@ class ShelleyDataParser implements RawDataParser {
       this.networkSlotsPerEpoch, this.networkSlotDurationSeconds)
   }
 
-  parseEpoch(data: Buffer, options:{} = {}) {
+  parseEpoch(data: Buffer, options: {| omitEbb?: boolean |} = Object.freeze({})) {
     this.logger.debug('ShelleyDataParser.parseEpoch', data, options)
     throw new Error('ShelleyDataParser::parseEpoch() is not implemented')
   }
