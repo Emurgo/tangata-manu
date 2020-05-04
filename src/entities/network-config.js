@@ -7,6 +7,7 @@ import urljoin from 'url-join'
 
 import { getNetworkConfig } from '../utils'
 import type { NetworkConfig } from '../interfaces/network-config'
+import { RustModule } from '../rustLoader'
 
 export const NETWORK_PROTOCOL = {
   BYRON: 'byron',
@@ -67,7 +68,7 @@ class NetworkConfigImp implements NetworkConfig {
   networkProtocol = () => this.#networkProtocol || NETWORK_PROTOCOL.BYRON
 
   networkDiscrimination = () => {
-    const addrDiscrimantion = global.jschainlibs.AddressDiscrimination
+    const addrDiscrimantion = RustModule.WalletV3.AddressDiscrimination
     return this.#networkDiscrimination === 'test' ? addrDiscrimantion.Test : addrDiscrimantion.Production
   }
 }

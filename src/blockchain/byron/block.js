@@ -6,10 +6,21 @@ import byronUtils from './utils'
 import type { EpochIdType, SlotIdType, TxType } from '../common'
 import { Block } from '../common'
 
-
 const SLOTS_IN_EPOCH = 21600
 
 export type HeaderType = Array<any>
+
+type CommonBlockDataType = {|
+  slot: ?number,
+  epoch: number,
+  height: number,
+  txs: Array<TxType>,
+  isEBB: boolean,
+  time: Date,
+  lead: ?string,
+  slotLeaderPk: ?string,
+  upd: null | [any, any], // TODO: what is this?
+|};
 
 export default class ByronBlock implements Block {
   hash: string
@@ -40,7 +51,8 @@ export default class ByronBlock implements Block {
   constructor({
     hash, slot, epoch, height, txs, isEBB, prevHash,
     time, lead, slotLeaderPk, size,
-  }: {hash: string,
+  }: {
+    hash: string,
     slot: ?number,
     epoch: number,
     size: number,
@@ -50,7 +62,8 @@ export default class ByronBlock implements Block {
     prevHash: string,
     time: Date,
     lead: ?string,
-    slotLeaderPk: ?string
+    slotLeaderPk: ?string,
+    ...
   }) {
     this.hash = hash
     this.prevHash = prevHash
@@ -66,7 +79,12 @@ export default class ByronBlock implements Block {
     this.isGenesis = false
   }
 
-  serialize() {
+  serialize(): {|
+    block_hash: string,
+    epoch: number,
+    slot: ?number,
+    block_height: number,
+  |} {
     return {
       block_hash: this.hash,
       epoch: this.epoch,
@@ -83,7 +101,7 @@ export default class ByronBlock implements Block {
     return this.prevHash
   }
 
-  isGenesisBlock() {
+  isGenesisBlock(): boolean {
     return this.isGenesis
   }
 
@@ -115,7 +133,7 @@ export default class ByronBlock implements Block {
     return this.lead
   }
 
-  static handleEpochBoundaryBlock(header: HeaderType) {
+  static handleEpochBoundaryBlock(header: HeaderType): CommonBlockDataType {
     const [epoch, [chainDifficulty]] = header[3]
     return {
       epoch,
@@ -126,15 +144,16 @@ export default class ByronBlock implements Block {
       isEBB: true,
       slot: null,
       txs: [],
+      upd: null, // TBD: is this actually part of the response?
     }
   }
 
   static handleRegularBlock(
     header: HeaderType,
-    body: {},
+    body: any,
     blockHash: string,
     networkStartTime: number,
-  ) {
+  ): CommonBlockDataType {
     const consensus = header[3]
     const [epoch, slot] = consensus[0]
     const slotLeaderPk = consensus[1].toString('hex')
@@ -189,7 +208,7 @@ export default class ByronBlock implements Block {
     return new ByronBlock(blockData)
   }
 
-  static fromCBOR(data: Buffer, networkStartTime: number) {
+  static fromCBOR(data: Buffer, networkStartTime: number): ByronBlock {
     const block = ByronBlock.parseBlock(data, networkStartTime)
     return block
   }

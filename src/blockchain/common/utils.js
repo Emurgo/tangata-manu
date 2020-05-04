@@ -2,7 +2,7 @@
 
 import type { TxInputType, TxType } from './tx'
 
-const getUtxoId = (input: TxInputType) => {
+const getUtxoId: TxInputType => string = (input) => {
   switch (input.type) {
     case 'utxo':
       return `${input.txId}${input.idx}`
@@ -13,13 +13,26 @@ const getUtxoId = (input: TxInputType) => {
   }
 }
 
+export type UtxoType = {|
+  tx_hash: string,
+  tx_index: number,
+  receiver: string,
+  amount: number,
+|};
+
+type StructUtxoType = {|
+  ...UtxoType,
+  utxo_id: string,
+  block_num: ?number,
+|};
+
 const structUtxo = (
   receiver: string,
   amount: number,
   utxoHash: string,
   txIndex: number = 0,
   blockNum: ?number = 0,
-) => ({
+): StructUtxoType => ({
   utxo_id: `${utxoHash}${txIndex}`,
   tx_hash: utxoHash,
   tx_index: txIndex,
@@ -35,12 +48,14 @@ const structUtxo = (
    * We don't care about making these non-standard addresses spendable, so any address
    * over 1K characters is just truncated.
 */
-const fixLongAddress = (address: string): string => (address && address.length > 1000
+const fixLongAddress: string => string = (address) => (address && address.length > 1000
   ? `${address.substr(0, 497)}...${address.substr(address.length - 500, 500)}`
   : address)
 
 
-const getTxsUtxos = (txs: Array<TxType>) => txs.reduce((res, tx) => {
+const getTxsUtxos: Array<TxType> => { [key: string]: StructUtxoType, ... } = (
+  txs,
+) => txs.reduce((res, tx) => {
   const { id, outputs, blockNum } = tx
   outputs.forEach((output, index) => {
     const utxo = structUtxo(

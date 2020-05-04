@@ -2,15 +2,9 @@
 
 import ElasticData, { coinFormat } from './elastic-data'
 import type { TxInputType } from '../../blockchain/common'
+import type { UtxoType } from '../../blockchain/common/utils'
 
 const UTXO_OUTPUT_TYPE = 'output'
-
-export type UtxoType = {
-  tx_hash: string,
-  tx_index: number,
-  receiver: string,
-  amount: number,
-}
 
 export const getTxInputUtxoId = (input: TxInputType) => {
   switch (input.type) {

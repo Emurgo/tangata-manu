@@ -10,5 +10,6 @@ export interface RawDataParser {
     blockNum: ?number,
     txOrdinal: ?number,
     txTime: Date,
+    ...,
   }): TxType;
 }

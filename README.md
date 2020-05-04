@@ -5,7 +5,12 @@ Cardano chain data-importer (replacement for the `project-icarus-importer`)
 
 # Abstract
 
-Tangata Manu is a tool to import Cardano blockchain data into an easily usable database storage (e.g. Postgres database). The main goal of the project is to provide the main middle-layer functionality and to allow easy connection for new custom data-storage connectors or data-provider connectors, basically allowing to read blockchain data from any source with an API (for example, different full-node implementations), and export it into any custom storage or database that you can connect.
+Tangata Manu is a tool to import Cardano blockchain data into an easily usable database storage such as:
+
+- Postgres database
+- ElasticSearch
+
+The main goal of the project is to provide the main middle-layer functionality and to allow easy connection for new custom data-storage connectors or data-provider connectors, basically allowing to read blockchain data from any source with an API (for example, different full-node implementations), and export it into any custom storage or database that you can connect.
 
 # We are using Git LFS!
 
@@ -16,10 +21,8 @@ See: [https://git-lfs.github.com/](https://git-lfs.github.com/)
 Affected files:
 - [known-legacy-addresses-byron-mainnet.txt](migrations-shelley/data) (Postgres only)
 
-
 ## Pre-requisites
 
-* NodeJS v12.9.1. We recommend [nvm](https://github.com/creationix/nvm) to install it
 * [Postgres 11.2] (https://www.postgresql.org/) as DB engine. For development purposes we
   suggest using Docker but local installation could be used as well (not both,
   obviously). For Mac, we recommend https://postgresapp.com.
@@ -45,33 +48,34 @@ docker exec -it postgres psql -U postgres;
 create database yoroi_blockchain_importer;
 ```
 
-1.  Clone this repo, `git clone --recursive git@github.com:Emurgo/tangata-manu.git`
-1.  Select correct NodeJs version, `nvm use`
-1.  Install dependencies, `yarn install`
-1.  Init database schema, `yarn run migrate up`
-1.  Start the app, `yarn run dev`.
-
+1. Clone this repo, `git clone --recursive git@github.com:Emurgo/tangata-manu.git`
+1. Select correct NodeJs version, `nvm use`
+1. Install dependencies, `yarn install`
+1. Download genesis data: `git lfs fetch`
 
 ## Create database schema migration
+
 We use [node-pg-migrate](https://github.com/salsita/node-pg-migrate) for migrations. Migrations are located in `migrations/` folder. To create e new one, execute:
-1.  `yarn run migrate create <short> <description>`
+1. `yarn run migrate create <short> <description>`
 
 # Run development environment
 
 ## Run `itn`
+
 1. Start postgres, `docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres`
+1. Init database schema, `yarn run shelley-migrate up`
 1. Run [Jormungandr](https://github.com/input-output-hk/jormungandr) instance with REST API enabled.
 1. Go to `tangata-manu` directory, `cd tangata-manu`
 1. Start the app, `TANGATA_BRIDGE_URL=http://jormun-instance:port/ yarn run dev`.
 
-
 ## Run `mainnet`
+
 1. Start postgres, `docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres`
+1. Init database schema, `yarn run migrate up`
 1. Go to `cardano-http-bridge` directory, `cd cardano-http-bridge`
 1. Run `cardano-http-bridge`, `cargo run --package cardano-http-bridge --bin cardano-http-bridge start --port 8082 --template=mainnet`
 1. Go to `tangata-manu` directory, `cd tangata-manu`
 1. Start the app, `TANGATA_DEFAULT_NETWORK=mainnet yarn run dev`.
-
 
 # Documentation
 

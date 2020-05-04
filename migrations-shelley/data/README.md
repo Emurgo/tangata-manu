@@ -14,6 +14,6 @@ See: [https://git-lfs.github.com/](https://git-lfs.github.com/)
 
 This file contains a dump of all distinct addresses ever used on the Cardano Byron mainnet before the Shelley snapshot.
 
-Shelley network is initialized with the full UTxO snapshot from the Byron network, so all the funds are transferred, but technically it is possible that for some wallet N first addresses were empty and then only address N+1 contained a UTxO, and N is greater than the [address gap limit according to the BIP44 standard](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#Address_gap_limit). In this case a BIP44 wallet would fail to recognise the UTxO.
+Shelley network is initialized with the full UTxO snapshot from the Byron network, so all the funds are transferred, but technically it is possible that for some wallet N first addresses were empty and then only address N+1 contained a UTxO, and N is greater than the [address gap limit according to the BIP44 standard](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#Address_gap_limit). In this case a BIP44 wallet would fail to recognize the UTxO.
 
 To solve this problem we are storing the set of all used legacy addresses, so the wallet can check if any of first 20 addresses were ever used, and see that next 20 must be generated. That way all the UTxOs must be properly detected by their wallets.
