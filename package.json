@@ -65,7 +65,7 @@
     "inversify-restify-utils": "^3.4.0",
     "inversify-vanillajs-helpers": "^2.0.0",
     "js-sha3": "0.8.0",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.19",
     "node-pg-migrate": "^3.16.1",
     "pg": "^7.8.1",
     "reflect-metadata": "^0.1.13",
